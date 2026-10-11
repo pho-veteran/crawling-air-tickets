@@ -1,0 +1,27 @@
+import {loadEnv} from './lib/telegram.mjs';
+import {readFile,writeFile,unlink,mkdir,readdir} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
+import path from 'node:path';
+import vm from 'node:vm';
+import {queryFrom,SOURCE} from './lib/api.mjs';
+import {SOURCE as VJ} from './lib/vietjet.mjs';
+import {settingsFrom} from './lib/alerts.mjs';
+import {readHistory} from './lib/report.mjs';
+import {credentials,telegramCall} from './lib/telegram.mjs';
+const root=path.dirname(fileURLToPath(import.meta.url));
+loadEnv(root);
+try{
+  if(Number(process.versions.node.split('.')[0])<24)throw new Error('Cần Node.js 24+.');
+  const config=JSON.parse(await readFile(path.join(root,'config.json'),'utf8')),query=queryFrom(config);settingsFrom(config.monitoring);
+  const modules=[...(await readdir(root)).filter(x=>x.endsWith('.mjs')),...(await readdir(path.join(root,'lib'))).filter(x=>x.endsWith('.mjs')).map(x=>'lib/'+x)];
+  for(const file of modules){const result=spawnSync(process.execPath,['--check',path.join(root,file)],{stdio:'pipe',windowsHide:true});if(result.status!==0)throw new Error('Lỗi cú pháp: '+file);}
+  const html=await readFile(path.join(root,'templates','report.html'),'utf8');new vm.Script(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
+  for(const folder of ['data','report']){const dir=path.join(root,folder);await mkdir(dir,{recursive:true});const probe=path.join(dir,'.preflight-'+randomUUID());await writeFile(probe,'ok',{flag:'wx'});await unlink(probe);}
+  for(const source of [SOURCE,VJ]){const history=await readHistory(path.join(root,'data','history.jsonl'),query,source);console.log('Lịch sử '+source+': '+history.length+' dòng hợp lệ.');}
+  const tests=spawnSync(process.execPath,['--test'],{cwd:root,stdio:'inherit',windowsHide:true});if(tests.status!==0)throw new Error('Regression test chưa đạt.');
+  const creds=credentials(root);if(!creds.enabled||!creds.configured)throw new Error('Telegram chưa đủ cấu hình/bật.');
+  const me=await telegramCall(creds.token,'getMe');if(!me.is_bot)throw new Error('Token không xác nhận tài khoản bot.');
+  console.log('PREFLIGHT PASS: cấu hình, cú pháp, HTML, quyền ghi, lịch sử, tests và Telegram getMe. Chưa crawl/gửi tin/chạy nền.');
+}catch(e){console.error(e.message);process.exitCode=1;}

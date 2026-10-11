@@ -1,0 +1,37 @@
+RULE SĂN VÉ v1.6 — SGN ⇄ VCL, 04–13/02/2027, 1 NGƯỜI LỚN
+
+Chỉ ngày chính, cả VNA và Vietjet: khứ hồi, đi 04/02, về 13/02.
+Lân cận chỉ trong HTML/history, không có giá/cảnh báo lân cận trên Telegram.
+
+1. Giảm >=1đ so với lần có giá hợp lệ trước; riêng từng đối tượng giá.
+2. Đáy mới từ khi theo dõi hoặc 7 ngày vừa qua: gộp cùng tin giảm giá.
+   Lần đầu chỉ tạo mốc. Đáy quan sát không phải đáy toàn thị trường.
+3. Tổng khứ hồi đạt targetVnd từng hãng; mặc định chưa đặt ngân sách.
+4. Ngày chính có giá trở lại sau lần hợp lệ thiếu giá.
+5. Vietjet có nhãn Eco ở chiều/ngày chính; chưa xác nhận tồn chỗ live.
+6. Nguồn lỗi 3 lượt: một tin; hoạt động lại: một tin.
+7. Bản tin chung + HTML theo .env, mặc định 07:00 UTC+7.
+   Khứ hồi, đi, về, tăng/giảm/không đổi, thấp nhất kèm ngày giờ.
+
+Mỗi sự kiện một tin ngắn, đầy đủ. Cùng hãng/chiều/ngày/mức giá vừa giảm,
+lập đáy, đạt ngân sách: gộp lý do. Đi và về giảm là hai sự kiện riêng.
+Không phát tin tăng đơn thuần, không đổi hoặc chỉ đổi timestamp.
+Chống lặp 24h cùng mức; thấp hơn mới vẫn báo. Outbox bỏ mức cũ khi giá
+tăng lại/mất giá và bỏ alert lân cận còn chờ từ phiên bản trước.
+Gửi cách nhau >=1,1s, lưu xác nhận từng sự kiện. Retry tôn trọng Retry-After.
+Sự kiện đã ACK không gửi lại khi sự kiện kế tiếp lỗi.
+Timeout trước ACK vẫn có thể gây trùng khi retry.
+
+MẪU MINH HỌA — KHÔNG PHẢI GIÁ THẬT
+🎉 Giá vé vừa giảm!
+Vietnam Airlines · Vé đi SGN → VCL · 04/02/2027 · 1 người lớn
+Vé đi hiện là 4.800.000đ
+Giảm 533.181đ (10.0%), trước 5.333.181đ
+🏷 Thấp nhất từ khi theo dõi: 4.800.000đ (07:00 ngày 12/10/2026).
+🕒 07:00 ngày 12/10/2026 · giờ Việt Nam
+ℹ️ Gồm thuế theo nguồn; đây là giá mua riêng.
+Xem biểu đồ: /report
+
+VNA: từng chiều là giá mua riêng, không chia đôi khứ hồi.
+Vietjet: lịch tham khảo trong 24h; chưa rõ thuế/phí, không gồm hành lý ký gửi.
+Không so hai hãng như cùng cơ sở giá. Không tự đặt/giữ chỗ.

@@ -1,0 +1,23 @@
+{
+  "origin": "SGN",
+  "destination": "VCL",
+  "departureDate": "2027-02-04",
+  "returnDate": "2027-02-13",
+  "adults": 1,
+  "retrieval": {
+    "batchSeconds": 90
+  },
+  "monitoring": {
+    "pollMinutes": 25,
+    "dailyReport": true,
+    "mainDropMinVnd": 1,
+    "legDropMinVnd": 1,
+    "rollingWindowDays": 7,
+    "repeatCooldownHours": 24,
+    "errorAfterConsecutive": 3,
+    "targetVnd": {
+      "vna": null,
+      "vietjet": null
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "air-ticket-price-tracker",
+  "version": "1.6.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node run.mjs",
+    "report": "node run.mjs --render-only",
+    "vna": "node run.mjs --airline vna",
+    "vietjet": "node run.mjs --airline vietjet",
+    "watch": "node watch.mjs",
+    "daily": "node daily.mjs",
+    "daily:preview": "node daily.mjs --preview",
+    "preflight": "node preflight.mjs",
+    "telegram:smoke": "node smoke.mjs",
+    "telegram:status": "node telegram.mjs status",
+    "telegram:test": "node telegram.mjs test",
+    "telegram:chat-id": "node telegram.mjs chat-id",
+    "test": "node --test",
+    "telegram:listen": "node bot.mjs",
+    "stop": "node stop.mjs",
+    "quick": "node run.mjs --quick --no-notify"
+  }
+}
