@@ -2,6 +2,9 @@ RULE SĂN VÉ v1.6 — SGN ⇄ VCL, 04–13/02/2027, 1 NGƯỜI LỚN
 
 Chỉ ngày chính, cả VNA và Vietjet: khứ hồi, đi 04/02, về 13/02.
 Lân cận chỉ trong HTML/history, không có giá/cảnh báo lân cận trên Telegram.
+Hiện bật monitoring.priceOnly=true: vòng 25p chỉ gửi sự kiện giá, không gửi
+baseline/đổi nhãn Eco/lỗi/phục hồi nguồn (rule 5–6 chỉ dùng nếu tắt priceOnly).
+Giá không đổi vẫn lưu history nhưng im lặng. Bản tin sáng và slash giữ nguyên.
 
 1. Giảm >=1đ so với lần có giá hợp lệ trước; riêng từng đối tượng giá.
 2. Đáy mới từ khi theo dõi hoặc 7 ngày vừa qua: gộp cùng tin giảm giá.

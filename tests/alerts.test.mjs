@@ -10,6 +10,20 @@ const settings=settingsFrom(),provider={id:'vna',name:'Vietnam Airlines',source:
 const query={origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDate:'2027-02-13',adults:1};
 function snapshot(n,price=5000000,min=4000000){return {source:provider.source,query_id:'test',query,status:'ok',observed_at:new Date(Date.UTC(2026,9,11,0,n)).toISOString(),main_price:price,minimum_price:min,cells:[{depart:query.departureDate,return:query.returnDate,price},{depart:'2027-02-05',return:'2027-02-15',price:min}]};}
 const evaluate=(r,h=[],s={initialized:true})=>evaluateAlerts(provider,r,h,s,settings);
+
+test('price-only polling is silent on baseline, unchanged, Eco and health; a genuine drop sends once',async()=>{
+  const root=await mkdtemp(path.join(os.tmpdir(),'fare-quiet-test-')),creds={token:'123:TEST',chatId:'456',configured:true,enabled:true};
+  const quiet=settingsFrom({priceOnly:true,targetVnd:{vna:6000000}}),messages=[];
+  const call=(r,h,now)=>notifyRecord({root,provider,record:r,history:h,settings:quiet,creds,now,send:async(c,t)=>{messages.push(t);return messages.length;}});
+  const a=snapshot(0),b=snapshot(25);a.legs={outbound:[{date:query.departureDate,price:2000000,fare_family:'SkyBoss'}]};b.legs={outbound:[{date:query.departureDate,price:2000000,fare_family:'Eco'}]};
+  assert.equal((await call(a,[],0)).status,'unchanged');
+  assert.equal((await call(b,[a],1500000)).status,'unchanged');
+  const errors=[50,75,100].map(n=>({...snapshot(n),status:'error',main_price:null,cells:[]}));
+  for(let i=0;i<errors.length;i++)assert.equal((await call(errors[i],[a,b,...errors.slice(0,i)],(i+2)*1500000)).status,'unchanged');
+  const recovered=snapshot(125);assert.equal((await call(recovered,[a,b,...errors],7500000)).status,'unchanged');assert.equal(messages.length,0);
+  const drop=snapshot(150,4500000);assert.equal((await call(drop,[a,b,...errors,recovered],9000000)).status,'sent');
+  assert.equal((await call(snapshot(175,4500000),[a,drop],10500000)).status,'unchanged');assert.equal(messages.length,1);assert.match(messages[0],/Giảm 500.000đ/);
+});
 test('baseline, unchanged, one-dong drop and genuine lows',()=>{
   const a=snapshot(0),b=snapshot(25),c=snapshot(50,4999999);
   assert.ok(evaluate(a,[],{}).some(e=>e.key==='baseline'));

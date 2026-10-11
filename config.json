@@ -10,6 +10,7 @@
   "monitoring": {
     "pollMinutes": 25,
     "dailyReport": true,
+    "priceOnly": true,
     "mainDropMinVnd": 1,
     "legDropMinVnd": 1,
     "rollingWindowDays": 7,

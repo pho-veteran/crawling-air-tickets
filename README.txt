@@ -62,6 +62,9 @@ ghi GIÁ CŨ. Text và HTML cùng snapshot; retry HTML không gửi lại text �
 Chu kỳ 25p xét riêng khứ hồi, đi, về NGÀY CHÍNH cho cả hai hãng.
 Mỗi sự kiện một tin ngắn; cùng giá vừa giảm vừa lập đáy gộp một tin.
 Tăng đơn thuần/không đổi im lặng. Chi tiết trong RULES.txt.
+monitoring.priceOnly=true: vòng 25p không gửi tin khởi động, đổi nhãn Eco,
+lỗi/phục hồi nguồn. Kiểm tra sức khỏe qua /status và log; chỉ giữ cảnh báo giá.
+Thu thập/lưu lịch sử vẫn chạy khi giá không đổi. Bản tin sáng giữ nguyên.
 
 NGUỒN GIÁ
 VNA: fare-matrix cho khứ hồi; air-best-price không tripDuration cho giá mua
