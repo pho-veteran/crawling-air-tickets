@@ -4,4 +4,3 @@ node_modules
 .git
 .env
 .env.*
-tests

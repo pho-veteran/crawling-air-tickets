@@ -1,10 +1,16 @@
 import {readFile,writeFile,rename,mkdir,open,unlink} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
-import {credentials,sendTelegram,sendDocument} from './telegram.mjs';
-import {makeReport} from './context.mjs';
+import {credentials,sendTelegram,sendDocument} from '../telegram/client.mjs';
+import {makeReport} from '../reporting/context.mjs';
 import {formatDaily,localDay,morningAt} from './messages.mjs';
-export async function sendDaily({root,providers,query,settings,now=Date.now(),creds=credentials(root),send=sendTelegram,attach=sendDocument,report=makeReport}){
+import {broadcast} from '../telegram/broadcast.mjs';
+export async function sendDaily(options){
+  const creds=options.creds??credentials(options.root),now=options.now??Date.now();
+  if(options.creds?.chatId||!creds.configured||!creds.enabled||!options.settings.dailyReport||now<morningAt(now,options.settings))return sendRecipient({...options,creds,now});
+  return broadcast({root:options.root,creds,now,sleep:options.sleep,deliver:recipient=>sendRecipient({...options,creds:recipient,now})});
+}
+async function sendRecipient({root,providers,query,settings,now,creds,send=sendTelegram,attach=sendDocument,report=makeReport}){
   if(!settings.dailyReport)return {status:'disabled'};
   if(now<morningAt(now,settings))return {status:'not_due'};
   const dir=path.join(root,'data');await mkdir(dir,{recursive:true});
@@ -27,7 +33,7 @@ export async function sendDaily({root,providers,query,settings,now=Date.now(),cr
       if(!entry.messageId){entry.messageId=await send(creds,message);await save();}
       if(!entry.reportId){entry.reportId=await attach(creds,entry.reportFile,'📊 Báo cáo sáng của bạn đây! Mở HTML để xem biểu đồ và giá các ngày lân cận nhé.');await save();}
     }
-    catch(e){entry.attempts++;const wait=Math.max(300,Math.min(21600,300*2**Math.min(entry.attempts-1,7)),e.retryAfter||0);entry.nextAttemptAt=now+wait*1000;await save();return {status:'send_failed',retryAfterSeconds:wait};}
+    catch(e){entry.attempts++;const wait=Math.max(300,Math.min(21600,300*2**Math.min(entry.attempts-1,7)),e.retryAfter||0);entry.nextAttemptAt=now+wait*1000;await save();return {status:'send_failed',retryAfterSeconds:wait,blocked:e.apiCode===403||e.httpStatus===403,rateLimited:e.apiCode===429||e.httpStatus===429};}
     entry.sent=true;entry.sent_at=new Date(now).toISOString();entry.attempts=0;entry.nextAttemptAt=0;await save();
     return {status:'sent',day,messageId:entry.messageId};
   }finally{await lock.close();await unlink(lockFile);}

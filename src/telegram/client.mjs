@@ -1,7 +1,7 @@
 import {loadEnvFile} from 'node:process';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
-import {messageEntities} from './messages.mjs';
+import {messageEntities} from '../monitoring/messages.mjs';
 import {readFile,stat} from 'node:fs/promises';
 
 export function loadEnv(root){
@@ -10,11 +10,11 @@ export function loadEnv(root){
 export function credentials(root) {
   loadEnv(root);
   const token=process.env.TELEGRAM_BOT_TOKEN?.trim(),chatId=process.env.TELEGRAM_CHAT_ID?.trim();
-  return {token,chatId,enabled:process.env.TELEGRAM_ENABLED!=='false',configured:!!(token&&chatId)};
+  return {token,chatId,enabled:process.env.TELEGRAM_ENABLED!=='false',configured:!!token};
 }
 export async function telegramCall(token,method,body={},fetchImpl=fetch) {
   if(!/^\d+:[A-Za-z0-9_-]+$/.test(token||''))throw new Error('TELEGRAM_TOKEN_INVALID: kiểm tra token trong .env.');
-  if(!['sendMessage','sendDocument','getMe','getUpdates','setMyCommands'].includes(method))throw new Error('Telegram method không được hỗ trợ.');
+  if(!['sendMessage','sendDocument','getMe','getUpdates','getWebhookInfo','setMyCommands'].includes(method))throw new Error('Telegram method không được hỗ trợ.');
   let response,data;
   try {
     const multipart=body instanceof FormData;
@@ -23,11 +23,11 @@ export async function telegramCall(token,method,body={},fetchImpl=fetch) {
     data=await response.json();
   }catch{throw new Error('TELEGRAM_NETWORK: chưa xác nhận gửi thành công; sẽ thử lại sau.');}
   if(!response.ok||data.ok!==true){const error=new Error('TELEGRAM_HTTP_'+response.status+' (API '+(Number(data.error_code)||'unknown')+').');
-    error.retryAfter=Math.max(0,Math.min(86400,Number(data.parameters?.retry_after)||0));throw error;}
+    error.retryAfter=Math.max(0,Math.min(86400,Number(data.parameters?.retry_after)||0));error.httpStatus=response.status;error.apiCode=Number(data.error_code)||0;throw error;}
   return data.result;
 }
 export async function sendDocument(creds,file,caption='📎 Báo cáo giá vé · HTML mở offline',fetchImpl=fetch){
-  if(!creds.configured||!creds.enabled)throw new Error('Telegram chưa được cấu hình/bật.');
+  if(!creds.configured||!creds.enabled||!creds.chatId)throw new Error('Telegram chưa được cấu hình/bật hoặc chưa có người nhận.');
   const info=await stat(file);if(info.size>40*1024*1024)throw new Error('REPORT_TOO_LARGE: HTML vượt 40 MiB.');
   const form=new FormData();form.set('chat_id',creds.chatId);form.set('caption',caption);form.set('caption_entities',JSON.stringify(messageEntities(caption)));
   form.set('document',new Blob([await readFile(file)],{type:'text/html'}),'flight-fare-report.html');
@@ -41,7 +41,7 @@ export function messageParts(text){
   if(rest)parts.push(rest);return parts;
 }
 export async function sendTelegram(creds,text,fetchImpl=fetch) {
-  if(!creds.configured||!creds.enabled)throw new Error('Telegram chưa được cấu hình/bật.');
+  if(!creds.configured||!creds.enabled||!creds.chatId)throw new Error('Telegram chưa được cấu hình/bật hoặc chưa có người nhận.');
   let messageId;
   for(const part of messageParts(text)){
   if(messageId!==undefined)await delay(1100);

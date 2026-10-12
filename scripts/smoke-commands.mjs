@@ -1,15 +1,19 @@
 // Explicit live smoke: real quotes, real Telegram deliveries; no fabricated history.
-import {fileURLToPath} from 'node:url';
 import path from 'node:path';
+import {projectRoot} from '../src/shared/paths.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
-import {credentials,sendTelegram,sendDocument} from './lib/telegram.mjs';
-import {handleCommand} from './lib/commands.mjs';
-import {loadContext,makeReport} from './lib/context.mjs';
-import {formatDaily} from './lib/messages.mjs';
-const root=path.dirname(fileURLToPath(import.meta.url));
-if(!process.argv.includes('--send')){console.log('Dùng --send để crawl nhanh 1 lượt và gửi smoke /help /status /price /report + bản tin sáng kèm HTML.');process.exit(0);}
-const creds=credentials(root),state={},results=[],acks=[];
+import {parseArgs} from 'node:util';
+import {credentials,sendTelegram,sendDocument} from '../src/telegram/client.mjs';
+import {handleCommand} from '../src/telegram/commands.mjs';
+import {loadContext,makeReport} from '../src/reporting/context.mjs';
+import {formatDaily} from '../src/monitoring/messages.mjs';
+import {privateChatId} from '../src/telegram/subscribers.mjs';
+const root=projectRoot;
+const {values}=parseArgs({options:{send:{type:'boolean',default:false},'chat-id':{type:'string'}}});
+if(!values.send){console.log('Dùng --send --chat-id <private chat ID> để crawl nhanh 1 lượt và gửi smoke /help /status /price /report + bản tin sáng kèm HTML.');process.exit(0);}
+const base=credentials(root),creds={...base,chatId:values['chat-id']||base.chatId},state={},results=[],acks=[];
+if(!privateChatId(creds.chatId))throw new Error('Smoke cần --chat-id <private chat ID> để gửi riêng cho người kiểm tra.');
 const send=async(c,text)=>{const id=await sendTelegram(c,'🧪 Kiểm tra tính năng bot · dữ liệu giá thật\n\n'+text);acks.push({type:'text',id});await delay(1200);return id;};
 const attach=async(c,file,caption)=>{const id=await sendDocument(c,file,'🧪 Kiểm tra gửi HTML\n'+caption);acks.push({type:'document',id});await delay(1200);return id;};
 try{

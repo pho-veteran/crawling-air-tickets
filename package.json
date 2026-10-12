@@ -7,21 +7,22 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "node run.mjs",
-    "report": "node run.mjs --render-only",
-    "vna": "node run.mjs --airline vna",
-    "vietjet": "node run.mjs --airline vietjet",
-    "watch": "node watch.mjs",
-    "daily": "node daily.mjs",
-    "daily:preview": "node daily.mjs --preview",
-    "preflight": "node preflight.mjs",
-    "telegram:smoke": "node smoke.mjs",
-    "telegram:status": "node telegram.mjs status",
-    "telegram:test": "node telegram.mjs test",
-    "telegram:chat-id": "node telegram.mjs chat-id",
+    "start": "node src/cli/run.mjs",
+    "report": "node src/cli/run.mjs --render-only",
+    "vna": "node src/cli/run.mjs --airline vna",
+    "vietjet": "node src/cli/run.mjs --airline vietjet",
+    "watch": "node src/cli/watch.mjs",
+    "daily": "node src/cli/daily.mjs",
+    "daily:preview": "node src/cli/daily.mjs --preview",
+    "preflight": "node scripts/preflight.mjs",
+    "telegram:smoke": "node scripts/smoke.mjs",
+    "telegram:status": "node src/cli/telegram.mjs status",
+    "telegram:test": "node src/cli/telegram.mjs test",
+    "telegram:chat-id": "node src/cli/telegram.mjs chat-id",
     "test": "node --test",
-    "telegram:listen": "node bot.mjs",
-    "stop": "node stop.mjs",
-    "quick": "node run.mjs --quick --no-notify"
+    "telegram:listen": "node src/cli/bot.mjs",
+    "stop": "node src/cli/stop.mjs",
+    "quick": "node src/cli/run.mjs --quick --no-notify",
+    "telegram:smoke-commands": "node scripts/smoke-commands.mjs"
   }
 }

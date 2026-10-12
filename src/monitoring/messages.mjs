@@ -20,9 +20,10 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=25,setti
     if(last?.status==='error'||stale)lines.push('⚠️ GIÁ CŨ — mình chưa cập nhật được, lần gần nhất là '+when(r.observed_at));
     else if(r.status==='partial')lines.push('⚠️ Lần này chưa lấy đủ giá; những mục còn thiếu sẽ được ghi rõ bên dưới.');
     lines.push((p.id==='vna'?'🎟 Vé khứ hồi hiện là ':'🎟 Cộng vé đi và về hiện là ')+money(r.main_price)+' · '+change(r.main_price,previous?.main_price));
-    for(const [leg,date,label] of [['outbound',query.departureDate,'🛫 Đi'],['inbound',query.returnDate,'🛬 Về']]){
+    for(const [leg,date,label,from,to] of [['outbound',query.departureDate,'🛫 Vé đi',query.origin,query.destination],['inbound',query.returnDate,'🛬 Vé về',query.destination,query.origin]]){
       const quote=r.legs?.[leg]?.find(x=>x.date===date),before=previous?.legs?.[leg]?.find(x=>x.date===date);
-      lines.push(label+' '+day(date)+': '+money(quote?.price)+' · '+change(quote?.price,before?.price));
+      lines.push(label+' '+from+' → '+to+' · '+day(date)+'/'+date.slice(0,4)+': '+money(quote?.price)+' · '+change(quote?.price,before?.price));
+      if(!priced(quote?.price)&&r.leg_errors?.[leg])lines.push('⚠️ Chưa cập nhật được giá '+(leg==='outbound'?'chiều đi':'chiều về')+' ở lượt này.');
     }
     const priorPrices=good.filter(x=>priced(x.main_price));
     if(priorPrices.length){const low=priorPrices.reduce((a,b)=>a.main_price<=b.main_price?a:b);lines.push('🏷 Từ khi theo dõi, giá thấp nhất là '+money(low.main_price)+', ghi nhận lúc '+when(low.observed_at)+'.');}

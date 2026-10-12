@@ -1,13 +1,13 @@
 import {writeFileSync} from 'node:fs';
-import {loadEnv,credentials} from './lib/telegram.mjs';
+import {loadEnv,credentials} from '../telegram/client.mjs';
 import {readFile,mkdir,open,unlink,access} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
 import path from 'node:path';
+import {projectRoot,cliPath} from '../shared/paths.mjs';
 import {setTimeout as delay} from 'node:timers/promises';
-import {settingsFrom} from './lib/alerts.mjs';
-import {nextMorning,morningAt} from './lib/messages.mjs';
-const root=path.dirname(fileURLToPath(import.meta.url));
+import {settingsFrom} from '../monitoring/alerts.mjs';
+import {nextMorning,morningAt} from '../monitoring/messages.mjs';
+const root=projectRoot;
 loadEnv(root);
 const settings=settingsFrom(JSON.parse(await readFile(path.join(root,'config.json'),'utf8')).monitoring);
 const lockFile=path.join(root,'data','watch.lock');
@@ -22,7 +22,7 @@ const stop=()=>{stopping=true;writeFileSync(stopFile,'stop');controller.abort();
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,stop);
 console.log('Theo dõi mỗi '+settings.pollMinutes+' phút; bản tin chung '+settings.dailyTime+' UTC'+settings.dailyUtcOffset+': '+settings.dailyReport+'. Ctrl+C để dừng.');
 const run=file=>new Promise((resolve,reject)=>{
-  const child=spawn(process.execPath,[path.join(root,file)],{cwd:root,stdio:'inherit',windowsHide:true,env:{...process.env,TRACKER_MANAGED:'1'}});
+  const child=spawn(process.execPath,[cliPath(file,root)],{cwd:root,stdio:'inherit',windowsHide:true,env:{...process.env,TRACKER_MANAGED:'1'}});
   children.add(child);child.once('error',e=>{children.delete(child);reject(e);});child.once('exit',code=>{children.delete(child);resolve(code);});
 });
 async function wait(ms){const end=Date.now()+ms;while(!stopping&&Date.now()<end){try{await access(stopFile);stop();break;}catch(e){if(e.code!=='ENOENT')throw e;}try{await delay(Math.max(1,Math.min(1000,end-Date.now())),null,{signal:controller.signal});}catch(e){if(e.name!=='AbortError')throw e;}}}

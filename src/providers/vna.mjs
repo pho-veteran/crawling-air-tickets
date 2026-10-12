@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {configureTLS} from './tls.mjs';
+import {configureTLS} from '../shared/tls.mjs';
 import {fetchOneWay,ENDPOINT as ONEWAY_ENDPOINT} from './vna-oneway.mjs';
 
 export const SOURCE='vna-fare-matrix-v1';

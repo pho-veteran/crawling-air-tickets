@@ -2,11 +2,17 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
-import {credentials,sendTelegram} from './telegram.mjs';
+import {credentials,sendTelegram} from '../telegram/client.mjs';
 import {evaluateAlerts,stillRelevant,formatAlert,alertGroups} from './alerts.mjs';
+import {broadcast} from '../telegram/broadcast.mjs';
 
 async function save(file,value){await writeFile(file+'.tmp',JSON.stringify(value,null,2));await rename(file+'.tmp',file);}
-export async function notifyRecord({root,provider,record,history,settings,creds=credentials(root),send=sendTelegram,now=Date.now()}) {
+export async function notifyRecord(options) {
+  const creds=options.creds??credentials(options.root),now=options.now??Date.now();
+  if(options.creds?.chatId||!creds.configured||!creds.enabled)return notifyRecipient({...options,creds,now});
+  return broadcast({root:options.root,creds,now,sleep:options.sleep,deliver:recipient=>notifyRecipient({...options,creds:recipient,now})});
+}
+async function notifyRecipient({root,provider,record,history,settings,creds,send=sendTelegram,now}) {
   const dir=path.join(root,'data'),file=path.join(dir,'notification-state.json');
   await mkdir(dir,{recursive:true});
   let db={schema:1,accounts:{}};
@@ -40,7 +46,8 @@ export async function notifyRecord({root,provider,record,history,settings,creds=
     const seconds=Math.max(60,Math.min(21600,60*2**Math.min(state.attempts-1,9)),e.retryAfter||0);
     state.nextAttemptAt=now+seconds*1000;await save(file,db);
     const code=/^TELEGRAM_[A-Z_0-9]+/.exec(String(e.message))?.[0]||'TELEGRAM_SEND_FAILED';
-    return {status:'send_failed',code,events:state.pending.length,retryAfterSeconds:seconds};
+    return {status:'send_failed',code,events:state.pending.length,retryAfterSeconds:seconds,
+      blocked:e.apiCode===403||e.httpStatus===403,rateLimited:e.apiCode===429||e.httpStatus===429};
   }
   for(const e of state.pending){state.sent[e.key]=now;if(e.key==='baseline')state.initialized=true;if(e.key==='error')state.incidentOpen=true;}
   state.pending=[];state.attempts=0;state.nextAttemptAt=0;await save(file,db);

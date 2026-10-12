@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {mkdtemp,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {evaluateAlerts,settingsFrom,stillRelevant,formatAlert} from '../lib/alerts.mjs';
-import {notifyRecord} from '../lib/notify.mjs';
-import {telegramCall} from '../lib/telegram.mjs';
+import {evaluateAlerts,settingsFrom,stillRelevant,formatAlert} from '../src/monitoring/alerts.mjs';
+import {notifyRecord} from '../src/monitoring/notify.mjs';
+import {telegramCall} from '../src/telegram/client.mjs';
 const settings=settingsFrom(),provider={id:'vna',name:'Vietnam Airlines',source:'test-vna'};
 const query={origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDate:'2027-02-13',adults:1};
 function snapshot(n,price=5000000,min=4000000){return {source:provider.source,query_id:'test',query,status:'ok',observed_at:new Date(Date.UTC(2026,9,11,0,n)).toISOString(),main_price:price,minimum_price:min,cells:[{depart:query.departureDate,return:query.returnDate,price},{depart:'2027-02-05',return:'2027-02-15',price:min}]};}

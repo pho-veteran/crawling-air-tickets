@@ -1,4 +1,4 @@
-import {dateRange,queryId} from './api.mjs';
+import {dateRange,queryId} from './vna.mjs';
 
 export const SOURCE='vietjet-public-calendar-v1';
 const SLUGS={SGN:'tp-ho-chi-minh',VCL:'chu-lai'};
@@ -48,18 +48,23 @@ async function getCalendar(from,to,dates,fetchImpl) {
 }
 export async function crawl(query,{fetchImpl=fetch}={}) {
   if(query.adults!==1)throw new Error('Vietjet: nguồn lịch tham khảo hiện chỉ hỗ trợ 1 người lớn; không nhân giá để suy diễn tồn chỗ.');
-  let requests=0;const start=Date.now();
-  try {
-    requests++;const out=await getCalendar(query.origin,query.destination,dateRange(query.departureDate),fetchImpl);
-    requests++;const back=await getCalendar(query.destination,query.origin,dateRange(query.returnDate),fetchImpl);
-    const cells=out.dates.flatMap(d=>back.dates.map(r=>({depart:d.date,return:r.date,
-      state:d.price===null||r.price===null?'unknown':'available',price:d.price===null||r.price===null?null:d.price+r.price})));
-    const prices=cells.filter(c=>c.price!==null).map(c=>c.price);
-    return {schema:1,source:SOURCE,query_id:queryId(query,SOURCE),query,observed_at:new Date().toISOString(),
-      status:prices.length===49?'ok':'partial',currency:'VND',price_basis:'sum-of-public-oneway-quotes',
-      main_price:cells.find(c=>c.depart===query.departureDate&&c.return===query.returnDate)?.price??null,
-      minimum_price:prices.length?Math.min(...prices):null,cells,legs:{outbound:out.dates,inbound:back.dates},
-      source_pages:[out.page,back.page],source_window_hours:24,taxes_included:null,
-      requests,duration_ms:Date.now()-start,response_bytes:out.bytes+back.bytes};
-  }catch(error){error.requests=requests;throw error;}
+  pagePath(query.origin,query.destination);pagePath(query.destination,query.origin);
+  let requests=0;const start=Date.now(),results={},legErrors={};
+  // Keep a successful direction even if the other request fails; never infer its price.
+  for(const [leg,from,to,date] of [['outbound',query.origin,query.destination,query.departureDate],['inbound',query.destination,query.origin,query.returnDate]]){
+    try{requests++;results[leg]=await getCalendar(from,to,dateRange(date),fetchImpl);}
+    catch(error){legErrors[leg]=String(error.message).slice(0,250);}
+  }
+  if(!Object.keys(results).length){const error=new Error('Vietjet: '+Object.entries(legErrors).map(([leg,message])=>leg+': '+message).join(' · '));error.requests=requests;throw error;}
+  const missing=date=>dateRange(date).map(date=>({date,price:null,fare_family:null}));
+  const out=results.outbound?.dates??missing(query.departureDate),back=results.inbound?.dates??missing(query.returnDate);
+  const cells=out.flatMap(d=>back.map(r=>({depart:d.date,return:r.date,
+    state:d.price===null||r.price===null?'unknown':'available',price:d.price===null||r.price===null?null:d.price+r.price})));
+  const prices=cells.filter(c=>c.price!==null).map(c=>c.price);
+  return {schema:1,source:SOURCE,query_id:queryId(query,SOURCE),query,observed_at:new Date().toISOString(),
+    status:prices.length===49?'ok':'partial',currency:'VND',price_basis:'sum-of-public-oneway-quotes',
+    main_price:cells.find(c=>c.depart===query.departureDate&&c.return===query.returnDate)?.price??null,
+    minimum_price:prices.length?Math.min(...prices):null,cells,legs:{outbound:out,inbound:back},leg_errors:legErrors,
+    source_pages:Object.values(results).map(result=>result.page),source_window_hours:24,taxes_included:null,
+    requests,duration_ms:Date.now()-start,response_bytes:Object.values(results).reduce((sum,result)=>sum+result.bytes,0)};
 }

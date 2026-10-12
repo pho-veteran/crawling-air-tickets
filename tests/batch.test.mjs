@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {createBatch} from '../lib/batch.mjs';
-import {normalizeOneWay,oneWayRequest} from '../lib/vna-oneway.mjs';
+import {createBatch} from '../src/shared/batch.mjs';
+import {normalizeOneWay,oneWayRequest} from '../src/providers/vna-oneway.mjs';
 const temp=()=>mkdtemp(path.join(os.tmpdir(),'fare-batch-test-'));
 test('five requests are spaced 18s and batch finishes at 90s without real sleep',async()=>{
   let clock=0;const starts=[],root=await temp();

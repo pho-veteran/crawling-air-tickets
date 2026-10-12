@@ -1,5 +1,5 @@
-import {evaluateAlerts,formatAlert,settingsFrom,alertGroups} from './alerts.mjs';
-import {formatDaily} from './messages.mjs';
+import {evaluateAlerts,formatAlert,settingsFrom,alertGroups} from '../../src/monitoring/alerts.mjs';
+import {formatDaily} from '../../src/monitoring/messages.mjs';
 const q={origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDate:'2027-02-13',adults:1};
 const vna={id:'vna',name:'Vietnam Airlines',source:'vna-fare-matrix-v1'},vj={id:'vietjet',name:'Vietjet',source:'vietjet-public-calendar-v1'};
 export function smokeCases(now=Date.now()){

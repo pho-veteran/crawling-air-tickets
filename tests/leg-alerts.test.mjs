@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {mkdtemp} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {evaluateAlerts,settingsFrom,stillRelevant,formatAlert} from '../lib/alerts.mjs';
-import {notifyRecord} from '../lib/notify.mjs';
-import {messageParts,sendTelegram} from '../lib/telegram.mjs';
+import {evaluateAlerts,settingsFrom,stillRelevant,formatAlert} from '../src/monitoring/alerts.mjs';
+import {notifyRecord} from '../src/monitoring/notify.mjs';
+import {messageParts,sendTelegram} from '../src/telegram/client.mjs';
 const provider={id:'vna',name:'Vietnam Airlines',source:'vna-fare-matrix-v1'},settings=settingsFrom();
 const q={origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDate:'2027-02-13',adults:1};
 const record=(at,out=3000000,back=4000000)=>({source:provider.source,legs_source:'vna-air-best-price-oneway-v1',query_id:'test-legs',query:q,status:'ok',observed_at:at,main_price:6500000,minimum_price:6500000,

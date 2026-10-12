@@ -2,7 +2,7 @@ import {createReadStream} from 'node:fs';
 import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {createInterface} from 'node:readline';
 import path from 'node:path';
-import {queryId,SOURCE} from './api.mjs';
+import {queryId,SOURCE} from '../providers/vna.mjs';
 
 export async function readHistory(file,query,source=SOURCE) {
   const records=[];

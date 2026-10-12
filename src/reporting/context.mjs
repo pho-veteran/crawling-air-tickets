@@ -1,9 +1,9 @@
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
-import {queryFrom,SOURCE} from './api.mjs';
-import {SOURCE as VJ} from './vietjet.mjs';
+import {queryFrom,SOURCE} from '../providers/vna.mjs';
+import {SOURCE as VJ} from '../providers/vietjet.mjs';
 import {readHistory,writeReport} from './report.mjs';
-import {settingsFrom} from './alerts.mjs';
+import {settingsFrom} from '../monitoring/alerts.mjs';
 export async function loadContext(root){
   const config=JSON.parse(await readFile(path.join(root,'config.json'),'utf8'));
   const query=queryFrom(config),settings=settingsFrom(config.monitoring);

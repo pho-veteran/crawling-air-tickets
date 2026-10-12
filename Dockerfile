@@ -1,9 +1,11 @@
 FROM node:24-bookworm-slim
 WORKDIR /app
-COPY config.json run.mjs watch.mjs telegram.mjs daily.mjs bot.mjs stop.mjs ./
-COPY lib ./lib
+COPY package.json config.json ./
+COPY src ./src
+COPY scripts ./scripts
+COPY tests ./tests
 COPY templates ./templates
 RUN mkdir data report && chown -R node:node data report
 USER node
 ENTRYPOINT ["node"]
-CMD ["watch.mjs"]
+CMD ["src/cli/watch.mjs"]

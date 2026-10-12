@@ -1,15 +1,15 @@
-import {loadEnv} from './lib/telegram.mjs';
+import {loadEnv} from '../telegram/client.mjs';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-import {fileURLToPath} from 'node:url';
 import path from 'node:path';
+import {projectRoot} from '../shared/paths.mjs';
 import {parseArgs} from 'node:util';
-import {queryFrom,SOURCE} from './lib/api.mjs';
-import {SOURCE as VIETJET_SOURCE} from './lib/vietjet.mjs';
-import {readHistory} from './lib/report.mjs';
-import {settingsFrom} from './lib/alerts.mjs';
-import {formatDaily} from './lib/messages.mjs';
-import {sendDaily} from './lib/daily.mjs';
-const root=path.dirname(fileURLToPath(import.meta.url));
+import {queryFrom,SOURCE} from '../providers/vna.mjs';
+import {SOURCE as VIETJET_SOURCE} from '../providers/vietjet.mjs';
+import {readHistory} from '../reporting/report.mjs';
+import {settingsFrom} from '../monitoring/alerts.mjs';
+import {formatDaily} from '../monitoring/messages.mjs';
+import {sendDaily} from '../monitoring/daily.mjs';
+const root=projectRoot;
 loadEnv(root);
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{});
 try{
