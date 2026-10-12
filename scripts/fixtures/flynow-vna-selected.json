@@ -1,0 +1,103 @@
+{
+  "Status": true,
+  "ListFareData": [
+    {
+      "Airline": "VN",
+      "Itinerary": 1,
+      "Currency": "VND",
+      "System": "EVN",
+      "Adt": 1,
+      "Chd": 0,
+      "Inf": 0,
+      "FareAdt": 4199000,
+      "TaxAdt": 903181,
+      "ServiceFeeAdt": 50000,
+      "PriceAdt": 5152181,
+      "TotalFare": 4199000,
+      "TotalTax": 903181,
+      "TotalServiceFee": 50000,
+      "TotalAirlineDiscount": 0,
+      "TotalAgentDiscount": 0,
+      "TotalPrice": 5152181,
+      "ListOption": [
+        {
+          "ListFlight": [
+            {
+              "Leg": 0,
+              "Airline": "VN",
+              "Operating": "VN",
+              "StartPoint": "SGN",
+              "EndPoint": "VCL",
+              "StartDate": "2027-02-04T15:50:00",
+              "EndDate": "2027-02-04T17:15:00",
+              "FlightNumber": "VN1468",
+              "StopNum": 0,
+              "ListSegment": [
+                {
+                  "Status": "OK",
+                  "SeatAvl": 1,
+                  "FareBasis": "JHVNF",
+                  "FareType": "",
+                  "Class": "J",
+                  "Cabin": "BUSINESS",
+                  "CabinName": "BUSINESS",
+                  "AllowanceBaggage": "1 Kiện x 32 KG",
+                  "HandBaggage": "18 KG"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Airline": "VN",
+      "Itinerary": 2,
+      "Currency": "VND",
+      "System": "EVN",
+      "Adt": 1,
+      "Chd": 0,
+      "Inf": 0,
+      "FareAdt": 4199000,
+      "TaxAdt": 883181,
+      "ServiceFeeAdt": 50000,
+      "PriceAdt": 5132181,
+      "TotalFare": 4199000,
+      "TotalTax": 883181,
+      "TotalServiceFee": 50000,
+      "TotalAirlineDiscount": 0,
+      "TotalAgentDiscount": 0,
+      "TotalPrice": 5132181,
+      "ListOption": [
+        {
+          "ListFlight": [
+            {
+              "Leg": 1,
+              "Airline": "VN",
+              "Operating": "VN",
+              "StartPoint": "VCL",
+              "EndPoint": "SGN",
+              "StartDate": "2027-02-13T17:50:00",
+              "EndDate": "2027-02-13T19:10:00",
+              "FlightNumber": "VN1469",
+              "StopNum": 0,
+              "ListSegment": [
+                {
+                  "Status": "OK",
+                  "SeatAvl": 7,
+                  "FareBasis": "JHVNF",
+                  "FareType": "",
+                  "Class": "J",
+                  "Cabin": "BUSINESS",
+                  "CabinName": "BUSINESS",
+                  "AllowanceBaggage": "1 Kiện x 32 KG",
+                  "HandBaggage": "18 KG"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

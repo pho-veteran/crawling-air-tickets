@@ -21,7 +21,7 @@ const creds = {token: '123:TEST', chatId: '456', enabled: true, configured: true
 async function snapshot(options = {}, observedAt = '2026-10-12T06:50:00+07:00') {
   const source = simulatedFlynow(query, options);
   const record = await crawl(query, {fetchImpl: source.fetch});
-  assert.equal(source.requests.length, 7);
+  assert.equal(source.requests.length, 1);
   record.observed_at = observedAt;
   for (const leg of Object.values(record.legs)) for (const quote of leg) quote.observed_at = observedAt;
   return record;
@@ -40,7 +40,7 @@ test('Vietjet OTA searches preserve normalized leg prices and their roundtrip su
   assert.equal(record.main_price, 4200000);
   assert.equal(record.legs.outbound.find(x => x.date === query.departureDate).price, 1800000);
   assert.equal(record.legs.inbound.find(x => x.date === query.returnDate).price, 2400000);
-  assert.equal(record.cells.length, 49);
+  assert.equal(record.cells.length, 1);
   assertLegLines(formatDaily({providers: [{...provider, history: [record]}], query, now}));
 });
 
@@ -61,8 +61,8 @@ for (const failLeg of ['outbound', 'inbound']) {
 
 test('Vietjet reports an error when neither direction can be fetched', async () => {
   const source = simulatedFlynow(query, {failLeg: 'both'});
-  await assert.rejects(crawl(query, {fetchImpl: source.fetch}), error => error.requests === 7 && /503/.test(error.message));
-  assert.equal(source.requests.length, 7);
+  await assert.rejects(crawl(query, {fetchImpl: source.fetch}), error => error.requests === 1 && /503/.test(error.message));
+  assert.equal(source.requests.length, 1);
 });
 
 test('older Vietjet history without leg quotes never derives each direction by splitting the total', async () => {

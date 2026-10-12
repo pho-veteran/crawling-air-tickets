@@ -1,0 +1,1100 @@
+{
+  "worker_url": "https://crawling-air-tickets-spike.thanhvinhlqt2016.workers.dev",
+  "version": "d40ff587-078c-4aa2-afc8-6bad6346600e",
+  "official_vna_worker": {
+    "http_status": 200,
+    "result": {
+      "run_id": "2d0e1534-0c49-4754-8739-2e33dd460409",
+      "observed_at": "2026-10-12T23:39:17.356Z",
+      "query": {
+        "origin": "SGN",
+        "destination": "VCL",
+        "departureDate": "2027-02-04",
+        "returnDate": "2027-02-13",
+        "adults": 1,
+        "nearbyDays": 0,
+        "countryCode": "vn",
+        "currency": "VND"
+      },
+      "requests": 3,
+      "results": [
+        {
+          "kind": "matrix",
+          "endpoint": "/api/v1/public/flight/fare-matrix",
+          "http_status": 403,
+          "headers": {
+            "content-type": "text/html",
+            "server": "cloudflare",
+            "cf-ray": "a499f1697bbe0901-HKG"
+          },
+          "body_bytes": 118,
+          "truncated": false,
+          "body_sha256": "58bf2215b395dcac74c009aa98701854e43cbe54a1cd3a95fee6a647ca9910d4",
+          "body_fingerprint": {
+            "title": "403 Forbidden",
+            "markers": [
+              "Forbidden"
+            ],
+            "error_codes": []
+          },
+          "duration_ms": 371
+        },
+        {
+          "kind": "outbound",
+          "endpoint": "/api/v1/public/booking/air-best-price",
+          "http_status": 403,
+          "headers": {
+            "content-type": "text/html",
+            "server": "cloudflare",
+            "cf-ray": "a499f1697bbf0901-HKG"
+          },
+          "body_bytes": 118,
+          "truncated": false,
+          "body_sha256": "58bf2215b395dcac74c009aa98701854e43cbe54a1cd3a95fee6a647ca9910d4",
+          "body_fingerprint": {
+            "title": "403 Forbidden",
+            "markers": [
+              "Forbidden"
+            ],
+            "error_codes": []
+          },
+          "duration_ms": 393
+        },
+        {
+          "kind": "inbound",
+          "endpoint": "/api/v1/public/booking/air-best-price",
+          "http_status": 403,
+          "headers": {
+            "content-type": "text/html",
+            "server": "cloudflare",
+            "cf-ray": "a499f1697bc00901-HKG"
+          },
+          "body_bytes": 118,
+          "truncated": false,
+          "body_sha256": "58bf2215b395dcac74c009aa98701854e43cbe54a1cd3a95fee6a647ca9910d4",
+          "body_fingerprint": {
+            "title": "403 Forbidden",
+            "markers": [
+              "Forbidden"
+            ],
+            "error_codes": []
+          },
+          "duration_ms": 393
+        }
+      ]
+    }
+  },
+  "official_vna_local": {
+    "run_id": "local-source-diagnostic-1791848339097",
+    "observed_at": "2026-10-12T23:38:59.098Z",
+    "query": {
+      "origin": "SGN",
+      "destination": "VCL",
+      "departureDate": "2027-02-04",
+      "returnDate": "2027-02-13",
+      "adults": 1,
+      "nearbyDays": 0,
+      "countryCode": "vn",
+      "currency": "VND"
+    },
+    "requests": 3,
+    "results": [
+      {
+        "kind": "matrix",
+        "endpoint": "/api/v1/public/flight/fare-matrix",
+        "http_status": 200,
+        "headers": {
+          "content-type": "application/json;charset=UTF-8"
+        },
+        "body_bytes": 9934,
+        "truncated": false,
+        "body_sha256": "1de385a8f7b6386045cb6382190c18355e7dc2360d00931534b4c313c1c2645e",
+        "body_fingerprint": {
+          "format": "json"
+        },
+        "duration_ms": 1291
+      },
+      {
+        "kind": "outbound",
+        "endpoint": "/api/v1/public/booking/air-best-price",
+        "http_status": 200,
+        "headers": {
+          "content-type": "application/json;charset=UTF-8"
+        },
+        "body_bytes": 1122,
+        "truncated": false,
+        "body_sha256": "67f079ceadb6b7a8c4d1c0e11fa7bc601a989d1387aee992b438ca87160f56b5",
+        "body_fingerprint": {
+          "format": "json"
+        },
+        "duration_ms": 1234
+      },
+      {
+        "kind": "inbound",
+        "endpoint": "/api/v1/public/booking/air-best-price",
+        "http_status": 200,
+        "headers": {
+          "content-type": "application/json;charset=UTF-8"
+        },
+        "body_bytes": 1123,
+        "truncated": false,
+        "body_sha256": "552010fe9faad2a29b999bfd7aa25b73dbdc666bc6228f971077f9f4b78c7a75",
+        "body_fingerprint": {
+          "format": "json"
+        },
+        "duration_ms": 1747
+      }
+    ]
+  },
+  "selected_sources_http": {
+    "observed_at": "2026-10-12T23:47:24.579Z",
+    "checks": [
+      {
+        "route": "/probe",
+        "http_status": 200,
+        "result": {
+          "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+          "observed_at": "2026-10-12T23:47:26.857Z",
+          "query": {
+            "origin": "SGN",
+            "destination": "VCL",
+            "departureDate": "2027-02-04",
+            "returnDate": "2027-02-13",
+            "adults": 1,
+            "nearbyDays": 0,
+            "countryCode": "vn",
+            "currency": "VND"
+          },
+          "results": [
+            {
+              "source": "vna",
+              "snapshot": {
+                "schema": 1,
+                "source": "vna-flynow-selected-flight-fares-v1",
+                "query_id": "72735b13fad221c8",
+                "query": {
+                  "origin": "SGN",
+                  "destination": "VCL",
+                  "departureDate": "2027-02-04",
+                  "returnDate": "2027-02-13",
+                  "adults": 1,
+                  "nearbyDays": 0,
+                  "countryCode": "vn",
+                  "currency": "VND"
+                },
+                "observed_at": "2026-10-12T23:47:26.857Z",
+                "status": "ok",
+                "currency": "VND",
+                "taxes_included": true,
+                "scope": "selected-dates-and-flights",
+                "price_basis": "sum-of-oneway-airline-fares-excluding-agency-fee",
+                "agency": "Flynow",
+                "supplier_system": "EVN",
+                "adjustment_method": "TotalPrice - TotalServiceFee = TotalFare + TotalTax; zero discounts required",
+                "main_price": 10184362,
+                "minimum_price": 10184362,
+                "cells": [
+                  {
+                    "depart": "2027-02-04",
+                    "return": "2027-02-13",
+                    "state": "available",
+                    "price": 10184362
+                  }
+                ],
+                "legs": {
+                  "outbound": [
+                    {
+                      "date": "2027-02-04",
+                      "price": 5102181,
+                      "base_fare": 4199000,
+                      "airline_taxes": 903181,
+                      "agency_fee": 50000,
+                      "ota_price": 5152181,
+                      "fare_family": "BUSINESS",
+                      "fare_basis": "JHVNF",
+                      "booking_class": "J",
+                      "cabin": "BUSINESS",
+                      "flight_number": "VN1468",
+                      "departure": "2027-02-04T15:50:00",
+                      "arrival": "2027-02-04T17:15:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "1 Kiện x 32 KG",
+                      "hand_baggage": "18 KG",
+                      "observed_at": "2026-10-12T23:47:26.857Z",
+                      "flights": [
+                        {
+                          "date": "2027-02-04",
+                          "price": 5102181,
+                          "base_fare": 4199000,
+                          "airline_taxes": 903181,
+                          "agency_fee": 50000,
+                          "ota_price": 5152181,
+                          "fare_family": "BUSINESS",
+                          "fare_basis": "JHVNF",
+                          "booking_class": "J",
+                          "cabin": "BUSINESS",
+                          "flight_number": "VN1468",
+                          "departure": "2027-02-04T15:50:00",
+                          "arrival": "2027-02-04T17:15:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "1 Kiện x 32 KG",
+                          "hand_baggage": "18 KG",
+                          "observed_at": "2026-10-12T23:47:26.857Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "inbound": [
+                    {
+                      "date": "2027-02-13",
+                      "price": 5082181,
+                      "base_fare": 4199000,
+                      "airline_taxes": 883181,
+                      "agency_fee": 50000,
+                      "ota_price": 5132181,
+                      "fare_family": "BUSINESS",
+                      "fare_basis": "JHVNF",
+                      "booking_class": "J",
+                      "cabin": "BUSINESS",
+                      "flight_number": "VN1469",
+                      "departure": "2027-02-13T17:50:00",
+                      "arrival": "2027-02-13T19:10:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "1 Kiện x 32 KG",
+                      "hand_baggage": "18 KG",
+                      "observed_at": "2026-10-12T23:47:26.857Z",
+                      "flights": [
+                        {
+                          "date": "2027-02-13",
+                          "price": 5082181,
+                          "base_fare": 4199000,
+                          "airline_taxes": 883181,
+                          "agency_fee": 50000,
+                          "ota_price": 5132181,
+                          "fare_family": "BUSINESS",
+                          "fare_basis": "JHVNF",
+                          "booking_class": "J",
+                          "cabin": "BUSINESS",
+                          "flight_number": "VN1469",
+                          "departure": "2027-02-13T17:50:00",
+                          "arrival": "2027-02-13T19:10:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "1 Kiện x 32 KG",
+                          "hand_baggage": "18 KG",
+                          "observed_at": "2026-10-12T23:47:26.857Z"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "leg_errors": {},
+                "date_errors": {},
+                "source_pages": [
+                  "https://www.flynow.vn/flights?sp=SGN&ep=VCL&dt=04022027.13022027&ps=1.0.0"
+                ],
+                "requests": 1,
+                "duration_ms": 1557,
+                "response_bytes": 7457
+              },
+              "requests": 1
+            },
+            {
+              "source": "vietjet",
+              "snapshot": {
+                "schema": 1,
+                "source": "vietjet-flynow-selected-flight-fares-v2",
+                "query_id": "1169cff2e00c95c0",
+                "query": {
+                  "origin": "SGN",
+                  "destination": "VCL",
+                  "departureDate": "2027-02-04",
+                  "returnDate": "2027-02-13",
+                  "adults": 1,
+                  "nearbyDays": 0,
+                  "countryCode": "vn",
+                  "currency": "VND"
+                },
+                "observed_at": "2026-10-12T23:47:26.336Z",
+                "status": "ok",
+                "currency": "VND",
+                "taxes_included": true,
+                "scope": "selected-dates-and-flights",
+                "price_basis": "sum-of-oneway-airline-fares-excluding-agency-fee",
+                "agency": "Flynow",
+                "supplier_system": "EVJ",
+                "adjustment_method": "TotalPrice - TotalServiceFee = TotalFare + TotalTax; zero discounts required",
+                "main_price": 9761562,
+                "minimum_price": 9761562,
+                "cells": [
+                  {
+                    "depart": "2027-02-04",
+                    "return": "2027-02-13",
+                    "state": "available",
+                    "price": 9761562
+                  }
+                ],
+                "legs": {
+                  "outbound": [
+                    {
+                      "date": "2027-02-04",
+                      "price": 4890781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 900781,
+                      "agency_fee": 50000,
+                      "ota_price": 4940781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ370",
+                      "departure": "2027-02-04T06:00:00",
+                      "arrival": "2027-02-04T07:20:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:47:26.336Z",
+                      "flights": [
+                        {
+                          "date": "2027-02-04",
+                          "price": 4890781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 900781,
+                          "agency_fee": 50000,
+                          "ota_price": 4940781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ370",
+                          "departure": "2027-02-04T06:00:00",
+                          "arrival": "2027-02-04T07:20:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        },
+                        {
+                          "date": "2027-02-04",
+                          "price": 4890781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 900781,
+                          "agency_fee": 50000,
+                          "ota_price": 4940781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ374",
+                          "departure": "2027-02-04T09:15:00",
+                          "arrival": "2027-02-04T10:35:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        },
+                        {
+                          "date": "2027-02-04",
+                          "price": 4890781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 900781,
+                          "agency_fee": 50000,
+                          "ota_price": 4940781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ376",
+                          "departure": "2027-02-04T14:10:00",
+                          "arrival": "2027-02-04T15:30:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        },
+                        {
+                          "date": "2027-02-04",
+                          "price": 4890781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 900781,
+                          "agency_fee": 50000,
+                          "ota_price": 4940781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ372",
+                          "departure": "2027-02-04T17:50:00",
+                          "arrival": "2027-02-04T19:10:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "inbound": [
+                    {
+                      "date": "2027-02-13",
+                      "price": 4870781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 880781,
+                      "agency_fee": 50000,
+                      "ota_price": 4920781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ371",
+                      "departure": "2027-02-13T07:50:00",
+                      "arrival": "2027-02-13T09:10:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:47:26.336Z",
+                      "flights": [
+                        {
+                          "date": "2027-02-13",
+                          "price": 4870781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 880781,
+                          "agency_fee": 50000,
+                          "ota_price": 4920781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ371",
+                          "departure": "2027-02-13T07:50:00",
+                          "arrival": "2027-02-13T09:10:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        },
+                        {
+                          "date": "2027-02-13",
+                          "price": 4870781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 880781,
+                          "agency_fee": 50000,
+                          "ota_price": 4920781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ375",
+                          "departure": "2027-02-13T11:05:00",
+                          "arrival": "2027-02-13T12:25:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        },
+                        {
+                          "date": "2027-02-13",
+                          "price": 4870781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 880781,
+                          "agency_fee": 50000,
+                          "ota_price": 4920781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ377",
+                          "departure": "2027-02-13T16:00:00",
+                          "arrival": "2027-02-13T17:20:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        },
+                        {
+                          "date": "2027-02-13",
+                          "price": 4870781,
+                          "base_fare": 3990000,
+                          "airline_taxes": 880781,
+                          "agency_fee": 50000,
+                          "ota_price": 4920781,
+                          "fare_family": "SkyBoss",
+                          "fare_basis": "YSBoss",
+                          "booking_class": "Y",
+                          "cabin": "ECONOMY",
+                          "flight_number": "VJ373",
+                          "departure": "2027-02-13T19:40:00",
+                          "arrival": "2027-02-13T21:00:00",
+                          "time_zone": "Asia/Ho_Chi_Minh",
+                          "baggage": "30 KG",
+                          "hand_baggage": "10 KG",
+                          "observed_at": "2026-10-12T23:47:26.336Z"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "leg_errors": {},
+                "date_errors": {},
+                "source_pages": [
+                  "https://www.flynow.vn/flights?sp=SGN&ep=VCL&dt=04022027.13022027&ps=1.0.0"
+                ],
+                "requests": 1,
+                "duration_ms": 1036,
+                "response_bytes": 38711
+              },
+              "requests": 1
+            }
+          ],
+          "diagnostics": [
+            {
+              "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+              "request_id": "364eb5b1-3cb2-40da-b997-05440c711b41:vna:1",
+              "source": "vna",
+              "event": "request_started",
+              "endpoint": "/Handler/FlightHandler.ashx/ProcessRequest"
+            },
+            {
+              "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+              "request_id": "364eb5b1-3cb2-40da-b997-05440c711b41:vietjet:1",
+              "source": "vietjet",
+              "event": "request_started",
+              "endpoint": "/Handler/FlightHandler.ashx/ProcessRequest"
+            },
+            {
+              "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+              "request_id": "364eb5b1-3cb2-40da-b997-05440c711b41:vietjet:1",
+              "source": "vietjet",
+              "event": "response_headers",
+              "http_status": 200,
+              "duration_ms": 1016
+            },
+            {
+              "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+              "request_id": "364eb5b1-3cb2-40da-b997-05440c711b41:vietjet:1",
+              "source": "vietjet",
+              "event": "response_complete",
+              "bytes": 38711,
+              "duration_ms": 1036
+            },
+            {
+              "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+              "request_id": "364eb5b1-3cb2-40da-b997-05440c711b41:vna:1",
+              "source": "vna",
+              "event": "response_headers",
+              "http_status": 200,
+              "duration_ms": 1557
+            },
+            {
+              "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+              "request_id": "364eb5b1-3cb2-40da-b997-05440c711b41:vna:1",
+              "source": "vna",
+              "event": "response_complete",
+              "bytes": 7457,
+              "duration_ms": 1557
+            }
+          ],
+          "wall_ms": 1557,
+          "requests": 2
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "run_id": "364eb5b1-3cb2-40da-b997-05440c711b41",
+        "request_id": "ff43cc7397f3deb56ba1744a074fff42",
+        "outcome": "ok",
+        "cpu_ms": 8,
+        "wall_ms": 1561
+      }
+    ]
+  },
+  "initial_http_sample": {
+    "result": {
+      "run_id": "dc86976f-2499-4458-ab41-5c8e7282e36a",
+      "observed_at": "2026-10-12T23:39:19.020Z",
+      "query": {
+        "origin": "SGN",
+        "destination": "VCL",
+        "departureDate": "2027-02-04",
+        "returnDate": "2027-02-13",
+        "adults": 1,
+        "nearbyDays": 0,
+        "countryCode": "vn",
+        "currency": "VND"
+      },
+      "results": [
+        {
+          "source": "vna",
+          "snapshot": {
+            "schema": 1,
+            "source": "vna-flynow-selected-flight-fares-v1",
+            "query_id": "72735b13fad221c8",
+            "query": {
+              "origin": "SGN",
+              "destination": "VCL",
+              "departureDate": "2027-02-04",
+              "returnDate": "2027-02-13",
+              "adults": 1,
+              "nearbyDays": 0,
+              "countryCode": "vn",
+              "currency": "VND"
+            },
+            "observed_at": "2026-10-12T23:39:19.020Z",
+            "status": "ok",
+            "currency": "VND",
+            "taxes_included": true,
+            "scope": "selected-dates-and-flights",
+            "price_basis": "sum-of-oneway-airline-fares-excluding-agency-fee",
+            "agency": "Flynow",
+            "supplier_system": "EVN",
+            "adjustment_method": "TotalPrice - TotalServiceFee = TotalFare + TotalTax; zero discounts required",
+            "main_price": 10184362,
+            "minimum_price": 10184362,
+            "cells": [
+              {
+                "depart": "2027-02-04",
+                "return": "2027-02-13",
+                "state": "available",
+                "price": 10184362
+              }
+            ],
+            "legs": {
+              "outbound": [
+                {
+                  "date": "2027-02-04",
+                  "price": 5102181,
+                  "base_fare": 4199000,
+                  "airline_taxes": 903181,
+                  "agency_fee": 50000,
+                  "ota_price": 5152181,
+                  "fare_family": "BUSINESS",
+                  "fare_basis": "JHVNF",
+                  "booking_class": "J",
+                  "cabin": "BUSINESS",
+                  "flight_number": "VN1468",
+                  "departure": "2027-02-04T15:50:00",
+                  "arrival": "2027-02-04T17:15:00",
+                  "time_zone": "Asia/Ho_Chi_Minh",
+                  "baggage": "1 Kiện x 32 KG",
+                  "hand_baggage": "18 KG",
+                  "observed_at": "2026-10-12T23:39:19.020Z",
+                  "flights": [
+                    {
+                      "date": "2027-02-04",
+                      "price": 5102181,
+                      "base_fare": 4199000,
+                      "airline_taxes": 903181,
+                      "agency_fee": 50000,
+                      "ota_price": 5152181,
+                      "fare_family": "BUSINESS",
+                      "fare_basis": "JHVNF",
+                      "booking_class": "J",
+                      "cabin": "BUSINESS",
+                      "flight_number": "VN1468",
+                      "departure": "2027-02-04T15:50:00",
+                      "arrival": "2027-02-04T17:15:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "1 Kiện x 32 KG",
+                      "hand_baggage": "18 KG",
+                      "observed_at": "2026-10-12T23:39:19.020Z"
+                    }
+                  ]
+                }
+              ],
+              "inbound": [
+                {
+                  "date": "2027-02-13",
+                  "price": 5082181,
+                  "base_fare": 4199000,
+                  "airline_taxes": 883181,
+                  "agency_fee": 50000,
+                  "ota_price": 5132181,
+                  "fare_family": "BUSINESS",
+                  "fare_basis": "JHVNF",
+                  "booking_class": "J",
+                  "cabin": "BUSINESS",
+                  "flight_number": "VN1469",
+                  "departure": "2027-02-13T17:50:00",
+                  "arrival": "2027-02-13T19:10:00",
+                  "time_zone": "Asia/Ho_Chi_Minh",
+                  "baggage": "1 Kiện x 32 KG",
+                  "hand_baggage": "18 KG",
+                  "observed_at": "2026-10-12T23:39:19.020Z",
+                  "flights": [
+                    {
+                      "date": "2027-02-13",
+                      "price": 5082181,
+                      "base_fare": 4199000,
+                      "airline_taxes": 883181,
+                      "agency_fee": 50000,
+                      "ota_price": 5132181,
+                      "fare_family": "BUSINESS",
+                      "fare_basis": "JHVNF",
+                      "booking_class": "J",
+                      "cabin": "BUSINESS",
+                      "flight_number": "VN1469",
+                      "departure": "2027-02-13T17:50:00",
+                      "arrival": "2027-02-13T19:10:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "1 Kiện x 32 KG",
+                      "hand_baggage": "18 KG",
+                      "observed_at": "2026-10-12T23:39:19.020Z"
+                    }
+                  ]
+                }
+              ]
+            },
+            "leg_errors": {},
+            "date_errors": {},
+            "source_pages": [
+              "https://www.flynow.vn/flights?sp=SGN&ep=VCL&dt=04022027.13022027&ps=1.0.0"
+            ],
+            "requests": 1,
+            "duration_ms": 1651,
+            "response_bytes": 7456
+          },
+          "requests": 1
+        },
+        {
+          "source": "vietjet",
+          "snapshot": {
+            "schema": 1,
+            "source": "vietjet-flynow-selected-flight-fares-v2",
+            "query_id": "1169cff2e00c95c0",
+            "query": {
+              "origin": "SGN",
+              "destination": "VCL",
+              "departureDate": "2027-02-04",
+              "returnDate": "2027-02-13",
+              "adults": 1,
+              "nearbyDays": 0,
+              "countryCode": "vn",
+              "currency": "VND"
+            },
+            "observed_at": "2026-10-12T23:39:18.605Z",
+            "status": "ok",
+            "currency": "VND",
+            "taxes_included": true,
+            "scope": "selected-dates-and-flights",
+            "price_basis": "sum-of-oneway-airline-fares-excluding-agency-fee",
+            "agency": "Flynow",
+            "supplier_system": "EVJ",
+            "adjustment_method": "TotalPrice - TotalServiceFee = TotalFare + TotalTax; zero discounts required",
+            "main_price": 9761562,
+            "minimum_price": 9761562,
+            "cells": [
+              {
+                "depart": "2027-02-04",
+                "return": "2027-02-13",
+                "state": "available",
+                "price": 9761562
+              }
+            ],
+            "legs": {
+              "outbound": [
+                {
+                  "date": "2027-02-04",
+                  "price": 4890781,
+                  "base_fare": 3990000,
+                  "airline_taxes": 900781,
+                  "agency_fee": 50000,
+                  "ota_price": 4940781,
+                  "fare_family": "SkyBoss",
+                  "fare_basis": "YSBoss",
+                  "booking_class": "Y",
+                  "cabin": "ECONOMY",
+                  "flight_number": "VJ370",
+                  "departure": "2027-02-04T06:00:00",
+                  "arrival": "2027-02-04T07:20:00",
+                  "time_zone": "Asia/Ho_Chi_Minh",
+                  "baggage": "30 KG",
+                  "hand_baggage": "10 KG",
+                  "observed_at": "2026-10-12T23:39:18.605Z",
+                  "flights": [
+                    {
+                      "date": "2027-02-04",
+                      "price": 4890781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 900781,
+                      "agency_fee": 50000,
+                      "ota_price": 4940781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ370",
+                      "departure": "2027-02-04T06:00:00",
+                      "arrival": "2027-02-04T07:20:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    },
+                    {
+                      "date": "2027-02-04",
+                      "price": 4890781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 900781,
+                      "agency_fee": 50000,
+                      "ota_price": 4940781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ374",
+                      "departure": "2027-02-04T09:15:00",
+                      "arrival": "2027-02-04T10:35:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    },
+                    {
+                      "date": "2027-02-04",
+                      "price": 4890781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 900781,
+                      "agency_fee": 50000,
+                      "ota_price": 4940781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ376",
+                      "departure": "2027-02-04T14:10:00",
+                      "arrival": "2027-02-04T15:30:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    },
+                    {
+                      "date": "2027-02-04",
+                      "price": 4890781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 900781,
+                      "agency_fee": 50000,
+                      "ota_price": 4940781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ372",
+                      "departure": "2027-02-04T17:50:00",
+                      "arrival": "2027-02-04T19:10:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    }
+                  ]
+                }
+              ],
+              "inbound": [
+                {
+                  "date": "2027-02-13",
+                  "price": 4870781,
+                  "base_fare": 3990000,
+                  "airline_taxes": 880781,
+                  "agency_fee": 50000,
+                  "ota_price": 4920781,
+                  "fare_family": "SkyBoss",
+                  "fare_basis": "YSBoss",
+                  "booking_class": "Y",
+                  "cabin": "ECONOMY",
+                  "flight_number": "VJ371",
+                  "departure": "2027-02-13T07:50:00",
+                  "arrival": "2027-02-13T09:10:00",
+                  "time_zone": "Asia/Ho_Chi_Minh",
+                  "baggage": "30 KG",
+                  "hand_baggage": "10 KG",
+                  "observed_at": "2026-10-12T23:39:18.605Z",
+                  "flights": [
+                    {
+                      "date": "2027-02-13",
+                      "price": 4870781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 880781,
+                      "agency_fee": 50000,
+                      "ota_price": 4920781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ371",
+                      "departure": "2027-02-13T07:50:00",
+                      "arrival": "2027-02-13T09:10:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    },
+                    {
+                      "date": "2027-02-13",
+                      "price": 4870781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 880781,
+                      "agency_fee": 50000,
+                      "ota_price": 4920781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ375",
+                      "departure": "2027-02-13T11:05:00",
+                      "arrival": "2027-02-13T12:25:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    },
+                    {
+                      "date": "2027-02-13",
+                      "price": 4870781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 880781,
+                      "agency_fee": 50000,
+                      "ota_price": 4920781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ377",
+                      "departure": "2027-02-13T16:00:00",
+                      "arrival": "2027-02-13T17:20:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    },
+                    {
+                      "date": "2027-02-13",
+                      "price": 4870781,
+                      "base_fare": 3990000,
+                      "airline_taxes": 880781,
+                      "agency_fee": 50000,
+                      "ota_price": 4920781,
+                      "fare_family": "SkyBoss",
+                      "fare_basis": "YSBoss",
+                      "booking_class": "Y",
+                      "cabin": "ECONOMY",
+                      "flight_number": "VJ373",
+                      "departure": "2027-02-13T19:40:00",
+                      "arrival": "2027-02-13T21:00:00",
+                      "time_zone": "Asia/Ho_Chi_Minh",
+                      "baggage": "30 KG",
+                      "hand_baggage": "10 KG",
+                      "observed_at": "2026-10-12T23:39:18.605Z"
+                    }
+                  ]
+                }
+              ]
+            },
+            "leg_errors": {},
+            "date_errors": {},
+            "source_pages": [
+              "https://www.flynow.vn/flights?sp=SGN&ep=VCL&dt=04022027.13022027&ps=1.0.0"
+            ],
+            "requests": 1,
+            "duration_ms": 1236,
+            "response_bytes": 38711
+          },
+          "requests": 1
+        }
+      ],
+      "diagnostics": [
+        {
+          "run_id": "dc86976f-2499-4458-ab41-5c8e7282e36a",
+          "request_id": "dc86976f-2499-4458-ab41-5c8e7282e36a:vna:1",
+          "source": "vna",
+          "event": "request_started",
+          "endpoint": "/Handler/FlightHandler.ashx/ProcessRequest"
+        },
+        {
+          "run_id": "dc86976f-2499-4458-ab41-5c8e7282e36a",
+          "request_id": "dc86976f-2499-4458-ab41-5c8e7282e36a:vietjet:1",
+          "source": "vietjet",
+          "event": "request_started",
+          "endpoint": "/Handler/FlightHandler.ashx/ProcessRequest"
+        },
+        {
+          "run_id": "dc86976f-2499-4458-ab41-5c8e7282e36a",
+          "request_id": "dc86976f-2499-4458-ab41-5c8e7282e36a:vietjet:1",
+          "source": "vietjet",
+          "event": "response_headers",
+          "http_status": 200,
+          "duration_ms": 1217
+        },
+        {
+          "run_id": "dc86976f-2499-4458-ab41-5c8e7282e36a",
+          "request_id": "dc86976f-2499-4458-ab41-5c8e7282e36a:vietjet:1",
+          "source": "vietjet",
+          "event": "response_complete",
+          "bytes": 38711,
+          "duration_ms": 1236
+        },
+        {
+          "run_id": "dc86976f-2499-4458-ab41-5c8e7282e36a",
+          "request_id": "dc86976f-2499-4458-ab41-5c8e7282e36a:vna:1",
+          "source": "vna",
+          "event": "response_headers",
+          "http_status": 200,
+          "duration_ms": 1651
+        },
+        {
+          "run_id": "dc86976f-2499-4458-ab41-5c8e7282e36a",
+          "request_id": "dc86976f-2499-4458-ab41-5c8e7282e36a:vna:1",
+          "source": "vna",
+          "event": "response_complete",
+          "bytes": 7456,
+          "duration_ms": 1651
+        }
+      ],
+      "wall_ms": 1651,
+      "requests": 2
+    },
+    "metrics": [
+      {
+        "request_id": "9af1837274c9700c7290b559f89b258c",
+        "outcome": "ok",
+        "cpu_ms": 7,
+        "wall_ms": 1655
+      }
+    ]
+  },
+  "selected_sources_queue": {
+    "producer": {
+      "run_id": "ac942bf7-9daf-4f3f-bba2-4b7c336f88d5",
+      "status": "queued",
+      "source": "both"
+    },
+    "outcome": "ok",
+    "cpu_ms": 10,
+    "wall_ms": 1695,
+    "completion": {
+      "event": "probe_complete",
+      "run_id": "ac942bf7-9daf-4f3f-bba2-4b7c336f88d5",
+      "wall_ms": 1687,
+      "requests": 2,
+      "results": [
+        {
+          "source": "vna",
+          "status": "ok",
+          "main_price": 10184362,
+          "priced_cells": 1,
+          "response_bytes": 7457,
+          "error": null
+        },
+        {
+          "source": "vietjet",
+          "status": "ok",
+          "main_price": 9761562,
+          "priced_cells": 1,
+          "response_bytes": 38711,
+          "error": null
+        }
+      ]
+    }
+  },
+  "official_web_comparison": "vna-web/official-comparison.json"
+}

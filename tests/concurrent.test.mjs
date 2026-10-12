@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {crawl as crawlVna, dateRange} from '../src/providers/vna.mjs';
+import {crawl as crawlVna, dateRange} from '../src/providers/vna-core.mjs';
 import {crawl as crawlVj} from '../src/providers/vietjet.mjs';
 import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
 
@@ -49,14 +49,14 @@ test('vna fires matrix and one-way legs at once',async()=>{
   assert.equal(rec.legs.outbound.find(d=>d.date===query.departureDate).price,5333181);
 });
 
-test('vietjet bounds seven search pairs to two concurrent requests',async()=>{
+test('vietjet searches only the selected date pair in one request',async()=>{
   const g=gateFetch(vjRespond);
   const pending=crawlVj(query,{fetchImpl:g.fetchImpl});
   await ticks();
-  assert.equal(g.started.length,2);
+  assert.equal(g.started.length,1);
   g.release();
   const rec=await pending;
-  assert.equal(g.stats().max,2);
+  assert.equal(g.stats().max,1);
   assert.equal(rec.status,'ok');
   assert.equal(rec.main_price,3340000);
 });

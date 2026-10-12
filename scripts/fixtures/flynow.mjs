@@ -19,7 +19,14 @@ export function simulatedFlynow(query,{outbound=1800000,inbound=2400000,failLeg,
       const leg=f.Leg?'inbound':'outbound';if(leg===failLeg)return [];
       const d=f.DepartDate,date=d.slice(4)+'-'+d.slice(2,4)+'-'+d.slice(0,2);
       const offset=(Date.parse(date)-Date.parse(f.Leg?query.returnDate:query.departureDate))/86400000;
-      return [fare(f.Leg,query,date,(f.Leg?inbound:outbound)+offset*10000,{fee})];
+      const result= fare(f.Leg,query,date,(f.Leg?inbound:outbound)+offset*10000,{fee});
+      if(options.body.get('system')==='EVN'){
+        result.Airline='VN';result.System='EVN';
+        const flight=result.ListOption[0].ListFlight[0];
+        flight.Airline='VN';flight.Operating='VN';flight.FlightNumber=f.Leg?'VN1469':'VN1468';
+        Object.assign(flight.ListSegment[0],{FareBasis:'JHVNF',FareType:'',Cabin:'BUSINESS',CabinName:'BUSINESS',Class:'J'});
+      }
+      return [result];
     });
     return Response.json({Status:true,ListFareData});
   }};

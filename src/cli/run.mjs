@@ -3,7 +3,7 @@ import {readFile,mkdir,open,unlink,appendFile} from 'node:fs/promises';
 import {parseArgs} from 'node:util';
 import path from 'node:path';
 import {projectRoot} from '../shared/paths.mjs';
-import {crawl,queryFrom,queryId,SOURCE} from '../providers/vna.mjs';
+import {crawl,queryFrom,queryId,SOURCE,BASIS} from '../providers/vna.mjs';
 import * as vietjet from '../providers/vietjet.mjs';
 import {readHistory} from '../reporting/history.mjs';
 import {settingsFrom} from '../monitoring/alerts.mjs';
@@ -16,7 +16,7 @@ loadEnv(root);
 const {values:args}=parseArgs({options:{airline:{type:'string',default:'all'},quick:{type:'boolean',default:false},'no-notify':{type:'boolean',default:false}}});
 if(!['all','vna','vietjet'].includes(args.airline))throw new Error('--airline: all, vna hoặc vietjet.');
 const providers=[
-  {id:'vna',name:'Vietnam Airlines',source:SOURCE,crawl,basis:'Tổng khứ hồi từ bảng so sánh VNA. Giá đi/về lấy riêng từ lịch một chiều, gồm thuế theo nguồn, cho 1 người lớn; tổng hai vé riêng có thể khác giá khứ hồi. Giá tham khảo, chưa xác nhận đặt chỗ.'},
+  {id:'vna',name:'Vietnam Airlines',source:SOURCE,crawl,basis:BASIS},
   {id:'vietjet',name:'Vietjet',source:vietjet.SOURCE,crawl:vietjet.crawl,basis:vietjet.BASIS}
 ];
 const config=JSON.parse(await readFile(path.join(root,'config.json'),'utf8'));
@@ -65,7 +65,7 @@ try {
     }
     const last=record??history.at(-1);
     summaries.push({airline:provider.id,status:last?.status??'no_history',observed_at:last?.observed_at??null,
-      main_price_vnd:last?.main_price??null,lowest_nearby_vnd:last?.minimum_price??null,
+      main_price_vnd:last?.main_price??null,lowest_selected_dates_vnd:last?.minimum_price??null,
       priced_cells:last?.cells?.filter(c=>c.price!==null).length??0,error:last?.error??null,
       requests,notification});
     if(record&&!args['no-notify'])notifications.push({provider,record,history,summary:summaries.at(-1)});

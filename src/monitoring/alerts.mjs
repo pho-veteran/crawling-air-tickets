@@ -1,5 +1,5 @@
 import {when} from './messages.mjs';
-import {bookingText,flightHint} from './booking-links.mjs';
+import {bookingText,flightHint,isSeparateTickets,priceNote} from './booking-links.mjs';
 const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';
 const hasPrice=n=>Number.isSafeInteger(n)&&n>0;
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7);
@@ -95,18 +95,18 @@ export function formatAlert(provider,record,events,history=[]) {
   const leg=g?.kind==='leg'||g?.kind==='fare';
   const heading=provider.name+' · '+(leg?(g.leg==='outbound'?'Vé đi '+q.origin+' → '+q.destination:'Vé về '+q.destination+' → '+q.origin)+' · '+day(g.date)+'/'+g.date.slice(0,4):q.origin+' ⇄ '+q.destination+' · '+pair({depart:q.departureDate,return:q.returnDate})+'/'+q.returnDate.slice(0,4));
   const rows=[title,heading+' · '+q.adults+' người lớn'];
-  if(!leg&&hasPrice(record.main_price))rows.push('🎟 '+(provider.id==='vietjet'?'Tổng hai chiều':'Khứ hồi')+' hiện là '+money(record.main_price)+'.');
+  if(!leg&&hasPrice(record.main_price))rows.push('🎟 '+(provider.id==='vietjet'||isSeparateTickets(record)?'Tổng hai chiều':'Khứ hồi')+' hiện là '+money(record.main_price)+'.');
   rows.push(...events.filter(e=>e.key!=='baseline'&&e.key!=='recovery').map(e=>e.text.split(' · ').filter(t=>!t.includes('thấp nhất mình từng thấy')&&!t.includes('chưa từng thấy vé chiều')).join('\n').trim()));
   const past=history.filter(r=>r.observed_at<=record.observed_at&&valid(r));if(valid(record))past.push(record);
   const quotes=past.filter(r=>!leg||legSource(r)===legSource(record)).map(r=>({price:leg?r.legs?.[g.leg]?.find(x=>x.date===g.date)?.price:r.main_price,at:r.observed_at})).filter(x=>hasPrice(x.price));
   if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+' ('+when(low.at)+').');}
   rows.push('🕒 '+when(record.observed_at)+' · giờ Việt Nam');
-  rows.push(provider.id==='vietjet'?'ℹ️ Vietjet qua Flynow: gồm thuế/phí hãng; đã loại phí dịch vụ đại lý theo báo giá, chưa giữ chỗ.':'ℹ️ Gồm thuế theo nguồn; vé từng chiều là giá mua riêng.');
+  rows.push(priceNote(provider.id,record));
   for(const [direction,date,label] of [['outbound',q.departureDate,'Đi'],['inbound',q.returnDate,'Về']]){
     if(leg&&direction!==g.leg)continue;
     const quote=record.legs?.[direction]?.find(x=>x.date===(leg?g.date:date));
     if(valid(record)&&hasPrice(quote?.price)&&flightHint(quote))rows.push('✈️ '+label+': '+flightHint(quote));
   }
-  rows.push(bookingText(provider.id,q));
+  rows.push(bookingText(provider.id,q,record));
   return rows.filter(Boolean).join('\n');
 }

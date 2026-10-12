@@ -1,4 +1,4 @@
-import {bookingText,flightHint} from './booking-links.mjs';
+import {bookingText,flightHint,isSeparateTickets,priceNote} from './booking-links.mjs';
 export const money=n=>Number.isSafeInteger(n)&&n>0?new Intl.NumberFormat('vi-VN').format(n)+'đ':'chưa có giá';
 const offsetMs=(offset='+07:00')=>(offset[0]==='-'?-1:1)*(Number(offset.slice(1,3))*60+Number(offset.slice(4)))*60000;
 export const localDay=(t,offset='+07:00')=>new Date(Number(t)+offsetMs(offset)).toISOString().slice(0,10);
@@ -19,7 +19,7 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=10,setti
     const stale=now-Date.parse(r.observed_at)>(pollMinutes+5)*60000;
     if(last?.status==='error'||stale)lines.push('⚠️ GIÁ CŨ — mình chưa cập nhật được, lần gần nhất là '+when(r.observed_at));
     else if(r.status==='partial')lines.push('⚠️ Lần này chưa lấy đủ giá; những mục còn thiếu sẽ được ghi rõ bên dưới.');
-    lines.push((p.id==='vna'?'🎟 Vé khứ hồi hiện là ':'🎟 Cộng vé đi và về hiện là ')+money(r.main_price)+' · '+change(r.main_price,previous?.main_price));
+    lines.push((p.id==='vna'&&!isSeparateTickets(r)?'🎟 Vé khứ hồi hiện là ':'🎟 Cộng vé đi và về hiện là ')+money(r.main_price)+' · '+change(r.main_price,previous?.main_price));
     for(const [leg,date,label,from,to] of [['outbound',query.departureDate,'🛫 Vé đi',query.origin,query.destination],['inbound',query.returnDate,'🛬 Vé về',query.destination,query.origin]]){
       const quote=r.legs?.[leg]?.find(x=>x.date===date),before=previous?.legs?.[leg]?.find(x=>x.date===date);
       lines.push(label+' '+from+' → '+to+' · '+day(date)+'/'+date.slice(0,4)+': '+money(quote?.price)+' · '+change(quote?.price,before?.price));
@@ -29,7 +29,8 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=10,setti
     const priorPrices=good.filter(x=>priced(x.main_price));
     if(priorPrices.length){const low=priorPrices.reduce((a,b)=>a.main_price<=b.main_price?a:b);lines.push('🏷 Từ khi theo dõi, giá thấp nhất là '+money(low.main_price)+', ghi nhận lúc '+when(low.observed_at)+'.');}
     lines.push('🕒 Cập nhật lúc '+when(r.observed_at)+' (UTC+7)'+(previous?' · So với mốc '+when(previous.observed_at)+(onDemand?' trước đó.':' trước hôm nay.'):' · Chưa có mốc so sánh.'));
-    lines.push(bookingText(p.id,query));
+    lines.push(priceNote(p.id,r));
+    lines.push(bookingText(p.id,query,r));
     sections.push(lines.join('\n'));
   }
   return sections.join('\n\n');

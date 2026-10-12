@@ -36,19 +36,17 @@ test('sold-out cheap fare cannot undercut an available fare',()=>{
   assert.deepEqual(parse([cheap]).outbound,[]);
   const good=fare(0,q,q.departureDate,4890781);assert.equal(parse([cheap,good]).outbound[0].price,4890781);
 });
-test('seven searches build 49 distinct date pairs from flight prices, never teaser prices',async()=>{
+test('one search retains flights for the selected dates without nearby prices',async()=>{
   const source=simulatedFlynow(q);const r=await crawl(q,{fetchImpl:source.fetch});
-  assert.equal(source.requests.length,7);assert.equal(r.status,'ok');assert.equal(r.cells.length,49);
-  assert.equal(r.main_price,4200000);assert.equal(r.cells[0].price,4140000);assert.equal(r.taxes_included,true);
+  assert.equal(source.requests.length,1);assert.equal(r.status,'ok');assert.equal(r.cells.length,1);
+  assert.equal(r.main_price,4200000);assert.equal(r.cells[0].price,4200000);assert.equal(r.taxes_included,true);
   assert.equal(requestFrom(q).get('system'),'EVJ');
   assert.deepEqual(JSON.parse(requestFrom(q).get('listFlight')).map(x=>x.DepartDate),['04022027','13022027']);
 });
-test('partial failure leaves unknown cells; HTTP 403/429 stops scheduling further dates',async()=>{
-  const source=simulatedFlynow(q);let calls=0;
-  const r=await crawl(q,{fetchImpl:async(...args)=>{calls++;return calls===1?new Response('',{status:503}):source.fetch(...args);}});
-  assert.equal(r.status,'partial');assert.equal(r.main_price,null);assert.equal(r.cells.filter(c=>c.price!==null).length,36);
-  for(const status of [403,429]){let attempts=0;await assert.rejects(crawl(q,{fetchImpl:async()=>{attempts++;return new Response('',{status});}}));assert.ok(attempts<=2);}
+test('HTTP failures are errors and never schedule neighboring dates or retry',async()=>{
+  for(const status of [403,429,503]){let attempts=0;await assert.rejects(crawl(q,{fetchImpl:async()=>{attempts++;return new Response('',{status});}}),new RegExp('HTTP '+status));assert.equal(attempts,1);}
 });
+
 test('old untaxed calendar history is isolated by the new source identity',async t=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'flynow-history-'));t.after(()=>rm(dir,{recursive:true,force:true}));
   const source=simulatedFlynow(q),record=await crawl(q,{fetchImpl:source.fetch});

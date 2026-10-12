@@ -2,7 +2,7 @@
 
 Quy tắc áp dụng cho **ngày đi/về chính** trong `config.json`, riêng từng hãng và từng đối tượng: khứ hồi, vé đi, vé về. Cấu hình hiện tại là SGN ⇄ VCL, đi 04/02/2027, về 13/02/2027, 1 người lớn.
 
-Giá ngày lân cận chỉ lưu trong history, không gửi lên Telegram. Giá không đổi vẫn được lưu vào history. Kiểm tra mỗi 10 phút; gửi ngay khi lượt kiểm tra phát hiện giảm, độc lập bản tin 07:00 UTC+7.
+Scope hiện tại không lấy ngày lân cận; history cũ vẫn được giữ. Giá không đổi vẫn được lưu vào history. Kiểm tra mỗi 10 phút; gửi ngay khi lượt kiểm tra phát hiện giảm, độc lập bản tin 07:00 UTC+7.
 
 ## Điều kiện phát cảnh báo
 
@@ -25,7 +25,7 @@ Với cấu hình hiện tại `monitoring.priceOnly=true`, vòng kiểm tra ch�
 - Vé đi và vé về giảm là hai sự kiện riêng, kể cả khi giá khứ hồi không đổi.
 - Chống lặp cùng mức giá trong `repeatCooldownHours` (mặc định 24 giờ); mức giá thấp hơn mới vẫn được báo.
 - Outbox loại mức giá cũ khi giá tăng lại hoặc mất giá, và bỏ alert lân cận còn chờ từ phiên bản trước.
-- Giá VNA từng chiều là vé mua riêng, không chia đôi giá khứ hồi. Không suy diễn giá thiếu thành 0 hoặc tự điền giá từ chiều khác.
+- Giá VNA từng chiều lấy từ báo giá chuyến bay Flynow EVN, không chia đôi tổng hai chiều. Nguồn mới tách mốc so sánh với VNA fare matrix trước đây. Không suy diễn giá thiếu thành 0 hoặc tự điền giá từ chiều khác.
 
 ## Gửi và retry
 

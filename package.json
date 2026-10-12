@@ -2,6 +2,11 @@
   "name": "air-ticket-price-tracker",
   "version": "1.6.0",
   "private": true,
+  "allowScripts": {
+    "workerd": true,
+    "esbuild": true,
+    "sharp": true
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -10,6 +15,16 @@
     "start": "node src/cli/watch.mjs",
     "stop": "node src/cli/stop.mjs",
     "telegram": "node src/cli/telegram.mjs",
+    "cf:check": "cf deploy --dry-run",
+    "cf:deploy:spike": "cf deploy --secrets-file .env.spike",
+    "cf:probe": "node scripts/cloudflare-spike.mjs",
+    "cf:import:check": "node scripts/cloudflare-import.mjs",
+    "cf:import:snapshot": "node scripts/cloudflare-import.mjs --snapshot",
     "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "cf": "1.0.0-beta.14",
+    "wrangler": "4.149.0",
+    "ws": "8.21.0"
   }
 }
