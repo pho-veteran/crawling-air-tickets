@@ -41,7 +41,7 @@ Giờ gửi lấy từ `.env`, mặc định `07:00` với UTC offset `+07:00`. 
 
 Không có mốc trước thì không tính phần trăm. Lỗi nguồn hoặc giá quá `pollMinutes + 5` phút được ghi rõ là giá cũ. Text và HTML cùng một snapshot; retry HTML không gửi lại text đã ACK. Trạng thái được lưu trong `data/daily-state.json`.
 
-Watcher hẹn giờ kế tiếp khi khởi động, không gửi bù bản tin đã qua giờ. Máy ngủ qua giờ hẹn thì khi tỉnh chỉ gửi bản tin hôm nay, không gửi dồn ngày cũ. Chạy `npm run daily` riêng có thể gửi bản tin hôm nay nếu đã đến giờ và chưa gửi.
+Watcher hẹn giờ kế tiếp khi khởi động, không gửi bù bản tin đã qua giờ. Máy ngủ qua giờ hẹn thì khi tỉnh chỉ gửi bản tin hôm nay, không gửi dồn ngày cũ. Chạy `node src/cli/daily.mjs` riêng có thể gửi bản tin hôm nay nếu đã đến giờ và chưa gửi.
 
 ## Mẫu minh họa — không phải giá thật
 

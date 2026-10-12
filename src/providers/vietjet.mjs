@@ -50,10 +50,16 @@ export async function crawl(query,{fetchImpl=fetch}={}) {
   if(query.adults!==1)throw new Error('Vietjet: nguồn lịch tham khảo hiện chỉ hỗ trợ 1 người lớn; không nhân giá để suy diễn tồn chỗ.');
   pagePath(query.origin,query.destination);pagePath(query.destination,query.origin);
   let requests=0;const start=Date.now(),results={},legErrors={};
-  // Keep a successful direction even if the other request fails; never infer its price.
-  for(const [leg,from,to,date] of [['outbound',query.origin,query.destination,query.departureDate],['inbound',query.destination,query.origin,query.returnDate]]){
-    try{requests++;results[leg]=await getCalendar(from,to,dateRange(date),fetchImpl);}
-    catch(error){legErrors[leg]=String(error.message).slice(0,250);}
+  const specs=[['outbound',query.origin,query.destination,query.departureDate],['inbound',query.destination,query.origin,query.returnDate]];
+  const fetchLeg=async([leg,from,to,date])=>{
+    try{return {leg,result:await getCalendar(from,to,dateRange(date),fetchImpl)};}
+    catch(error){return {leg,error:String(error.message).slice(0,250)};}
+  };
+  // Both directions fire at once; keep a successful direction even if the other fails.
+  const settled=await Promise.all(specs.map(fetchLeg));
+  for(const {leg,result,error} of settled){
+    requests++;
+    if(result)results[leg]=result;else legErrors[leg]=error;
   }
   if(!Object.keys(results).length){const error=new Error('Vietjet: '+Object.entries(legErrors).map(([leg,message])=>leg+': '+message).join(' · '));error.requests=requests;throw error;}
   const missing=date=>dateRange(date).map(date=>({date,price:null,fare_family:null}));

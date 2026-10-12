@@ -4,9 +4,6 @@
   "departureDate": "2027-02-04",
   "returnDate": "2027-02-13",
   "adults": 1,
-  "retrieval": {
-    "batchSeconds": 90
-  },
   "monitoring": {
     "pollMinutes": 25,
     "dailyReport": true,

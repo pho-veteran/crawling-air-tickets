@@ -84,19 +84,20 @@ test('listener enrolls all private senders, routes replies correctly, skips dupl
   assert.equal(saves, 8);
 });
 
-test('quick price cooldown is shared by all users while each reply keeps its own destination', async t => {
+test('each /price fetches fresh while each reply keeps its own destination', async t => {
   const root = await workspace(t), state = {offset: 0, lastQuickAt: 0}, replies = [];
   let runs = 0;
   for (const [id, chatId] of [[1, 111], [2, 222]]) {
     await handleIncomingUpdate({root, creds, state, now: () => now, save: async () => {},
       update: {update_id: id, message: {text: '/price', chat: {id: chatId, type: 'private'}}},
-      handle: args => handleCommand({...args, busy: async () => false, quick: async () => {runs++; return 0;},
+      handle: args => handleCommand({...args, busy: async () => false, sleep: async () => {}, quick: async () => {runs++; return 0;},
         context: async () => ({providers: [{...provider, history: [record(now)]}], query, settings}), report: async () => 'fake.html',
         send: async (recipient, text) => {replies.push({id: recipient.chatId, text}); return 1;}, attach: async () => 1})});
   }
-  assert.equal(runs, 1);
-  assert.deepEqual(replies.map(r => r.id), ['111', '222']);
-  assert.match(replies[1].text, /trong phút này/);
+  assert.equal(runs, 2);
+  assert.deepEqual(replies.map(r => r.id), ['111', '111', '222', '222']);
+  assert.match(replies[2].text, /Đang kiểm tra giá mới/);
+  assert.match(replies[3].text, /Vừa kiểm tra xong/);
 });
 
 test('broadcast paces recipients and removes blocked users without stopping other deliveries', async t => {

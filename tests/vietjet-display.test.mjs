@@ -123,10 +123,11 @@ test('daily, /price and /report send Vietjet leg data in text and the actual HTM
   assert.match(texts[0], /↑ 100.000đ/);
 
   for (const command of ['/price', '/report']) {
-    await handleCommand({root, creds, state: {}, now: () => now, busy: async () => false, quick: async () => 0, send, attach,
+    await handleCommand({root, creds, state: {}, now: () => now, busy: async () => false, sleep: async () => {}, quick: async () => 0, send, attach,
       update: {message: {text: command, chat: {type: 'private', id: creds.chatId}}}});
   }
-  assertLegLines(texts[1]);
-  assert.equal(texts.length, 2);
+  assert.match(texts[1], /Đang kiểm tra giá mới/);
+  assertLegLines(texts[2]);
+  assert.equal(texts.length, 3);
   assert.equal(attachments.length, 3);
 });

@@ -15,7 +15,7 @@ const query={origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDat
 const settings=settingsFrom({},{}),record={query,status:'ok',source:'test',observed_at:'2026-10-12T00:00:00Z',main_price:5000000,minimum_price:3000000,cells:[{depart:'2027-02-05',return:'2027-02-15',price:3000000}],legs:{outbound:[{date:query.departureDate,price:2000000}],inbound:[{date:query.returnDate,price:3000000}]}};
 const providers=[{id:'vna',name:'Vietnam Airlines',history:[record]},{id:'vietjet',name:'Vietjet',history:[record]}];
 const temp=()=>mkdtemp(path.join(os.tmpdir(),'fare-command-test-'));
-function harness(){const messages=[],documents=[],state={};let runs=0,saves=0,clock=Date.parse(record.observed_at);return {messages,documents,state,get runs(){return runs;},get saves(){return saves;},args:{root:'unused',creds,state,now:()=>clock,save:async()=>saves++,busy:async()=>false,context:async()=>({providers,query,settings}),report:async()=>'/report.html',send:async(c,t)=>{messages.push(t);return messages.length;},attach:async(c,f)=>{documents.push(f);return 1;},call:async()=>({is_bot:true}),quick:async()=>{runs++;clock+=1250;return 0;}}};}
+function harness(){const messages=[],documents=[],state={};let runs=0,saves=0,clock=Date.parse(record.observed_at);return {messages,documents,state,get runs(){return runs;},get saves(){return saves;},args:{root:'unused',creds,state,now:()=>clock,save:async()=>saves++,busy:async()=>false,sleep:async()=>{},waitBudgetMs:5000,context:async()=>({providers,query,settings}),report:async()=>'/report.html',send:async(c,t)=>{messages.push(t);return messages.length;},attach:async(c,f)=>{documents.push(f);return 1;},call:async()=>({is_bot:true}),quick:async()=>{runs++;clock+=1250;return 0;}}};}
 const update=(text,id=456)=>({message:{text,chat:{id,type:'private'}}});
 test('slash authorization, help, unknown and connection do not crawl',async()=>{
   const h=harness();assert.equal((await handleCommand({...h.args,update:update('/price',789)})).status,'ignored');
@@ -23,16 +23,43 @@ test('slash authorization, help, unknown and connection do not crawl',async()=>{
   for(const cmd of ['/help','/start','/status','/connection','/oops'])await handleCommand({...h.args,update:update(cmd)});
   assert.equal(h.runs,0);assert.equal(h.messages.length,5);assert.match(h.messages[2],/07:00 UTC\+07:00/);
 });
-test('price refresh persists cooldown, sends one combined digest plus report, repeat/busy uses cache',async()=>{
+test('price always fetches fresh; busy waits for the lock, stuck lock falls back to cache',async()=>{
   const h=harness();const first=await handleCommand({...h.args,update:update('/price')});
   assert.equal(first.elapsed_ms,1250);assert.equal(h.runs,1);assert.equal(h.saves,1);assert.equal(h.documents.length,1);
-  assert.match(h.messages[0],/VIETNAM AIRLINES/);assert.match(h.messages[0],/VIETJET/);assert.doesNotMatch(h.messages[0],/05\/02|15\/02|3.000.000đ.*Lân cận/);
-  await handleCommand({...h.args,update:update('/price')});assert.equal(h.runs,1);assert.match(h.messages[1],/trong phút này/);
-  await handleCommand({...h.args,update:update('/price'),busy:async()=>true});assert.equal(h.runs,1);assert.match(h.messages[2],/lượt tự động/);
-  await handleCommand({...h.args,update:update('/report')});assert.equal(h.documents.length,4);assert.equal(h.runs,1);
+  assert.match(h.messages[0],/Đang kiểm tra giá mới/);
+  assert.match(h.messages[1],/VIETNAM AIRLINES/);assert.match(h.messages[1],/VIETJET/);assert.doesNotMatch(h.messages[1],/05\/02|15\/02|3.000.000đ.*Lân cận/);
+  // Gọi liên tiếp vẫn lấy giá mới, không dùng cache theo cooldown 1 phút như trước.
+  const second=await handleCommand({...h.args,update:update('/price')});
+  assert.equal(second.elapsed_ms,1250);assert.equal(h.runs,2);assert.match(h.messages[3],/Vừa kiểm tra xong/);
+  // Lượt tự động đang chạy: chờ nhả lock rồi vẫn lấy giá mới.
+  let polls=0;const freeing=async()=>++polls<=2;
+  const third=await handleCommand({...h.args,update:update('/price'),busy:freeing});
+  assert.equal(h.runs,3);assert.equal(third.crawl_code,0);
+  assert.match(h.messages[4],/chờ xong rồi kiểm tra giá mới/);assert.match(h.messages[5],/Đang kiểm tra giá mới/);assert.match(h.messages[6],/Vừa kiểm tra xong/);
+  // Lượt nền kẹt quá lâu: mới dùng giá đã lưu và ghi rõ.
+  await handleCommand({...h.args,update:update('/price'),busy:async()=>true,waitBudgetMs:0});
+  assert.equal(h.runs,3);assert.match(h.messages.at(-1),/chạy khá lâu/);
+  await handleCommand({...h.args,update:update('/report')});assert.equal(h.runs,3);
+});
+test('status shows polling, watcher, subscribers and config tech details',async()=>{
+  const h=harness();
+  await handleCommand({...h.args,update:update('/status')});
+  const text=h.messages[0];
+  assert.match(text,/Kết nối Telegram ổn rồi/);
+  assert.match(text,/Bản tin tiếp theo/);
+  assert.match(text,/Vòng lấy giá: mỗi 25 phút · tiếp theo ~/);
+  assert.match(text,/Watcher: không thấy tiến trình/);
+  assert.match(text,/Người đăng ký nhận tin: 1/);
+  assert.match(text,/priceOnly tắt/);
+  assert.match(text,/Lần \/price gần nhất: chưa có/);
+  assert.match(text,/snapshot đã lưu/);
+  const h2=harness();h2.state.lastQuickAt=h2.args.now();
+  await handleCommand({...h2.args,update:update('/status'),busy:async()=>true});
+  assert.match(h2.messages[0],/Vòng lấy giá: đang chạy/);
+  assert.match(h2.messages[0],/Lần \/price gần nhất: 07:00 ngày 12\/10\/2026/);
 });
 test('partial quick result states incomplete instead of claiming complete',async()=>{
-  const h=harness();await handleCommand({...h.args,update:update('/price'),quick:async()=>2});assert.match(h.messages[0],/chưa cập nhật đủ/);assert.doesNotMatch(h.messages[0],/Vừa kiểm tra xong/);
+  const h=harness();await handleCommand({...h.args,update:update('/price'),quick:async()=>2});assert.match(h.messages[0],/Đang kiểm tra giá mới/);assert.match(h.messages[1],/chưa cập nhật đủ/);assert.doesNotMatch(h.messages[1],/Vừa kiểm tra xong/);
 });
 test('schedule is configured in env and obeys date boundary and offset',()=>{
   const s=settingsFrom({},{DAILY_REPORT_TIME:'23:15',DAILY_REPORT_UTC_OFFSET:'-03:30'}),at=Date.parse('2026-10-12T00:00:00Z');
@@ -50,10 +77,10 @@ test('HTML is uploaded as multipart document and acknowledgement is required',as
   const root=await temp(),file=path.join(root,'report.html');await writeFile(file,'<!doctype html><h1>Report</h1>');
   const id=await sendDocument(creds,file,'📊 Báo cáo',async(url,opts)=>{assert.ok(url.endsWith('/sendDocument'));assert.ok(opts.body instanceof FormData);assert.equal(opts.body.get('chat_id'),'456');assert.match(await opts.body.get('document').text(),/Report/);assert.equal(opts.headers,undefined);return {ok:true,json:async()=>({ok:true,result:{message_id:99}})};});assert.equal(id,99);
 });
-test('quick mode has no pacing sleep, expires at 8s, keeps host cooldown',async()=>{
+test('retrieval has no pacing sleep, budget, or host cooldown',async()=>{
   const root=await temp();let clock=0;const opts={root,seconds:8,quick:true,now:()=>clock,sleep:async()=>{throw new Error('Must not sleep');},fetchImpl:async()=>{clock+=1000;return new Response('{}');}};
-  const b=await createBatch(opts);for(let i=0;i<5;i++)await b.fetch('https://example.test');assert.equal((await b.finish()).duration_ms,5000);clock=8000;await assert.rejects(b.fetch('https://example.test'),/Hết ngân sách/);
-  const failed=await createBatch({...opts,fetchImpl:async()=>new Response('',{status:429})});await failed.fetch('https://example.test');const retry=await createBatch(opts);await assert.rejects(retry.fetch('https://example.test'),/Nguồn đang nghỉ/);
+  const b=await createBatch(opts);for(let i=0;i<5;i++)await b.fetch('https://example.test');assert.equal((await b.finish()).requests,5);assert.equal(b.requests,5);
+  const failed=await createBatch({...opts,fetchImpl:async()=>new Response('',{status:429})});await failed.fetch('https://example.test');const retry=await createBatch(opts);await retry.fetch('https://example.test');assert.equal(retry.requests,1);
 });
 test('neighbor-only decreases stay silent; main RT/outbound/inbound become three concise events',()=>{
   const p=providers[0],a=structuredClone(record),b=structuredClone(record);b.observed_at='2026-10-12T00:25:00Z';b.minimum_price=1;b.cells[0].price=1;b.legs.outbound.push({date:'2027-02-05',price:1});a.legs.outbound.push({date:'2027-02-05',price:5000000});

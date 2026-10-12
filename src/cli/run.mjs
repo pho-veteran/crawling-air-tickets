@@ -29,32 +29,40 @@ const lockFile=path.join(dataDir,'run.lock');
 try {lock=await open(lockFile,'wx');await lock.writeFile(JSON.stringify({pid:process.pid,started_at:new Date().toISOString()}));}
 catch(e) {if(e.code==='EEXIST'){console.error('Đang có lần chạy khác hoặc run.lock chưa được dọn. Kiểm tra PID trước khi xóa lock.');process.exit(3);}throw e;}
 try {
-  const requestCount=args.airline==='vietjet'?2:args.airline==='vna'?(query.adults===1?3:1):(query.adults===1?5:3);
-  const batch=args['render-only']?null:await createBatch({root,seconds:args.quick?8:(config.retrieval?.batchSeconds??90),requestCount,quick:args.quick});
-  if(batch&&!args.quick)console.error('Batch giá: tối đa '+requestCount+' request, cách nhau ít nhất '+((config.retrieval?.batchSeconds??90)/requestCount)+' giây; khung '+(config.retrieval?.batchSeconds??90)+' giây.');
+  // Every retrieval fires all providers concurrently for the fastest result.
+  // Persistence below stays sequential so history lines never interleave.
+  const batch=args['render-only']?null:await createBatch({});
   const summaries=[],notifications=[];
-  for(const provider of providers) {
-   const history=await readHistory(historyFile,query,provider.source);provider.history=history;
-   let record,requests=0,notification={status:'not_run'};
-   if(!args['render-only']&&(args.airline==='all'||args.airline===provider.id)) {
-    const beforeRequests=batch.requests;
-    try {record=await provider.crawl(query,{fetchImpl:batch.fetch});}
-    catch(e) {
-      record={schema:1,source:provider.source,query_id:queryId(query,provider.source),query,observed_at:new Date().toISOString(),
-        status:'error',main_price:null,minimum_price:null,cells:[],requests,error:String(e.message).slice(0,350)};
+  const crawlOne=async provider=>{
+    const history=await readHistory(historyFile,query,provider.source);provider.history=history;
+    let record,requests=0;
+    if(!args['render-only']&&(args.airline==='all'||args.airline===provider.id)) {
+      let sent=0;
+      const counting=async(...call)=>{const response=await batch.fetch(...call);sent++;return response;};
+      try {record=await provider.crawl(query,{fetchImpl:counting});}
+      catch(e) {
+        record={schema:1,source:provider.source,query_id:queryId(query,provider.source),query,observed_at:new Date().toISOString(),
+          status:'error',main_price:null,minimum_price:null,cells:[],requests,error:String(e.message).slice(0,350)};
+      }
+      requests=sent;record.requests=requests;
     }
-    requests=batch.requests-beforeRequests;record.requests=requests;
-    await appendFile(historyFile,JSON.stringify(record)+'\n','utf8');history.push(record);
-    if(record.status==='error')process.exitCode=1;
-    else if((record.status==='partial'||record.main_price===null)&&process.exitCode!==1)process.exitCode=2;
-    notification=args['no-notify']?{status:'suppressed'}:{status:'pending'};
-   }
-  const last=record??history.at(-1);
-  summaries.push({airline:provider.id,status:last?.status??'no_history',observed_at:last?.observed_at??null,
-    main_price_vnd:last?.main_price??null,lowest_nearby_vnd:last?.minimum_price??null,
-    priced_cells:last?.cells?.filter(c=>c.price!==null).length??0,error:last?.error??null,
-    requests,notification});
-  if(record&&!args['no-notify'])notifications.push({provider,record,history,summary:summaries.at(-1)});
+    return {provider,history,record,requests};
+  };
+  const crawled=await Promise.all(providers.map(crawlOne));
+  for(const {provider,record,history,requests} of crawled) {
+    let notification={status:'not_run'};
+    if(record) {
+      await appendFile(historyFile,JSON.stringify(record)+'\n','utf8');history.push(record);
+      if(record.status==='error')process.exitCode=1;
+      else if((record.status==='partial'||record.main_price===null)&&process.exitCode!==1)process.exitCode=2;
+      notification=args['no-notify']?{status:'suppressed'}:{status:'pending'};
+    }
+    const last=record??history.at(-1);
+    summaries.push({airline:provider.id,status:last?.status??'no_history',observed_at:last?.observed_at??null,
+      main_price_vnd:last?.main_price??null,lowest_nearby_vnd:last?.minimum_price??null,
+      priced_cells:last?.cells?.filter(c=>c.price!==null).length??0,error:last?.error??null,
+      requests,notification});
+    if(record&&!args['no-notify'])notifications.push({provider,record,history,summary:summaries.at(-1)});
   }
   const batchSummary=batch?await batch.finish():null;
   await writeReport({file:reportFile,providers,query,template:path.join(root,'templates','report.html'),batch:batchSummary});

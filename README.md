@@ -14,40 +14,39 @@ Chạy các lệnh bên dưới tại thư mục project. Trên PowerShell, nế
 
 ## Bắt đầu nhanh
 
-### Chỉ lấy giá và xem báo cáo
-
 ```sh
 node --version
 npm test
-npm start
 ```
 
-`npm start` lấy giá hai hãng một lần, nối thêm vào `data/history.jsonl` và tạo `report/index.html`. Mở file HTML bằng trình duyệt để xem lịch sử và giá ngày lân cận. Batch mặc định mất khoảng 90 giây.
+Chỉ còn 3 lệnh:
 
-Report có giá ngày chính riêng cho **vé đi, vé về và khứ hồi/tổng hai chiều**, hai cột đi/về trong lịch sử, và lựa chọn từng chiều ở mục **Giá hiển thị** của biểu đồ. Với Vietjet, nếu một chiều lỗi, giá chiều lấy được vẫn hiển thị; chiều lỗi và tổng chưa đủ dữ liệu được để trống. Bản tin sáng và `/price` cũng ghi riêng tuyến, ngày và giá từng chiều.
-
-Không cần cấu hình Telegram để lấy giá và dựng báo cáo. Khi đã cấu hình Telegram, `npm start` cũng xét và gửi cảnh báo; dùng `npm start -- --no-notify` nếu chỉ muốn thu thập dữ liệu.
+| Lệnh | Chức năng |
+| --- | --- |
+| `npm start` | Bật bot: vòng lấy giá mỗi 25 phút, bản tin sáng 07:00 và lệnh Telegram |
+| `npm stop` | Dừng ngay tiến trình bot |
+| `npm run telegram` | Kiểm tra kết nối Telegram (cấu hình, bot, webhook, người đăng ký) |
 
 ### Bật Telegram và theo dõi liên tục
 
 1. Copy [`.env.example`](.env.example) thành `.env` nếu chưa có. Giữ nguyên `.env` đã điền trước đó.
-2. Tạo bot qua [BotFather](https://t.me/BotFather), điền token theo hướng dẫn bên dưới. Không cần cấu hình `TELEGRAM_CHAT_ID`.
+2. Tạo bot qua [BotFather](https://t.me/BotFather), điền token vào `.env`. Không cần cấu hình `TELEGRAM_CHAT_ID`.
 3. Kiểm tra rồi khởi động:
 
 ```sh
-npm run preflight
-npm run watch
+npm run telegram
+npm start
 ```
 
-`watch` chạy vòng lấy giá, lịch bản tin sáng và listener Telegram. Dừng bằng `Ctrl+C` hoặc chạy lệnh sau trong terminal khác:
-
-Mỗi người mở bot và gửi `/start` để đăng ký nhận bản tin/cảnh báo. Bot cũng tự ghi nhận private chat lần đầu nhắn tin. Sau khi đã có người nhận, có thể chạy `npm run telegram:test` trong terminal khác để gửi tin thử cho danh sách đang đăng ký.
+`npm start` chạy vòng lấy giá, lịch bản tin sáng và listener Telegram. Dừng bằng `Ctrl+C` hoặc chạy lệnh sau trong terminal khác:
 
 ```sh
-npm run stop
+npm stop
 ```
 
-Lượt đang lấy giá/gửi tin sẽ hoàn tất rồi nhả lock. Khởi động lại `watch` sau khi sửa `config.json` hoặc `.env`.
+`npm stop` dừng ngay lập tức. Khởi động lại `npm start` sau khi sửa `config.json` hoặc `.env`.
+
+Mỗi người mở bot và gửi `/start` để đăng ký nhận bản tin/cảnh báo. Bot cũng tự ghi nhận private chat lần đầu nhắn tin.
 
 ## Cấu trúc project
 
@@ -59,7 +58,7 @@ Lượt đang lấy giá/gửi tin sẽ hoàn tất rồi nhả lock. Khởi đ�
 │   ├── monitoring/       # Quy tắc cảnh báo, outbox, bản tin và định dạng tin
 │   ├── telegram/         # Telegram API client và xử lý slash command
 │   ├── reporting/        # Đọc lịch sử, tạo context và dựng HTML
-│   └── shared/           # Đường dẫn project, HTTP batch/cooldown và TLS
+│   └── shared/           # Đường dẫn project, HTTP fetch song song và TLS
 ├── scripts/              # Preflight và các công cụ smoke
 │   └── fixtures/         # Dữ liệu giá mô phỏng cho smoke/test
 ├── tests/                # Regression tests offline bằng node:test
@@ -77,39 +76,19 @@ Lượt đang lấy giá/gửi tin sẽ hoàn tất rồi nhả lock. Khởi đ�
 
 `src/cli/` điều phối các module nghiệp vụ. `src/shared/paths.mjs` xác định thư mục gốc từ vị trí mã nguồn, nên chạy file bằng đường dẫn tuyệt đối từ thư mục khác vẫn đọc đúng config và ghi đúng dữ liệu.
 
-## Các lệnh
+## Các lệnh bổ sung (chạy trực tiếp bằng node)
 
-### Lấy giá và báo cáo
+Muốn lấy giá một lần, dựng báo cáo, hoặc chạy test mô phỏng, gọi trực tiếp file trong `src/cli/` và `scripts/`:
 
-| Lệnh | Chức năng |
-| --- | --- |
-| `npm start` | Lấy giá hai hãng, lưu lịch sử, dựng HTML và xét cảnh báo |
-| `npm run vna` | Chỉ lấy giá Vietnam Airlines |
-| `npm run vietjet` | Chỉ lấy giá Vietjet |
-| `npm run quick` | Lấy giá với ngân sách nguồn 8 giây, lưu kết quả, không gửi alert tự động |
-| `npm run report` | Dựng `report/index.html` từ lịch sử, không gọi hãng |
-| `npm run watch` | Theo dõi liên tục, gửi bản tin theo lịch và nghe lệnh Telegram |
-| `npm run stop` | Yêu cầu watcher dừng an toàn |
-| `npm run daily:preview` | Dựng `data/daily-preview.txt`, không gửi tin |
-| `npm run daily` | Gửi bản tin hôm nay kèm HTML nếu đã đến giờ và chưa gửi |
+```sh
+node src/cli/run.mjs                  # lấy giá một lần, lưu lịch sử, dựng HTML
+node src/cli/run.mjs -- --airline vna # ví dụ: chỉ lấy Vietnam Airlines
+node src/cli/run.mjs --render-only    # chỉ dựng HTML từ lịch sử, không gọi hãng
+node src/cli/daily.mjs --preview      # xem trước bản tin sáng, không gửi
+node scripts/preflight.mjs            # kiểm tra toàn diện (config, tests, Telegram)
+```
 
-Có thể truyền tham số qua npm, ví dụ `npm start -- --airline vna --no-notify`. CLI lấy giá hỗ trợ `--airline all|vna|vietjet`, `--quick`, `--render-only` và `--no-notify`.
-
-### Telegram và kiểm tra
-
-| Lệnh | Chức năng |
-| --- | --- |
-| `npm run telegram:status` | Kiểm tra cấu hình và số người đăng ký cục bộ, không gọi Telegram hoặc in secrets |
-| `npm run telegram:chat-id` | Công cụ hỗ trợ đọc private chat ID qua `getUpdates`; listener phải đang dừng, không cần cho cấu hình bot |
-| `npm run telegram:test` | Broadcast một tin thử kết nối cho người đang đăng ký |
-| `npm run telegram:listen` | Chỉ chạy slash bot; không chạy thêm listener khi `watch` đang chạy |
-| `npm run preflight` | Kiểm tra config, cú pháp, HTML, quyền ghi, history, tests và Telegram `getMe`; không crawl/gửi tin |
-| `npm test` | Chạy toàn bộ test offline, không cần credentials |
-| `npm run telegram:smoke` | Dựng mẫu tin mô phỏng cục bộ, không gửi Telegram |
-| `npm run telegram:smoke -- --send --chat-id <id>` | Gửi các mẫu mô phỏng có nhãn cho một private chat kiểm tra |
-| `npm run telegram:smoke-commands -- --send --chat-id <id>` | Lấy giá thật và gửi thử các lệnh, bản tin và HTML cho một private chat kiểm tra |
-
-`preflight` yêu cầu Telegram được bật và đủ credentials. Nếu chỉ dùng báo cáo cục bộ, chạy `npm test` và `npm run report` để kiểm tra offline. Smoke mô phỏng không ghi history/state giá thật; smoke command dùng dữ liệu thật và không đánh dấu bản tin sáng đã gửi.
+CLI lấy giá hỗ trợ `--airline all|vna|vietjet`, `--quick`, `--render-only` và `--no-notify`.
 
 ## Cấu hình tuyến và theo dõi
 
@@ -120,7 +99,6 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | `origin` / `destination` | `SGN` / `VCL` | Sân bay đi và đến |
 | `departureDate` / `returnDate` | `2027-02-04` / `2027-02-13` | Ngày đi và về chính |
 | `adults` | `1` | Số người lớn, từ 1 đến 9 |
-| `retrieval.batchSeconds` | `90` | Ngân sách batch thường, từ 90 đến 300 giây |
 | `monitoring.pollMinutes` | `25` | Chu kỳ kiểm tra, từ 20 đến 30 phút |
 | `monitoring.dailyReport` | `true` | Bật bản tin hằng ngày |
 | `monitoring.priceOnly` | `true` | Vòng kiểm tra chỉ báo sự kiện giá; tắt tin baseline, Eco và sức khỏe nguồn |
@@ -156,7 +134,7 @@ Token là thông tin bí mật duy nhất cần cho Telegram. Chat ID được b
 | `/stop` | Ngừng nhận tin tự động; vẫn dùng được `/price`, `/report` |
 | `/price` | Kiểm tra giá hai hãng, gửi bản tin chung và file HTML |
 | `/report` | Gửi HTML từ lịch sử đã lưu, không lấy giá mới |
-| `/status` | Kiểm tra kết nối Telegram, lịch bản tin và trạng thái nguồn đã lưu |
+| `/status` | Kiểm tra kết nối, bản tin tiếp theo, vòng poll tiếp theo, watcher, subscriber, cấu hình và trạng thái nguồn đã lưu |
 | `/help` | Hướng dẫn sử dụng |
 | `/connection` | Tương đương `/status` |
 
@@ -164,7 +142,7 @@ Bot nhận lệnh từ mọi private chat, tự đăng ký người lần đầu
 
 Bot dùng long polling, không mở server/port. Mỗi bot chỉ nên có một listener và không dùng webhook đồng thời. Khi khởi động, bot kiểm tra webhook và giữ nguyên nếu đang có webhook, rồi báo cần xử lý xung đột.
 
-`/price` dành tối đa 8 giây cho các request nguồn, tối đa 5 request tuần tự, không retry. Giới hạn một lượt quick mỗi phút dùng chung cho mọi người; nếu lượt nền đang chạy hoặc vừa kiểm tra, bot gửi dữ liệu đã lưu kèm lý do và thời điểm. Thời gian gửi Telegram/HTML còn tùy mạng, nên không đảm bảo hoàn tất toàn bộ dưới 10 giây.
+`/price` luôn lấy giá mới: gọi tất cả nguồn cùng lúc để có kết quả nhanh nhất, không giãn cách, không ngân sách chờ, không retry. Nếu lượt nền đang chạy, bot chờ nhả lock (tối đa ~100 giây) rồi kiểm tra mới thay vì trả cache; chỉ khi lượt nền kẹt quá lâu mới gửi dữ liệu đã lưu kèm lý do và thời điểm. Thời gian gửi Telegram/HTML còn tùy mạng.
 
 Lệnh quá 5 phút không được thực hiện, nhưng private chat vẫn được ghi nhận và yêu cầu hủy nhận tin vẫn có hiệu lực. Cursor lưu trước khi xử lý; nếu tiến trình chết giữa chừng, gửi lại lệnh cần thực hiện. Bot chỉ có thể ghi nhận người từ update còn trên Telegram hoặc danh sách đã lưu; người dùng cũ chưa có trong danh sách cần nhắn lại `/start`.
 
@@ -189,7 +167,7 @@ Chi tiết gộp sự kiện, chống lặp và retry: [`docs/alerts.md`](docs/a
 
 Hai nguồn có cơ sở giá khác nhau nên không xếp hạng trực tiếp như cùng một loại giá. Project không tự đặt vé/giữ chỗ và không đảm bảo bắt kịp sale ngắn hạn.
 
-Batch thường tối đa 5 request, mặc định cách nhau 18 giây trong khung 90 giây. HTTP 403 khiến nguồn nghỉ ít nhất 6 giờ; 429/503 nghỉ ít nhất 1 giờ hoặc lâu hơn theo `Retry-After`. Cooldown tồn tại qua restart. Không retry dồn hoặc bypass challenge; giá ngày lân cận lấy từ cùng batch.
+Mọi lượt lấy giá gọi tối đa 5 request cùng lúc, không giãn cách, không chờ đủ khung giờ, không cho nguồn nghỉ (cooldown). HTTP 403/429/503 được ghi lại như lỗi nguồn trong snapshot, lượt sau thử lại ngay; giá ngày lân cận lấy từ cùng lượt.
 
 ## Dữ liệu và trạng thái
 
@@ -200,14 +178,13 @@ Batch thường tối đa 5 request, mặc định cách nhau 18 giây trong khu
 | `data/daily-state.json` | Trạng thái bản tin, text/HTML đã gửi |
 | `data/bot-state.json` | Cursor Telegram và cooldown `/price` |
 | `data/telegram-subscribers.json` | Private chat ID, đăng ký/hủy nhận tin và cooldown broadcast từng bot |
-| `data/http-cooldowns.json` | Thời gian nghỉ từng nguồn HTTP |
 | `data/*preview*.txt`, `data/*smoke*.json` | Bản xem trước và kết quả smoke |
 | `data/*.lock`, `data/watch.stop` | Lock tiến trình và yêu cầu dừng watcher |
 | `report/index.html` | Dashboard từ lượt chạy/report gần nhất |
 | `report/telegram.html` | HTML cho slash command |
 | `data/daily-report-*.html` | Snapshot HTML giữ lại để retry bản tin |
 
-Giữ `data/` khi nâng cấp để bảo toàn lịch sử, cooldown và chống lặp. Không xóa lock khi PID ghi trong file vẫn còn chạy. Khi chia sẻ mã nguồn/ZIP, bỏ `.env`, dữ liệu trạng thái Telegram, log và lock. Bot credentials và nội dung chat không được đưa vào report HTML.
+Giữ `data/` khi nâng cấp để bảo toàn lịch sử và chống lặp. Không xóa lock khi PID ghi trong file vẫn còn chạy. Khi chia sẻ mã nguồn/ZIP, bỏ `.env`, dữ liệu trạng thái Telegram, log và lock. Bot credentials và nội dung chat không được đưa vào report HTML.
 
 ## Docker và lịch chạy ngoài
 
@@ -228,24 +205,24 @@ Nếu dùng cron/Task Scheduler, chạy `node src/cli/run.mjs` mỗi 25–30 ph�
 
 ```sh
 npm test
-npm run report
-npm run daily:preview
-npm run telegram:smoke
+node src/cli/run.mjs --render-only
+node src/cli/daily.mjs --preview
+node scripts/smoke.mjs
 ```
 
-Các lệnh trên không lấy giá mới hoặc gửi Telegram. Test dùng `node:test`, mock nguồn/Telegram và thư mục tạm. Khi thêm module, đặt theo nhóm chức năng trong `src/`, thêm test trong `tests/`; công cụ kiểm tra và dữ liệu mô phỏng nằm trong `scripts/`.
+Các lệnh trên không gửi Telegram (trừ smoke có `--send`). Test dùng `node:test`, mock nguồn/Telegram và thư mục tạm. Khi thêm module, đặt theo nhóm chức năng trong `src/`, thêm test trong `tests/`; công cụ kiểm tra và dữ liệu mô phỏng nằm trong `scripts/`.
 
 | Tình huống | Cách xử lý |
 | --- | --- |
 | `npm.ps1` bị chặn | Dùng `npm.cmd` hoặc chạy trực tiếp file bằng Node.js |
 | Lock còn tồn tại | Kiểm tra PID; chỉ xóa lock cũ sau khi xác nhận tiến trình đã dừng |
-| Telegram chưa đủ cấu hình | Kiểm tra `.env`, chạy `telegram:status`, rồi `preflight` |
+| Telegram chưa đủ cấu hình | Kiểm tra `.env`, chạy `npm run telegram` |
 | Listener/webhook xung đột | Dừng listener khác; `watch` đã bao gồm slash bot |
-| Nguồn bị giới hạn hoặc thiếu giá | Xem log và `/status`, đợi cooldown; không xóa cooldown để ép gọi lại |
-| Chưa có dữ liệu trong HTML | Chạy `npm start`; `npm run report` chỉ đọc history đã có |
+| Nguồn lỗi hoặc thiếu giá | Xem log và `/status`, gửi `/price` để thử lại ngay |
+| Chưa có dữ liệu trong HTML | Chạy `node src/cli/run.mjs` một lần để lấy giá |
 
 Mã thoát của CLI lấy giá: `0` hoàn tất, `1` lỗi nguồn, `2` thiếu một phần/không có giá chính, `3` đang có lượt chạy khác, `4` lỗi gửi thông báo khi không có lỗi nguồn ưu tiên. Lỗi cú pháp/cấu hình chưa được xử lý riêng có thể cũng trả `1`.
 
-Sau refactor, các lệnh npm giữ nguyên. Lệnh Node trực tiếp trước đây ở thư mục gốc chuyển sang `src/cli/` (ví dụ `node run.mjs` → `node src/cli/run.mjs`); preflight và smoke chuyển sang `scripts/`. `README.txt` và `RULES.txt` được thay bằng README này và [`docs/alerts.md`](docs/alerts.md). Cấu hình và đường dẫn dữ liệu giữ nguyên.
+Chỉ còn 3 lệnh npm: `start` (bật bot), `stop` (dừng ngay), `telegram` (kiểm tra kết nối), cộng `test`. Mọi tác vụ khác gọi trực tiếp file trong `src/cli/` và `scripts/` bằng node (ví dụ `node src/cli/run.mjs`).
 
 Tham khảo API: [Telegram Bot API](https://core.telegram.org/bots/api).

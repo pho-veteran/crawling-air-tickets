@@ -61,25 +61,34 @@ export function normalize(payload,query,observedAt=new Date().toISOString()) {
 export async function crawl(query,{fetchImpl=fetch}={}) {
   configureTLS();
   const start=Date.now();
-  const response=await fetchImpl(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
-    body:JSON.stringify(requestFrom(query)),signal:AbortSignal.timeout(30000),redirect:'error'});
-  if(!response.ok) throw new Error(`HTTP ${response.status}${response.headers.get('retry-after')?'; Retry-After: '+response.headers.get('retry-after'):''}. Đã dừng; không thử lại tự động.`);
-  if(!/json/i.test(response.headers.get('content-type')||'')) throw new Error('API không trả JSON.');
-  const chunks=[];let length=0;
-  for await(const chunk of response.body) {
-    length+=chunk.length;if(length>2*1024*1024) throw new Error('API response vượt 2 MiB.');chunks.push(chunk);
-  }
-  const snapshot=normalize(JSON.parse(Buffer.concat(chunks).toString('utf8')),query);
+  const fetchMatrix=async()=>{
+    const response=await fetchImpl(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify(requestFrom(query)),signal:AbortSignal.timeout(30000),redirect:'error'});
+    if(!response.ok) throw new Error(`HTTP ${response.status}${response.headers.get('retry-after')?'; Retry-After: '+response.headers.get('retry-after'):''}. Đã dừng; không thử lại tự động.`);
+    if(!/json/i.test(response.headers.get('content-type')||'')) throw new Error('API không trả JSON.');
+    const chunks=[];let length=0;
+    for await(const chunk of response.body) {
+      length+=chunk.length;if(length>2*1024*1024) throw new Error('API response vượt 2 MiB.');chunks.push(chunk);
+    }
+    return {snapshot:normalize(JSON.parse(Buffer.concat(chunks).toString('utf8')),query),bytes:length,status:response.status};
+  };
+  const fetchLeg=async([leg,from,to,date])=>{
+    if(query.adults!==1)return {leg,error:'Nguồn giá lịch một chiều chỉ xác minh cho 1 người lớn.'};
+    try{return {leg,result:await fetchOneWay(from,to,dateRange(date),fetchImpl)};}
+    catch(e){return {leg,error:String(e.message).slice(0,250)};}
+  };
+  const legs=[['outbound',query.origin,query.destination,query.departureDate],['inbound',query.destination,query.origin,query.returnDate]];
+  const [matrix,...legResults]=await Promise.all([fetchMatrix(),...legs.map(fetchLeg)]);
+  const snapshot=matrix.snapshot;
   snapshot.legs={outbound:[],inbound:[]};snapshot.leg_errors={};
   snapshot.legs_source='vna-air-best-price-oneway-v1';snapshot.legs_price_basis='independent-oneway-reference';
   snapshot.legs_passengers=1;snapshot.legs_endpoint=ONEWAY_ENDPOINT;
-  let requests=1;
-  for(const [leg,from,to,date] of [['outbound',query.origin,query.destination,query.departureDate],['inbound',query.destination,query.origin,query.returnDate]]){
-    if(query.adults!==1){snapshot.leg_errors[leg]='Nguồn giá lịch một chiều chỉ xác minh cho 1 người lớn.';continue;}
-    try{requests++;const result=await fetchOneWay(from,to,dateRange(date),fetchImpl);snapshot.legs[leg]=result.dates;length+=result.bytes;}
-    catch(e){snapshot.leg_errors[leg]=String(e.message).slice(0,250);}
+  let requests=1,length=matrix.bytes;
+  for(const {leg,result,error} of legResults){
+    if(error){snapshot.leg_errors[leg]=error;continue;}
+    requests++;snapshot.legs[leg]=result.dates;length+=result.bytes;
   }
   snapshot.legs_status=Object.keys(snapshot.leg_errors).length?'error':Object.values(snapshot.legs).some(leg=>leg.some(d=>d.price===null))?'partial':'ok';
   if(snapshot.legs_status!=='ok'&&snapshot.status==='ok')snapshot.status='partial';
-  return {...snapshot,requests,http_status:response.status,duration_ms:Date.now()-start,response_bytes:length};
+  return {...snapshot,requests,http_status:matrix.status,duration_ms:Date.now()-start,response_bytes:length};
 }
