@@ -45,7 +45,7 @@ Trong lúc kiểm tra xuất hiện Eco trên VJ376 ngày 04/02. Hai OTA cùng t
 
 Request tìm kiếm công khai của [Flynow](https://www.flynow.vn/): POST form-urlencoded tới `/Handler/FlightHandler.ashx/ProcessRequest`, `requestType=Search`, `searchType=NORMAL`, `system=EVJ`, `adt=1`, `chd=0`, `inf=0` và hai chặng trong `listFlight`. Ngày gửi dạng DDMMYYYY. Không cần tài khoản, cookie, browser automation hay token chép từ trình duyệt trong các lần kiểm chứng.
 
-Lưu ý điều hướng phát hiện khi kiểm tra lại: URL `/flights?sp=SGN&ep=VCL&dt=04022027.13022027&ps=1.0.0` cho đúng kết quả SGN–VCL nhưng form phía trên có thể vẫn hiện HAN–SGN/ngày mặc định hoặc hành trình đã lưu trong trình duyệt. Sau khi nhập lại form và tìm kiếm, Flynow tạo chính URL đó và form mới khớp. Vì vậy `source_pages` chỉ là URL kết quả để đối chiếu, không đảm bảo điền form. Bot dùng link trang chủ Flynow với nhãn yêu cầu nhập lại; link Vietjet trực tiếp là lối tắt đã xác minh điền đúng form.
+Lưu ý điều hướng phát hiện khi kiểm tra lại: URL `/flights?sp=SGN&ep=VCL&dt=04022027.13022027&ps=1.0.0` cho đúng kết quả SGN–VCL nhưng form phía trên có thể vẫn hiện HAN–SGN/ngày mặc định hoặc hành trình đã lưu trong trình duyệt. Sau khi nhập lại form và tìm kiếm, Flynow tạo chính URL đó và form mới khớp. Bot giữ URL kết quả này để mở nhanh đúng hành trình, kèm nhãn nhắc kiểm tra form tuyến/ngày. URL không chứa phiên đặt vé và được dựng từ cấu hình hiện tại; không đảm bảo form của Flynow đồng bộ. Link Vietjet trực tiếp đã xác minh điền đúng form.
 
 Giá chuẩn hóa:
 
