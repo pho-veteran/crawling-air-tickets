@@ -1,4 +1,5 @@
 import {when} from './messages.mjs';
+import {bookingText,flightHint} from './booking-links.mjs';
 const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';
 const hasPrice=n=>Number.isSafeInteger(n)&&n>0;
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7);
@@ -101,6 +102,11 @@ export function formatAlert(provider,record,events,history=[]) {
   if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+' ('+when(low.at)+').');}
   rows.push('🕒 '+when(record.observed_at)+' · giờ Việt Nam');
   rows.push(provider.id==='vietjet'?'ℹ️ Vietjet qua Flynow: gồm thuế/phí hãng; đã loại phí dịch vụ đại lý theo báo giá, chưa giữ chỗ.':'ℹ️ Gồm thuế theo nguồn; vé từng chiều là giá mua riêng.');
-  rows.push('Xem biểu đồ: /report · '+(provider.id==='vietjet'?'https://www.flynow.vn/':'https://www.vietnamairlines.com/vn/vi'));
+  for(const [direction,date,label] of [['outbound',q.departureDate,'Đi'],['inbound',q.returnDate,'Về']]){
+    if(leg&&direction!==g.leg)continue;
+    const quote=record.legs?.[direction]?.find(x=>x.date===(leg?g.date:date));
+    if(valid(record)&&hasPrice(quote?.price)&&flightHint(quote))rows.push('✈️ '+label+': '+flightHint(quote));
+  }
+  rows.push(bookingText(provider.id,q),'Link mở trang tìm vé, chưa giữ chỗ. Kiểm tra lại giá trước thanh toán.','Xem biểu đồ: /report');
   return rows.filter(Boolean).join('\n');
 }

@@ -1,3 +1,4 @@
+import {bookingText,flightHint} from './booking-links.mjs';
 export const money=n=>Number.isSafeInteger(n)&&n>0?new Intl.NumberFormat('vi-VN').format(n)+'đ':'chưa có giá';
 const offsetMs=(offset='+07:00')=>(offset[0]==='-'?-1:1)*(Number(offset.slice(1,3))*60+Number(offset.slice(4)))*60000;
 export const localDay=(t,offset='+07:00')=>new Date(Number(t)+offsetMs(offset)).toISOString().slice(0,10);
@@ -23,14 +24,16 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=25,setti
     for(const [leg,date,label,from,to] of [['outbound',query.departureDate,'🛫 Vé đi',query.origin,query.destination],['inbound',query.returnDate,'🛬 Vé về',query.destination,query.origin]]){
       const quote=r.legs?.[leg]?.find(x=>x.date===date),before=previous?.legs?.[leg]?.find(x=>x.date===date);
       lines.push(label+' '+from+' → '+to+' · '+day(date)+'/'+date.slice(0,4)+': '+money(quote?.price)+' · '+change(quote?.price,before?.price));
+      if(priced(quote?.price)&&flightHint(quote))lines.push('   Chọn chuyến: '+flightHint(quote));
       if(!priced(quote?.price)&&r.leg_errors?.[leg])lines.push('⚠️ Chưa cập nhật được giá '+(leg==='outbound'?'chiều đi':'chiều về')+' ở lượt này.');
     }
     const priorPrices=good.filter(x=>priced(x.main_price));
     if(priorPrices.length){const low=priorPrices.reduce((a,b)=>a.main_price<=b.main_price?a:b);lines.push('🏷 Từ khi theo dõi, giá thấp nhất là '+money(low.main_price)+', ghi nhận lúc '+when(low.observed_at)+'.');}
     lines.push('🕒 Cập nhật lúc '+when(r.observed_at)+' (UTC+7)'+(previous?' · So với mốc '+when(previous.observed_at)+(onDemand?' trước đó.':' trước hôm nay.'):' · Chưa có mốc so sánh.'));
+    lines.push(bookingText(p.id,query));
     sections.push(lines.join('\n'));
   }
-  sections.push('🔔 Có giá giảm đáng chú ý, mình sẽ nhắn ngay khi thấy. File HTML đính kèm có biểu đồ và giá các ngày gần đó.',sourceNote('vna'),sourceNote('vietjet'),'Vietjet đã chuẩn hóa bỏ phí đại lý; tổng thanh toán tại đại lý có thể cao hơn. Kiểm tra lại trước khi đặt vé.','🔗 Kiểm tra trước khi đặt:\nhttps://www.vietnamairlines.com/vn/vi\nhttps://www.flynow.vn/');
+  sections.push('🔔 Có giá giảm đáng chú ý, mình sẽ nhắn ngay khi thấy. File HTML đính kèm có biểu đồ và giá các ngày gần đó.',sourceNote('vna'),sourceNote('vietjet'),'Link mở trang tìm vé; chọn đúng chuyến/hạng và kiểm tra giá trước thanh toán. Chưa giữ chỗ. Flynow có thêm phí đại lý.');
   return sections.join('\n\n');
 }
 // Offsets use JavaScript UTF-16 indices, as required by Telegram MessageEntity.

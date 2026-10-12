@@ -20,7 +20,7 @@ test('07:00 is Vietnam time, independent of host and 25-minute poll phase',()=>{
 test('daily combines both airlines with independent upward/downward/unchanged deltas',()=>{
   const text=formatDaily({providers,query,now:today});
   assert.match(text,/VIETNAM AIRLINES/);assert.match(text,/VIETJET/);assert.match(text,/↓ 1.000.000đ/);assert.match(text,/↑ 500.000đ/);assert.match(text,/↔ Không đổi/);
-  assert.match(text,/trước hôm nay/);assert.doesNotMatch(text,/GIÁ CŨ/);assert.match(text,/chuẩn hóa bỏ phí đại lý/);
+  assert.match(text,/trước hôm nay/);assert.doesNotMatch(text,/GIÁ CŨ/);assert.match(text,/đã loại phí dịch vụ đại lý/);
   assert.equal(change(null,5000),'chưa có mốc so sánh');
 });
 test('stale and missing data are never presented as fresh prices',()=>{
