@@ -17,7 +17,7 @@ export async function handleIncomingUpdate({root, update, creds, state, save, us
   else {
     const subscription = await registerSubscriber({root, token: creds.token, chatId: recipient.chatId, now: now(), reactivate: command === 'start'});
     if (!match && subscription.isNew && (!message.date || now() / 1000 - message.date <= 300)) {
-      await send(recipient, '👋 Bạn đã được đăng ký nhận cảnh báo giá và bản tin sáng của bot. /price để xem giá, /report để xem HTML, /stop để ngừng nhận, /start để nhận lại.');
+      await send(recipient, '👋 Bạn đã được đăng ký nhận cảnh báo giá và bản tin sáng của bot. /price để xem giá, /stop để ngừng nhận, /start để nhận lại.');
     }
   }
   // Discover past contacts and honor their opt-out, but do not execute old commands.

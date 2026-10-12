@@ -91,13 +91,13 @@ test('each /price fetches fresh while each reply keeps its own destination', asy
     await handleIncomingUpdate({root, creds, state, now: () => now, save: async () => {},
       update: {update_id: id, message: {text: '/price', chat: {id: chatId, type: 'private'}}},
       handle: args => handleCommand({...args, busy: async () => false, sleep: async () => {}, quick: async () => {runs++; return 0;},
-        context: async () => ({providers: [{...provider, history: [record(now)]}], query, settings}), report: async () => 'fake.html',
-        send: async (recipient, text) => {replies.push({id: recipient.chatId, text}); return 1;}, attach: async () => 1})});
+        context: async () => ({providers: [{...provider, history: [record(now)]}], query, settings}),
+        send: async (recipient, text) => {replies.push({id: recipient.chatId, text}); return 1;}})});
   }
   assert.equal(runs, 2);
   assert.deepEqual(replies.map(r => r.id), ['111', '111', '222', '222']);
   assert.match(replies[2].text, /Đang kiểm tra giá mới/);
-  assert.match(replies[3].text, /Vừa kiểm tra xong/);
+  assert.match(replies[3].text, /Giá vé bạn vừa hỏi đây/);
 });
 
 test('broadcast paces recipients and removes blocked users without stopping other deliveries', async t => {
@@ -150,18 +150,17 @@ test('price alert broadcasts dedupe independently for every subscriber', async t
   assert.equal(destinations.length, 2);
 });
 
-test('daily broadcast resumes failed recipients without repeating acknowledged text or HTML for others', async t => {
+test('daily broadcast resumes failed recipients without repeating acknowledged text for others', async t => {
   const root = await workspace(t); await enroll(root, '111'); await enroll(root, '222');
-  const texts = [], docs = []; let failed = false;
-  const args = {root, creds, settings, query, providers: [{...provider, history: [record(now)]}], sleep, report: async () => 'fake.html',
-    send: async recipient => {texts.push(recipient.chatId); if (recipient.chatId === '222' && !failed) {failed = true; throw new Error('network');} return texts.length;},
-    attach: async recipient => {docs.push(recipient.chatId); return docs.length;}};
+  const texts = []; let failed = false;
+  const args = {root, creds, settings, query, providers: [{...provider, history: [record(now)]}], sleep,
+    send: async recipient => {texts.push(recipient.chatId); if (recipient.chatId === '222' && !failed) {failed = true; throw new Error('network');} return texts.length;}};
   assert.equal((await sendDaily({...args, now})).status, 'send_failed');
-  assert.deepEqual(texts, ['111', '222']); assert.deepEqual(docs, ['111']);
+  assert.deepEqual(texts, ['111', '222']);
   assert.equal((await sendDaily({...args, now: now + 300001})).status, 'sent');
-  assert.deepEqual(texts, ['111', '222', '222']); assert.deepEqual(docs, ['111', '222']);
+  assert.deepEqual(texts, ['111', '222', '222']);
   assert.equal((await sendDaily({...args, now: now + 600000})).status, 'already_sent');
-  assert.equal(texts.length, 3); assert.equal(docs.length, 2);
+  assert.equal(texts.length, 3);
 });
 
 test('Telegram exposes numeric HTTP/API codes for broadcast decisions without revealing token or descriptions', async () => {

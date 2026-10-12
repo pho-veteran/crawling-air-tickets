@@ -5,7 +5,7 @@ import {projectRoot} from '../shared/paths.mjs';
 import {parseArgs} from 'node:util';
 import {queryFrom,SOURCE} from '../providers/vna.mjs';
 import {SOURCE as VIETJET_SOURCE} from '../providers/vietjet.mjs';
-import {readHistory} from '../reporting/report.mjs';
+import {readHistory} from '../reporting/history.mjs';
 import {settingsFrom} from '../monitoring/alerts.mjs';
 import {formatDaily} from '../monitoring/messages.mjs';
 import {sendDaily} from '../monitoring/daily.mjs';

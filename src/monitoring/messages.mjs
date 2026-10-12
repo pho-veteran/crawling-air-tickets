@@ -8,8 +8,7 @@ export const when=t=>{const d=new Date(t),f=new Intl.DateTimeFormat('en-GB',{tim
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7),priced=n=>Number.isSafeInteger(n)&&n>0;
 export const change=(current,previous)=>!priced(current)||!priced(previous)?'chưa có mốc so sánh':current===previous?'↔ Không đổi':(current<previous?'🟢 ↓ ':'🔺 ↑ ')+money(Math.abs(current-previous))+' ('+(Math.abs(current-previous)/previous*100).toFixed(1)+'%)';
 export function routeLine(q){return q.origin+' ⇄ '+q.destination+' · '+day(q.departureDate)+'–'+day(q.returnDate)+'/'+q.returnDate.slice(0,4)+' · '+q.adults+' người lớn';}
-export function sourceNote(id){return id==='vietjet'?'ℹ️ Vietjet qua Flynow: gồm thuế/phí hãng, đã loại phí dịch vụ đại lý theo từng báo giá. Tổng hai vé một chiều; hành lý tùy hạng vé. Chưa giữ chỗ.':'ℹ️ VNA: vé riêng gồm thuế theo nguồn, độc lập với bảng giá khứ hồi. Giá tham khảo, chưa giữ chỗ.';}
-export function formatDaily({providers,query,now=Date.now(),pollMinutes=25,settings={},onDemand=false}){
+export function formatDaily({providers,query,now=Date.now(),pollMinutes=10,settings={},onDemand=false}){
   const offset=settings.dailyUtcOffset||'+07:00',clock=settings.dailyTime||'07:00';
   const sections=[onDemand?'✈️ Giá vé bạn vừa hỏi đây!' :'☀️ Chào buổi sáng! Cùng xem giá vé hôm nay · '+clock,routeLine(query),'📅 '+localDay(now,offset).split('-').reverse().join('/')+' · UTC'+offset];
   for(const p of providers){
@@ -24,7 +23,7 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=25,setti
     for(const [leg,date,label,from,to] of [['outbound',query.departureDate,'🛫 Vé đi',query.origin,query.destination],['inbound',query.returnDate,'🛬 Vé về',query.destination,query.origin]]){
       const quote=r.legs?.[leg]?.find(x=>x.date===date),before=previous?.legs?.[leg]?.find(x=>x.date===date);
       lines.push(label+' '+from+' → '+to+' · '+day(date)+'/'+date.slice(0,4)+': '+money(quote?.price)+' · '+change(quote?.price,before?.price));
-      if(priced(quote?.price)&&flightHint(quote))lines.push('   Chọn chuyến: '+flightHint(quote));
+      if(priced(quote?.price)&&flightHint(quote))lines.push('Chọn chuyến: '+flightHint(quote));
       if(!priced(quote?.price)&&r.leg_errors?.[leg])lines.push('⚠️ Chưa cập nhật được giá '+(leg==='outbound'?'chiều đi':'chiều về')+' ở lượt này.');
     }
     const priorPrices=good.filter(x=>priced(x.main_price));
@@ -33,7 +32,6 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=25,setti
     lines.push(bookingText(p.id,query));
     sections.push(lines.join('\n'));
   }
-  sections.push('🔔 Có giá giảm đáng chú ý, mình sẽ nhắn ngay khi thấy. File HTML đính kèm có biểu đồ và giá các ngày gần đó.',sourceNote('vna'),sourceNote('vietjet'),'Link mở trang tìm vé; chọn đúng chuyến/hạng và kiểm tra giá trước thanh toán. Chưa giữ chỗ. Flynow có thêm phí đại lý.');
   return sections.join('\n\n');
 }
 // Offsets use JavaScript UTF-16 indices, as required by Telegram MessageEntity.

@@ -5,7 +5,7 @@
   "returnDate": "2027-02-13",
   "adults": 1,
   "monitoring": {
-    "pollMinutes": 25,
+    "pollMinutes": 10,
     "dailyReport": true,
     "priceOnly": true,
     "mainDropMinVnd": 1,

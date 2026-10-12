@@ -4,11 +4,10 @@ import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {projectRoot} from '../src/shared/paths.mjs';
-import vm from 'node:vm';
 import {queryFrom,SOURCE} from '../src/providers/vna.mjs';
 import {SOURCE as VJ} from '../src/providers/vietjet.mjs';
 import {settingsFrom} from '../src/monitoring/alerts.mjs';
-import {readHistory} from '../src/reporting/report.mjs';
+import {readHistory} from '../src/reporting/history.mjs';
 import {credentials,telegramCall} from '../src/telegram/client.mjs';
 const root=projectRoot;
 loadEnv(root);
@@ -26,11 +25,10 @@ try{
   }
   const modules=[...await findModules('src'),...await findModules('scripts'),...await findModules('tests')];
   for(const file of modules){const result=spawnSync(process.execPath,['--check',path.join(root,file)],{stdio:'pipe',windowsHide:true});if(result.status!==0)throw new Error('Lỗi cú pháp: '+file);}
-  const html=await readFile(path.join(root,'templates','report.html'),'utf8');new vm.Script(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
-  for(const folder of ['data','report']){const dir=path.join(root,folder);await mkdir(dir,{recursive:true});const probe=path.join(dir,'.preflight-'+randomUUID());await writeFile(probe,'ok',{flag:'wx'});await unlink(probe);}
+  for(const folder of ['data']){const dir=path.join(root,folder);await mkdir(dir,{recursive:true});const probe=path.join(dir,'.preflight-'+randomUUID());await writeFile(probe,'ok',{flag:'wx'});await unlink(probe);}
   for(const source of [SOURCE,VJ]){const history=await readHistory(path.join(root,'data','history.jsonl'),query,source);console.log('Lịch sử '+source+': '+history.length+' dòng hợp lệ.');}
-  const tests=spawnSync(process.execPath,['--test'],{cwd:root,stdio:'inherit',windowsHide:true});if(tests.status!==0)throw new Error('Regression test chưa đạt.');
+  const tests=spawnSync(process.execPath,['--test','tests/*.test.mjs'],{cwd:root,stdio:'inherit',windowsHide:true});if(tests.status!==0)throw new Error('Regression test chưa đạt.');
   const creds=credentials(root);if(!creds.enabled||!creds.configured)throw new Error('Telegram chưa đủ cấu hình/bật.');
   const me=await telegramCall(creds.token,'getMe');if(!me.is_bot)throw new Error('Token không xác nhận tài khoản bot.');
-  console.log('PREFLIGHT PASS: cấu hình, cú pháp, HTML, quyền ghi, lịch sử, tests và Telegram getMe. Chưa crawl/gửi tin/chạy nền.');
+  console.log('PREFLIGHT PASS: cấu hình, cú pháp, quyền ghi, lịch sử, tests và Telegram getMe. Chưa crawl/gửi tin/chạy nền.');
 }catch(e){console.error(e.message);process.exitCode=1;}

@@ -2,7 +2,7 @@
 
 Quy tắc áp dụng cho **ngày đi/về chính** trong `config.json`, riêng từng hãng và từng đối tượng: khứ hồi, vé đi, vé về. Cấu hình hiện tại là SGN ⇄ VCL, đi 04/02/2027, về 13/02/2027, 1 người lớn.
 
-Giá ngày lân cận chỉ lưu trong history và báo cáo HTML, không gửi lên Telegram. Giá không đổi vẫn được lưu vào history.
+Giá ngày lân cận chỉ lưu trong history, không gửi lên Telegram. Giá không đổi vẫn được lưu vào history. Kiểm tra mỗi 10 phút; gửi ngay khi lượt kiểm tra phát hiện giảm, độc lập bản tin 07:00 UTC+7.
 
 ## Điều kiện phát cảnh báo
 
@@ -37,9 +37,9 @@ Nếu Telegram nhận tin nhưng mạng mất trước khi tiến trình nhận 
 
 ## Bản tin hằng ngày
 
-Giờ gửi lấy từ `.env`, mặc định `07:00` với UTC offset `+07:00`. Bản tin chung kèm HTML gồm giá khứ hồi, vé đi, vé về ngày chính; tăng/giảm/không đổi so với mốc cuối trước hôm nay; thấp nhất từng thấy kèm thời điểm.
+Giờ gửi lấy từ `.env`, mặc định `07:00` với UTC offset `+07:00`. Bản tin chung gồm giá khứ hồi, vé đi, vé về ngày chính; tăng/giảm/không đổi so với mốc cuối trước hôm nay; thấp nhất từng thấy kèm thời điểm.
 
-Không có mốc trước thì không tính phần trăm. Lỗi nguồn hoặc giá quá `pollMinutes + 5` phút được ghi rõ là giá cũ. Text và HTML cùng một snapshot; retry HTML không gửi lại text đã ACK. Trạng thái được lưu trong `data/daily-state.json`.
+Không có mốc trước thì không tính phần trăm. Lỗi nguồn hoặc giá quá `pollMinutes + 5` phút được ghi rõ là giá cũ. Tin đã ACK không được gửi lại khi retry hoặc nâng cấp từ phiên bản từng đính kèm HTML. Trạng thái được lưu trong `data/daily-state.json`.
 
 Watcher hẹn giờ kế tiếp khi khởi động, không gửi bù bản tin đã qua giờ. Máy ngủ qua giờ hẹn thì khi tỉnh chỉ gửi bản tin hôm nay, không gửi dồn ngày cũ. Chạy `node src/cli/daily.mjs` riêng có thể gửi bản tin hôm nay nếu đã đến giờ và chưa gửi.
 
@@ -53,9 +53,10 @@ Giảm 533.181đ (10.0%), trước 5.333.181đ
 🏷 Thấp nhất từ khi theo dõi: 4.800.000đ (07:00 ngày 12/10/2026).
 🕒 07:00 ngày 12/10/2026 · giờ Việt Nam
 ℹ️ Gồm thuế theo nguồn; đây là giá mua riêng.
-Xem biểu đồ: /report
+🔗 Đặt vé VNA (nhập lại tuyến/ngày):
+https://www.vietnamairlines.com/vn/vi
 ```
 
-Vietjet dùng lịch giá tham khảo trong 24 giờ, chưa xác định thuế/phí và không gồm hành lý ký gửi. Không so hai hãng như cùng cơ sở giá; project không tự đặt vé hoặc giữ chỗ.
+Vietjet dùng kết quả tìm vé Flynow, gồm thuế/phí hãng và loại phí đại lý theo từng báo giá; hành lý tùy hạng vé. Tổng hiển thị là cộng hai vé một chiều. Không so hai hãng như cùng cơ sở giá; project không tự đặt vé hoặc giữ chỗ.
 
 Quay lại [README](../README.md) để xem cách chạy và cấu hình.

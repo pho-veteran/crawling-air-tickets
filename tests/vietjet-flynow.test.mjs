@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {crawl,normalizeSearch,requestFrom,SOURCE} from '../src/providers/vietjet.mjs';
 import {queryFrom,queryId} from '../src/providers/vna.mjs';
-import {readHistory} from '../src/reporting/report.mjs';
+import {readHistory} from '../src/reporting/history.mjs';
 import {fare,simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
 const q=queryFrom({origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDate:'2027-02-13',adults:1});
 const parse=data=>normalizeSearch({Status:true,ListFareData:data},q,q.departureDate,q.returnDate);

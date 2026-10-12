@@ -5,14 +5,14 @@ import path from 'node:path';
 import {projectRoot} from '../shared/paths.mjs';
 import {crawl,queryFrom,queryId,SOURCE} from '../providers/vna.mjs';
 import * as vietjet from '../providers/vietjet.mjs';
-import {readHistory,writeReport} from '../reporting/report.mjs';
+import {readHistory} from '../reporting/history.mjs';
 import {settingsFrom} from '../monitoring/alerts.mjs';
 import {notifyRecord} from '../monitoring/notify.mjs';
 import {createBatch} from '../shared/batch.mjs';
 
 const root=projectRoot;
 loadEnv(root);
-const {values:args}=parseArgs({options:{'render-only':{type:'boolean',default:false},airline:{type:'string',default:'all'},quick:{type:'boolean',default:false},'no-notify':{type:'boolean',default:false}}});
+const {values:args}=parseArgs({options:{airline:{type:'string',default:'all'},quick:{type:'boolean',default:false},'no-notify':{type:'boolean',default:false}}});
 if(!['all','vna','vietjet'].includes(args.airline))throw new Error('--airline: all, vna hoặc vietjet.');
 const providers=[
   {id:'vna',name:'Vietnam Airlines',source:SOURCE,crawl,basis:'Tổng khứ hồi từ bảng so sánh VNA. Giá đi/về lấy riêng từ lịch một chiều, gồm thuế theo nguồn, cho 1 người lớn; tổng hai vé riêng có thể khác giá khứ hồi. Giá tham khảo, chưa xác nhận đặt chỗ.'},
@@ -22,7 +22,7 @@ const config=JSON.parse(await readFile(path.join(root,'config.json'),'utf8'));
 const query=queryFrom(config),settings=settingsFrom(config.monitoring);
 // Let an in-flight snapshot finish and release its lock when watch receives Ctrl+C.
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{});
-const dataDir=path.join(root,'data'),historyFile=path.join(dataDir,'history.jsonl'),reportFile=path.join(root,'report','index.html');
+const dataDir=path.join(root,'data'),historyFile=path.join(dataDir,'history.jsonl');
 await mkdir(dataDir,{recursive:true});
 let lock;
 const lockFile=path.join(dataDir,'run.lock');
@@ -31,12 +31,12 @@ catch(e) {if(e.code==='EEXIST'){console.error('Đang có lần chạy khác ho�
 try {
   // Every retrieval fires all providers concurrently for the fastest result.
   // Persistence below stays sequential so history lines never interleave.
-  const batch=args['render-only']?null:await createBatch({});
+  const batch=await createBatch({});
   const summaries=[],notifications=[];
   const crawlOne=async provider=>{
     const history=await readHistory(historyFile,query,provider.source);provider.history=history;
     let record,requests=0;
-    if(!args['render-only']&&(args.airline==='all'||args.airline===provider.id)) {
+    if(args.airline==='all'||args.airline===provider.id) {
       let sent=0;
       const counting=async(...call)=>{const response=await batch.fetch(...call);sent++;return response;};
       try {record=await provider.crawl(query,{fetchImpl:counting});}
@@ -65,12 +65,11 @@ try {
     if(record&&!args['no-notify'])notifications.push({provider,record,history,summary:summaries.at(-1)});
   }
   const batchSummary=batch?await batch.finish():null;
-  await writeReport({file:reportFile,providers,query,template:path.join(root,'templates','report.html'),batch:batchSummary});
   // Finish both sources before fan-out, so Telegram recipients cannot consume the HTTP batch budget.
   for(const {provider,record,history,summary} of notifications){
     try{summary.notification=await notifyRecord({root,provider,record,history,settings});}
     catch{summary.notification={status:'notification_error',detail:'Kiểm tra .env và data/notification-state.json; dữ liệu giá đã được lưu.'};}
     if(['send_failed','notification_error','retry_wait','busy'].includes(summary.notification.status)&&!process.exitCode)process.exitCode=4;
   }
-  console.log(JSON.stringify({airlines:summaries,batch:batchSummary,requests:summaries.reduce((s,p)=>s+p.requests,0),history:historyFile,html:reportFile},null,2));
+  console.log(JSON.stringify({airlines:summaries,batch:batchSummary,requests:summaries.reduce((s,p)=>s+p.requests,0),history:historyFile},null,2));
 } finally {await lock.close();await unlink(lockFile);}

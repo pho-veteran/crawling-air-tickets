@@ -2,7 +2,6 @@ import {loadEnvFile} from 'node:process';
 import path from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {messageEntities} from '../monitoring/messages.mjs';
-import {readFile,stat} from 'node:fs/promises';
 
 export function loadEnv(root){
   try{loadEnvFile(path.join(root,'.env'));}catch(e){if(e.code!=='ENOENT')throw new Error('Không đọc được .env; kiểm tra định dạng.');}
@@ -14,25 +13,17 @@ export function credentials(root) {
 }
 export async function telegramCall(token,method,body={},fetchImpl=fetch) {
   if(!/^\d+:[A-Za-z0-9_-]+$/.test(token||''))throw new Error('TELEGRAM_TOKEN_INVALID: kiểm tra token trong .env.');
-  if(!['sendMessage','sendDocument','getMe','getUpdates','getWebhookInfo','setMyCommands'].includes(method))throw new Error('Telegram method không được hỗ trợ.');
+  if(!['sendMessage','getMe','getUpdates','getWebhookInfo','setMyCommands'].includes(method))throw new Error('Telegram method không được hỗ trợ.');
   let response,data;
   try {
     const multipart=body instanceof FormData;
     response=await fetchImpl('https://api.telegram.org/bot'+token+'/'+method,{method:'POST',
-      ...multipart?{body}:{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},signal:AbortSignal.timeout(method==='sendDocument'?60000:20000),redirect:'error'});
+      ...multipart?{body}:{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},signal:AbortSignal.timeout(20000),redirect:'error'});
     data=await response.json();
   }catch{throw new Error('TELEGRAM_NETWORK: chưa xác nhận gửi thành công; sẽ thử lại sau.');}
   if(!response.ok||data.ok!==true){const error=new Error('TELEGRAM_HTTP_'+response.status+' (API '+(Number(data.error_code)||'unknown')+').');
     error.retryAfter=Math.max(0,Math.min(86400,Number(data.parameters?.retry_after)||0));error.httpStatus=response.status;error.apiCode=Number(data.error_code)||0;throw error;}
   return data.result;
-}
-export async function sendDocument(creds,file,caption='📎 Báo cáo giá vé · HTML mở offline',fetchImpl=fetch){
-  if(!creds.configured||!creds.enabled||!creds.chatId)throw new Error('Telegram chưa được cấu hình/bật hoặc chưa có người nhận.');
-  const info=await stat(file);if(info.size>40*1024*1024)throw new Error('REPORT_TOO_LARGE: HTML vượt 40 MiB.');
-  const form=new FormData();form.set('chat_id',creds.chatId);form.set('caption',caption);form.set('caption_entities',JSON.stringify(messageEntities(caption)));
-  form.set('document',new Blob([await readFile(file)],{type:'text/html'}),'flight-fare-report.html');
-  const result=await telegramCall(creds.token,'sendDocument',form,fetchImpl);
-  if(!Number.isSafeInteger(result?.message_id))throw new Error('TELEGRAM_RESPONSE: thiếu xác nhận document.');return result.message_id;
 }
 export function messageParts(text){
   const parts=[];let rest=text;

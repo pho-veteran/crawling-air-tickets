@@ -1,8 +1,8 @@
 # Air Ticket Price Tracker
 
-Theo dõi giá vé Vietnam Airlines và Vietjet, lưu lịch sử, tạo báo cáo HTML mở offline và gửi cảnh báo qua Telegram. Project dùng JavaScript ESM, chỉ phụ thuộc các module có sẵn của Node.js; **không cần `npm install`**.
+Theo dõi giá vé Vietnam Airlines và Vietjet, lưu lịch sử và gửi cảnh báo qua Telegram. Project dùng JavaScript ESM, chỉ phụ thuộc các module có sẵn của Node.js; **không cần `npm install`**.
 
-Cấu hình đang có: **SGN ⇄ VCL**, đi **04/02/2027**, về **13/02/2027**, **1 người lớn**, kiểm tra mỗi **25 phút**. Có thể đổi tuyến và ngày trong [`config.json`](config.json).
+Cấu hình đang có: **SGN ⇄ VCL**, đi **04/02/2027**, về **13/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Có thể đổi tuyến và ngày trong [`config.json`](config.json).
 
 ## Yêu cầu
 
@@ -23,7 +23,7 @@ Chỉ còn 3 lệnh:
 
 | Lệnh | Chức năng |
 | --- | --- |
-| `npm start` | Bật bot: vòng lấy giá mỗi 25 phút, bản tin sáng 07:00 và lệnh Telegram |
+| `npm start` | Bật bot: vòng lấy giá mỗi 10 phút, bản tin sáng 07:00 và lệnh Telegram |
 | `npm stop` | Dừng ngay tiến trình bot |
 | `npm run telegram` | Kiểm tra kết nối Telegram (cấu hình, bot, webhook, người đăng ký) |
 
@@ -57,38 +57,34 @@ Mỗi người mở bot và gửi `/start` để đăng ký nhận bản tin/c�
 │   ├── providers/        # Lấy và chuẩn hóa giá VNA, VNA một chiều, Vietjet
 │   ├── monitoring/       # Quy tắc cảnh báo, outbox, bản tin và định dạng tin
 │   ├── telegram/         # Telegram API client và xử lý slash command
-│   ├── reporting/        # Đọc lịch sử, tạo context và dựng HTML
+│   ├── reporting/        # Đọc lịch sử và tạo context
 │   └── shared/           # Đường dẫn project, HTTP fetch song song và TLS
 ├── scripts/              # Preflight và các công cụ smoke
 │   └── fixtures/         # Dữ liệu giá mô phỏng cho smoke/test
 ├── tests/                # Regression tests offline bằng node:test
-├── templates/
-│   └── report.html       # Template dashboard offline
 ├── docs/
 │   └── alerts.md         # Chi tiết quy tắc cảnh báo và chống lặp
 ├── config.json           # Tuyến, ngày, hành khách và thiết lập theo dõi
 ├── .env.example          # Mẫu cấu hình Telegram và giờ bản tin
 ├── package.json          # Các lệnh npm; không có dependency ngoài
 ├── Dockerfile
-├── data/                 # Sinh khi chạy: lịch sử, trạng thái, preview, lock
-└── report/               # Sinh khi chạy: báo cáo HTML
+└── data/                 # Sinh khi chạy: lịch sử, trạng thái, preview, lock
 ```
 
 `src/cli/` điều phối các module nghiệp vụ. `src/shared/paths.mjs` xác định thư mục gốc từ vị trí mã nguồn, nên chạy file bằng đường dẫn tuyệt đối từ thư mục khác vẫn đọc đúng config và ghi đúng dữ liệu.
 
 ## Các lệnh bổ sung (chạy trực tiếp bằng node)
 
-Muốn lấy giá một lần, dựng báo cáo, hoặc chạy test mô phỏng, gọi trực tiếp file trong `src/cli/` và `scripts/`:
+Muốn lấy giá một lần hoặc chạy test mô phỏng, gọi trực tiếp file trong `src/cli/` và `scripts/`:
 
 ```sh
-node src/cli/run.mjs                  # lấy giá một lần, lưu lịch sử, dựng HTML
-node src/cli/run.mjs -- --airline vna # ví dụ: chỉ lấy Vietnam Airlines
-node src/cli/run.mjs --render-only    # chỉ dựng HTML từ lịch sử, không gọi hãng
+node src/cli/run.mjs                  # lấy giá một lần, lưu lịch sử
+node src/cli/run.mjs --airline vna # ví dụ: chỉ lấy Vietnam Airlines
 node src/cli/daily.mjs --preview      # xem trước bản tin sáng, không gửi
 node scripts/preflight.mjs            # kiểm tra toàn diện (config, tests, Telegram)
 ```
 
-CLI lấy giá hỗ trợ `--airline all|vna|vietjet`, `--quick`, `--render-only` và `--no-notify`.
+CLI lấy giá hỗ trợ `--airline all|vna|vietjet`, `--quick` và `--no-notify`.
 
 ## Cấu hình tuyến và theo dõi
 
@@ -99,7 +95,7 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | `origin` / `destination` | `SGN` / `VCL` | Sân bay đi và đến |
 | `departureDate` / `returnDate` | `2027-02-04` / `2027-02-13` | Ngày đi và về chính |
 | `adults` | `1` | Số người lớn, từ 1 đến 9 |
-| `monitoring.pollMinutes` | `25` | Chu kỳ kiểm tra, từ 20 đến 30 phút |
+| `monitoring.pollMinutes` | `10` | Chu kỳ kiểm tra, từ 10 đến 30 phút |
 | `monitoring.dailyReport` | `true` | Bật bản tin hằng ngày |
 | `monitoring.priceOnly` | `true` | Vòng kiểm tra chỉ báo sự kiện giá; tắt tin baseline, Eco và sức khỏe nguồn |
 | `monitoring.mainDropMinVnd` | `1` | Mức giảm tối thiểu của giá khứ hồi, tính bằng VND |
@@ -109,7 +105,7 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | `monitoring.errorAfterConsecutive` | `3` | Số lượt lỗi liên tiếp trước cảnh báo nguồn khi tắt `priceOnly` |
 | `monitoring.targetVnd.vna` / `.vietjet` | `null` / `null` | Ngân sách khứ hồi từng hãng; `null` nghĩa là chưa đặt |
 
-VNA một chiều hiện chỉ được xác minh cho **1 người lớn**. Nếu `adults` khác 1, phần VNA một chiều được ghi rõ là thiếu dữ liệu. Adapter Vietjet dùng **Flynow làm nguồn duy nhất**, hiện chỉ xác minh **SGN ⇄ VCL, 1 người lớn**; tuyến khác hoặc số người lớn khác sẽ trả lỗi nguồn. Khoảng ngày lân cận cố định ±3 ngày, dùng cho history và HTML.
+VNA một chiều hiện chỉ được xác minh cho **1 người lớn**. Nếu `adults` khác 1, phần VNA một chiều được ghi rõ là thiếu dữ liệu. Adapter Vietjet dùng **Flynow làm nguồn duy nhất**, hiện chỉ xác minh **SGN ⇄ VCL, 1 người lớn**; tuyến khác hoặc số người lớn khác sẽ trả lỗi nguồn. Khoảng ngày lân cận cố định ±3 ngày, dùng cho history.
 
 ## Cấu hình Telegram
 
@@ -131,9 +127,8 @@ Token là thông tin bí mật duy nhất cần cho Telegram. Chat ID được b
 | Lệnh | Kết quả |
 | --- | --- |
 | `/start` | Đăng ký hoặc nhận lại cảnh báo và bản tin tự động |
-| `/stop` | Ngừng nhận tin tự động; vẫn dùng được `/price`, `/report` |
-| `/price` | Kiểm tra giá hai hãng, gửi bản tin chung và file HTML |
-| `/report` | Gửi HTML từ lịch sử đã lưu, không lấy giá mới |
+| `/stop` | Ngừng nhận tin tự động; vẫn dùng được `/price` |
+| `/price` | Kiểm tra giá hai hãng, gửi giá, chuyến được chọn và link đặt vé |
 | `/status` | Kiểm tra kết nối, bản tin tiếp theo, vòng poll tiếp theo, watcher, subscriber, cấu hình và trạng thái nguồn đã lưu |
 | `/help` | Hướng dẫn sử dụng |
 | `/connection` | Tương đương `/status` |
@@ -144,19 +139,19 @@ Bot dùng long polling, không mở server/port. Mỗi bot chỉ nên có một 
 
 Tin `/price`, bản tin sáng và cảnh báo giá có link đặt vé. Vietjet mở tìm kiếm cả hành trình đúng tuyến, ngày và số người; cảnh báo từng chiều vẫn ghi rõ link tìm cả hành trình. Vé Vietjet kèm số hiệu chuyến, giờ và hạng khi nguồn cung cấp để chọn đúng báo giá. VNA và Flynow mở trang chính thức và ghi rõ cần nhập lại tuyến/ngày. Luồng VNA dùng phiên trình duyệt; URL kết quả Flynow không đồng bộ form tìm kiếm, có thể hiện hành trình cũ/mặc định của trình duyệt nên không dùng làm lối tắt đặt vé. Các link không giữ chỗ hoặc khóa giá; cần kiểm tra lại trước thanh toán.
 
-`/price` luôn lấy giá mới: gọi tất cả nguồn cùng lúc để có kết quả nhanh nhất, không giãn cách, không ngân sách chờ, không retry. Nếu lượt nền đang chạy, bot chờ nhả lock (tối đa ~100 giây) rồi kiểm tra mới thay vì trả cache; chỉ khi lượt nền kẹt quá lâu mới gửi dữ liệu đã lưu kèm lý do và thời điểm. Thời gian gửi Telegram/HTML còn tùy mạng.
+`/price` luôn lấy giá mới: gọi tất cả nguồn cùng lúc để có kết quả nhanh nhất, không giãn cách, không ngân sách chờ, không retry. Nếu lượt nền đang chạy, bot chờ nhả lock (tối đa ~100 giây) rồi kiểm tra mới thay vì trả cache; chỉ khi lượt nền kẹt quá lâu mới gửi dữ liệu đã lưu kèm lý do và thời điểm. Thời gian gửi Telegram còn tùy mạng.
 
 Lệnh quá 5 phút không được thực hiện, nhưng private chat vẫn được ghi nhận và yêu cầu hủy nhận tin vẫn có hiệu lực. Cursor lưu trước khi xử lý; nếu tiến trình chết giữa chừng, gửi lại lệnh cần thực hiện. Bot chỉ có thể ghi nhận người từ update còn trên Telegram hoặc danh sách đã lưu; người dùng cũ chưa có trong danh sách cần nhắn lại `/start`.
 
 ## Bản tin và cảnh báo
 
-- Mặc định gửi bản tin chung kèm HTML lúc **07:00 UTC+7**, độc lập vòng lấy giá.
+- Mặc định gửi bản tin chung lúc **07:00 UTC+7**, độc lập vòng lấy giá.
 - Bản tin và cảnh báo được broadcast cho danh sách đang đăng ký; chống lặp, ACK và retry tách riêng từng người. Một người lỗi mạng không khiến người đã nhận bị gửi lại. `Retry-After` khi bị giới hạn Telegram tạm dừng toàn bộ broadcast.
 - Bản tin gồm khứ hồi, đi, về của ngày chính, thay đổi so với mốc cuối trước hôm nay và giá thấp nhất từng quan sát kèm thời điểm. Không có mốc thì không tính phần trăm.
 - `watch` hẹn từ giờ gửi kế tiếp, không gửi bù bản tin sáng khi khởi động vào buổi tối. Máy ngủ qua giờ hẹn thì khi tỉnh chỉ xét bản tin hôm nay.
-- Bản tin dùng snapshot gần nhất, không đợi batch lấy giá. Lượt lỗi hoặc dữ liệu quá `pollMinutes + 5` phút được ghi rõ là giá cũ. Text và HTML dùng cùng snapshot.
-- Với `priceOnly=true`, chỉ báo sự kiện giá ngày chính: giảm giá, đáy mới, đạt ngân sách hoặc có giá trở lại. Giá tăng đơn thuần và giá không đổi không phát tin; lịch sử vẫn được lưu.
-- Giá ngày lân cận chỉ xuất hiện trong history/HTML, không gửi cảnh báo Telegram.
+- Bản tin dùng snapshot gần nhất, không đợi batch lấy giá. Lượt lỗi hoặc dữ liệu quá `pollMinutes + 5` phút được ghi rõ là giá cũ.
+- Với `priceOnly=true`, chỉ báo sự kiện giá ngày chính: giảm giá, đáy mới, đạt ngân sách hoặc có giá trở lại. Giá tăng đơn thuần và giá không đổi không phát tin; lịch sử vẫn được lưu. Khi một lượt kiểm tra phát hiện giá giảm, bot gửi ngay trong lượt đó; độ trễ phát hiện có thể tới khoảng 10 phút cộng thời gian lấy giá/gửi tin.
+- Giá ngày lân cận chỉ xuất hiện trong history, không gửi cảnh báo Telegram.
 
 Chi tiết gộp sự kiện, chống lặp và retry: [`docs/alerts.md`](docs/alerts.md).
 
@@ -177,16 +172,13 @@ Mọi lượt lấy giá gọi tối đa 5 request cùng lúc, không giãn các
 | --- | --- |
 | `data/history.jsonl` | Lịch sử nối thêm, mỗi dòng là một snapshot |
 | `data/notification-state.json` | Outbox, xác nhận và chống lặp cảnh báo |
-| `data/daily-state.json` | Trạng thái bản tin, text/HTML đã gửi |
-| `data/bot-state.json` | Cursor Telegram và cooldown `/price` |
+| `data/daily-state.json` | Trạng thái bản tin, tin đã gửi |
+| `data/bot-state.json` | Cursor Telegram và thời điểm `/price` |
 | `data/telegram-subscribers.json` | Private chat ID, đăng ký/hủy nhận tin và cooldown broadcast từng bot |
 | `data/*preview*.txt`, `data/*smoke*.json` | Bản xem trước và kết quả smoke |
 | `data/*.lock`, `data/watch.stop` | Lock tiến trình và yêu cầu dừng watcher |
-| `report/index.html` | Dashboard từ lượt chạy/report gần nhất |
-| `report/telegram.html` | HTML cho slash command |
-| `data/daily-report-*.html` | Snapshot HTML giữ lại để retry bản tin |
 
-Giữ `data/` khi nâng cấp để bảo toàn lịch sử và chống lặp. Không xóa lock khi PID ghi trong file vẫn còn chạy. Khi chia sẻ mã nguồn/ZIP, bỏ `.env`, dữ liệu trạng thái Telegram, log và lock. Bot credentials và nội dung chat không được đưa vào report HTML.
+Giữ `data/` khi nâng cấp để bảo toàn lịch sử và chống lặp. Không xóa lock khi PID ghi trong file vẫn còn chạy. Khi chia sẻ mã nguồn/ZIP, bỏ `.env`, dữ liệu trạng thái Telegram, log và lock. Không xuất hoặc đính kèm HTML.
 
 ## Docker và lịch chạy ngoài
 
@@ -194,20 +186,19 @@ Image dùng Node.js 24 và user `node`, mặc định chạy watcher:
 
 ```sh
 docker build -t air-ticket-tracker .
-docker run -d --name air-ticket-tracker --env-file .env -v fares-data:/app/data -v fares-report:/app/report air-ticket-tracker
+docker run -d --name air-ticket-tracker --env-file .env -v fares-data:/app/data air-ticket-tracker
 docker logs -f air-ticket-tracker
 docker exec air-ticket-tracker node src/cli/stop.mjs
 ```
 
-Hai named volume giữ dữ liệu qua việc tạo lại container. Nếu dùng bind mount, thư mục `data/` và `report/` cần cho user `node` quyền ghi. Có thể copy dashboard ra máy bằng `docker cp air-ticket-tracker:/app/report/index.html ./index.html`.
+Named volume giữ lịch sử và trạng thái qua việc tạo lại container. Nếu dùng bind mount, thư mục `data/` cần cho user `node` quyền ghi.
 
-Nếu dùng cron/Task Scheduler, chạy `node src/cli/run.mjs` mỗi 25–30 phút và `node src/cli/daily.mjs` lúc giờ bản tin (mặc định 00:00 UTC). Slash command vẫn cần `node src/cli/bot.mjs` thường trực. Chọn watcher hoặc scheduler ngoài để tránh chạy lịch trùng nhau.
+Nếu dùng cron/Task Scheduler, chạy `node src/cli/run.mjs` mỗi 10 phút và `node src/cli/daily.mjs` lúc giờ bản tin (mặc định 00:00 UTC). Slash command vẫn cần `node src/cli/bot.mjs` thường trực. Chọn watcher hoặc scheduler ngoài để tránh chạy lịch trùng nhau.
 
 ## Phát triển và xử lý lỗi
 
 ```sh
 npm test
-node src/cli/run.mjs --render-only
 node src/cli/daily.mjs --preview
 node scripts/smoke.mjs
 ```
@@ -221,7 +212,6 @@ Các lệnh trên không gửi Telegram (trừ smoke có `--send`). Test dùng `
 | Telegram chưa đủ cấu hình | Kiểm tra `.env`, chạy `npm run telegram` |
 | Listener/webhook xung đột | Dừng listener khác; `watch` đã bao gồm slash bot |
 | Nguồn lỗi hoặc thiếu giá | Xem log và `/status`, gửi `/price` để thử lại ngay |
-| Chưa có dữ liệu trong HTML | Chạy `node src/cli/run.mjs` một lần để lấy giá |
 
 Mã thoát của CLI lấy giá: `0` hoàn tất, `1` lỗi nguồn, `2` thiếu một phần/không có giá chính, `3` đang có lượt chạy khác, `4` lỗi gửi thông báo khi không có lỗi nguồn ưu tiên. Lỗi cú pháp/cấu hình chưa được xử lý riêng có thể cũng trả `1`.
 

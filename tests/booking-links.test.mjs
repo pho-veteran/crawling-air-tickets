@@ -35,7 +35,7 @@ test('daily, on-demand and directional alerts deliver clickable booking URLs and
     });
     assert.equal(delivered.length,1);
     for(const {url} of bookingLinks('vietjet',query))assert.ok(delivered[0].text.includes(url));
-    assert.match(delivered[0].text,/chưa giữ chỗ/i);
+    assert.doesNotMatch(delivered[0].text,/HTML|\/report/);
     assert.match(delivered[0].text,/Flynow \(nhập lại tuyến\/ngày, có phí đại lý\)/);
     assert.doesNotMatch(delivered[0].text,/flynow\.vn\/flights\?/);
   }

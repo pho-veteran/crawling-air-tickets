@@ -19,7 +19,7 @@ const offlineEnv = {
 async function workspace(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'fare-entrypoint-test-'));
   t.after(() => rm(root, {recursive: true, force: true}));
-  for (const file of ['src', 'scripts', 'templates', 'config.json']) {
+  for (const file of ['src', 'scripts', 'config.json']) {
     await cp(path.join(projectRoot, file), path.join(root, file), {recursive: true});
   }
   const cwd = path.join(root, 'outside');
@@ -33,15 +33,10 @@ async function workspace(t) {
   return {root, cwd, run};
 }
 
-test('report, daily preview and smoke use the project storage root from another cwd', async t => {
+test('daily preview and smoke use the project storage root from another cwd', async t => {
   const {root, cwd, run} = await workspace(t);
-  const {stdout} = await run('src/cli/run.mjs', ['--render-only']);
-  const report = JSON.parse(stdout);
-  assert.equal(report.html, path.join(root, 'report', 'index.html'));
-  assert.equal(report.requests, 0);
-  assert.deepEqual(report.airlines.map(p => p.status), ['no_history', 'no_history']);
-  assert.match(await readFile(report.html, 'utf8'), /<!doctype html>/i);
-  await assert.rejects(access(path.join(root, 'data', 'run.lock')), {code: 'ENOENT'});
+  await assert.rejects(run('src/cli/run.mjs', ['--render-only']), /Unknown option/);
+  await assert.rejects(access(path.join(root, 'report')), {code: 'ENOENT'});
 
   const preview = JSON.parse((await run('src/cli/daily.mjs', ['--preview'])).stdout);
   assert.equal(preview.status, 'preview_only');
@@ -83,7 +78,8 @@ await writeFile(path.join(projectRoot, 'data', 'child.json'), JSON.stringify({
 }));
 await writeFile(path.join(projectRoot, 'data', 'watch.stop'), 'stop');
 `);
-  await run('src/cli/watch.mjs');
+  const {stdout} = await run('src/cli/watch.mjs');
+  assert.match(stdout, /Theo dõi mỗi 10 phút/);
   const child = JSON.parse(await readFile(path.join(root, 'data', 'child.json'), 'utf8'));
   assert.deepEqual(child, {cwd: root, managed: '1'});
   await assert.rejects(access(path.join(root, 'data', 'watch.lock')), {code: 'ENOENT'});

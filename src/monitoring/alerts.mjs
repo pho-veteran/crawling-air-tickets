@@ -6,7 +6,7 @@ const day=d=>d.slice(8,10)+'/'+d.slice(5,7);
 const pair=c=>day(c.depart)+'–'+day(c.return);
 const valid=s=>s&&['ok','partial'].includes(s.status);
 const legSource=s=>s.legs_source||s.source;
-export const defaults={pollMinutes:25,dailyReport:true,priceOnly:false,mainDropMinVnd:1,legDropMinVnd:1,rollingWindowDays:7,repeatCooldownHours:24,errorAfterConsecutive:3,targetVnd:{vna:null,vietjet:null}};
+export const defaults={pollMinutes:10,dailyReport:true,priceOnly:false,mainDropMinVnd:1,legDropMinVnd:1,rollingWindowDays:7,repeatCooldownHours:24,errorAfterConsecutive:3,targetVnd:{vna:null,vietjet:null}};
 export function settingsFrom(config,env=process.env) {
   const s={...defaults,...config,targetVnd:{...defaults.targetVnd,...config?.targetVnd}};
   s.dailyTime=env.DAILY_REPORT_TIME||'07:00';s.dailyUtcOffset=env.DAILY_REPORT_UTC_OFFSET||'+07:00';
@@ -14,7 +14,7 @@ export function settingsFrom(config,env=process.env) {
   if(!/^[+-](0\d|1[0-4]):[0-5]\d$/.test(s.dailyUtcOffset)||Number(s.dailyUtcOffset.slice(1,3))===14&&s.dailyUtcOffset.slice(4)!=='00')throw new Error('DAILY_REPORT_UTC_OFFSET cần dạng +07:00, tối đa 14 giờ.');
   for(const key of ['pollMinutes','mainDropMinVnd','legDropMinVnd','rollingWindowDays','repeatCooldownHours','errorAfterConsecutive'])
     if(!Number.isFinite(s[key])||s[key]<=0)throw new Error('monitoring.'+key+' phải là số dương.');
-  if(s.pollMinutes<20||s.pollMinutes>30)throw new Error('pollMinutes phải từ 20 đến 30.');
+  if(!Number.isInteger(s.pollMinutes)||s.pollMinutes<10||s.pollMinutes>30)throw new Error('pollMinutes phải là số nguyên từ 10 đến 30.');
   if(typeof s.dailyReport!=='boolean')throw new Error('dailyReport phải là true/false.');
   if(typeof s.priceOnly!=='boolean')throw new Error('priceOnly phải là true/false.');
   if(!Number.isInteger(s.errorAfterConsecutive))throw new Error('errorAfterConsecutive phải là số nguyên.');
@@ -107,6 +107,6 @@ export function formatAlert(provider,record,events,history=[]) {
     const quote=record.legs?.[direction]?.find(x=>x.date===(leg?g.date:date));
     if(valid(record)&&hasPrice(quote?.price)&&flightHint(quote))rows.push('✈️ '+label+': '+flightHint(quote));
   }
-  rows.push(bookingText(provider.id,q),'Link mở trang tìm vé, chưa giữ chỗ. Kiểm tra lại giá trước thanh toán.','Xem biểu đồ: /report');
+  rows.push(bookingText(provider.id,q));
   return rows.filter(Boolean).join('\n');
 }
