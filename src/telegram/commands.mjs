@@ -9,7 +9,7 @@ import {loadContext} from '../reporting/context.mjs';
 import {formatDaily,nextMorning,routeLine,when} from '../monitoring/messages.mjs';
 export const commandMenu=[{command:'start',description:'Đăng ký hoặc nhận lại cảnh báo và bản tin'},{command:'stop',description:'Ngừng nhận cảnh báo và bản tin tự động'},{command:'price',description:'Xem giá mới hai hãng và link đặt vé'},{command:'status',description:'Kiểm tra kết nối và lần cập nhật gần nhất'},{command:'help',description:'Hướng dẫn dùng bot săn vé'}];
 export const helpText='👋 Mình đang canh vé cho bạn!\n\n/price — Kiểm tra giá mới hai hãng và mở link đặt vé.\n/status — Xem kết nối, lịch kiểm tra và lần cập nhật gần nhất.\n\n🔔 Kiểm tra mỗi 10 phút, báo ngay khi phát hiện giá giảm. Bản tin hằng ngày lúc 07:00 giờ Việt Nam.';
-export const quickRun=root=>new Promise((resolve,reject)=>{const p=spawn(process.execPath,[cliPath('run.mjs',root),'--quick','--no-notify'],{cwd:root,stdio:'ignore',windowsHide:true});p.once('error',reject);p.once('exit',code=>resolve(code??1));});
+export const quickRun=root=>new Promise((resolve,reject)=>{const p=spawn(process.execPath,[cliPath('run.mjs',root),'--quick','--no-notify'],{cwd:root,stdio:['ignore','inherit','inherit'],windowsHide:true});p.once('error',reject);p.once('exit',code=>resolve(code??1));});
 const watcherLine=async root=>{
   try{
     const lock=JSON.parse(await readFile(path.join(root,'data','watch.lock'),'utf8'));

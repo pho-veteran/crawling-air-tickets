@@ -171,6 +171,7 @@ Mọi lượt lấy giá gọi tối đa 5 request cùng lúc, không giãn các
 | Đường dẫn | Nội dung |
 | --- | --- |
 | `data/history.jsonl` | Lịch sử nối thêm, mỗi dòng là một snapshot |
+| `data/crawl-YYYY-MM-DD.jsonl` | Log từng request: run ID, hãng, endpoint, kết nối/gửi/chờ headers/đọc body, HTTP status, thời gian và mã lỗi/cause; ngày file theo UTC |
 | `data/notification-state.json` | Outbox, xác nhận và chống lặp cảnh báo |
 | `data/daily-state.json` | Trạng thái bản tin, tin đã gửi |
 | `data/bot-state.json` | Cursor Telegram và thời điểm `/price` |
@@ -212,6 +213,8 @@ Các lệnh trên không gửi Telegram (trừ smoke có `--send`). Test dùng `
 | Telegram chưa đủ cấu hình | Kiểm tra `.env`, chạy `npm run telegram` |
 | Listener/webhook xung đột | Dừng listener khác; `watch` đã bao gồm slash bot |
 | Nguồn lỗi hoặc thiếu giá | Xem log và `/status`, gửi `/price` để thử lại ngay |
+
+Khi `/price` chậm, tra `run_id` trong log tiến trình rồi đối chiếu file `data/crawl-YYYY-MM-DD.jsonl`. `request_sent` nhưng chưa có `response_headers` nghĩa là đang chờ phản hồi sau khi gửi; `response_headers` nhưng chưa `response_complete` nghĩa là đang tải body. `connecting_or_queued` chưa đủ phân biệt DNS/TCP/TLS với chờ connection pool. Log gồm địa chỉ máy chủ và trạng thái xác minh TLS khi kết nối đã sẵn sàng. Request lỗi/timeout vẫn được đếm; stdout/stderr của crawler `/price` được chuyển vào log bot. Không ghi request/response body, cookie, header xác thực hay query string. Log mới không thể khôi phục chi tiết các lần lỗi trước khi triển khai.
 
 Mã thoát của CLI lấy giá: `0` hoàn tất, `1` lỗi nguồn, `2` thiếu một phần/không có giá chính, `3` đang có lượt chạy khác, `4` lỗi gửi thông báo khi không có lỗi nguồn ưu tiên. Lỗi cú pháp/cấu hình chưa được xử lý riêng có thể cũng trả `1`.
 

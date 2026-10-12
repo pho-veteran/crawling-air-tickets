@@ -78,7 +78,11 @@ export async function crawl(query,{fetchImpl=fetch}={}) {
     catch(e){return {leg,error:String(e.message).slice(0,250)};}
   };
   const legs=[['outbound',query.origin,query.destination,query.departureDate],['inbound',query.destination,query.origin,query.returnDate]];
-  const [matrix,...legResults]=await Promise.all([fetchMatrix(),...legs.map(fetchLeg)]);
+  // Wait for every endpoint so failure diagnostics are complete before releasing
+  // the crawl lock. A rejected matrix must not hide still-running leg requests.
+  const [matrixResult,...settledLegs]=await Promise.allSettled([fetchMatrix(),...legs.map(fetchLeg)]);
+  if(matrixResult.status==='rejected')throw matrixResult.reason;
+  const matrix=matrixResult.value,legResults=settledLegs.map((r,i)=>r.status==='fulfilled'?r.value:{leg:legs[i][0],error:String(r.reason?.message).slice(0,250)});
   const snapshot=matrix.snapshot;
   snapshot.legs={outbound:[],inbound:[]};snapshot.leg_errors={};
   snapshot.legs_source='vna-air-best-price-oneway-v1';snapshot.legs_price_basis='independent-oneway-reference';

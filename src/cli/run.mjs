@@ -9,6 +9,7 @@ import {readHistory} from '../reporting/history.mjs';
 import {settingsFrom} from '../monitoring/alerts.mjs';
 import {notifyRecord} from '../monitoring/notify.mjs';
 import {createBatch} from '../shared/batch.mjs';
+import {createCrawlLog,errorInfo} from '../shared/crawl-log.mjs';
 
 const root=projectRoot;
 loadEnv(root);
@@ -29,6 +30,8 @@ const lockFile=path.join(dataDir,'run.lock');
 try {lock=await open(lockFile,'wx');await lock.writeFile(JSON.stringify({pid:process.pid,started_at:new Date().toISOString()}));}
 catch(e) {if(e.code==='EEXIST'){console.error('Đang có lần chạy khác hoặc run.lock chưa được dọn. Kiểm tra PID trước khi xóa lock.');process.exit(3);}throw e;}
 try {
+  const log=createCrawlLog(root),runStarted=Date.now();
+  log.emit({event:'crawl_start',mode:args.quick?'price':'scheduled_or_manual',airline:args.airline});
   // Every retrieval fires all providers concurrently for the fastest result.
   // Persistence below stays sequential so history lines never interleave.
   const batch=await createBatch({});
@@ -37,14 +40,17 @@ try {
     const history=await readHistory(historyFile,query,provider.source);provider.history=history;
     let record,requests=0;
     if(args.airline==='all'||args.airline===provider.id) {
-      let sent=0;
-      const counting=async(...call)=>{const response=await batch.fetch(...call);sent++;return response;};
-      try {record=await provider.crawl(query,{fetchImpl:counting});}
+      const started=Date.now(),trace=log.traceFetch(provider.id,batch.fetch);
+      log.emit({event:'provider_start',source:provider.id});
+      try {record=await provider.crawl(query,{fetchImpl:trace.fetch});}
       catch(e) {
         record={schema:1,source:provider.source,query_id:queryId(query,provider.source),query,observed_at:new Date().toISOString(),
-          status:'error',main_price:null,minimum_price:null,cells:[],requests,error:String(e.message).slice(0,350)};
+          status:'error',main_price:null,minimum_price:null,cells:[],requests,error:String(e.message).slice(0,350),errors:errorInfo(e)};
       }
-      requests=sent;record.requests=requests;
+      requests=trace.count;record.requests=requests;record.duration_ms=Date.now()-started;
+      record.run_id=log.runId;record.request_diagnostics=trace.summaries;
+      log.emit({event:'provider_complete',source:provider.id,status:record.status,requests,duration_ms:record.duration_ms,
+        errors:record.errors,leg_errors:record.leg_errors,date_errors:record.date_errors});
     }
     return {provider,history,record,requests};
   };
@@ -71,5 +77,6 @@ try {
     catch{summary.notification={status:'notification_error',detail:'Kiểm tra .env và data/notification-state.json; dữ liệu giá đã được lưu.'};}
     if(['send_failed','notification_error','retry_wait','busy'].includes(summary.notification.status)&&!process.exitCode)process.exitCode=4;
   }
-  console.log(JSON.stringify({airlines:summaries,batch:batchSummary,requests:summaries.reduce((s,p)=>s+p.requests,0),history:historyFile},null,2));
+  log.emit({event:'crawl_complete',duration_ms:Date.now()-runStarted,exit_code:process.exitCode||0,requests:batchSummary.requests});
+  console.log(JSON.stringify({run_id:log.runId,airlines:summaries,batch:batchSummary,requests:summaries.reduce((s,p)=>s+p.requests,0),history:historyFile},null,2));
 } finally {await lock.close();await unlink(lockFile);}

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {cp, mkdtemp, mkdir, readFile, writeFile, access, rm} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
+import {pathToFileURL} from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
 import {projectRoot, cliPath} from '../src/shared/paths.mjs';
@@ -61,6 +62,22 @@ test('Telegram quickRun launches the relocated CLI and respects the existing cra
   assert.equal(await quickRun(root), 3);
   assert.equal(await readFile(lock, 'utf8'), 'existing crawl');
   await assert.rejects(access(path.join(root, 'data', 'history.jsonl')), {code: 'ENOENT'});
+});
+
+test('CLI counts failed requests and persists diagnostics even when all fetches reject', async t => {
+  const {root,cwd}=await workspace(t),fixture=path.join(root,'fail-fetch.mjs');
+  await writeFile(fixture,"globalThis.fetch=async()=>{throw Object.assign(new TypeError('fetch failed'),{cause:Object.assign(new Error('connection reset'),{code:'ECONNRESET'})});};");
+  let output;
+  try{await execute(process.execPath,['--import',pathToFileURL(fixture).href,cliPath('run.mjs',root),'--airline','vna','--no-notify'],{cwd,env:offlineEnv,windowsHide:true});}
+  catch(e){assert.equal(e.code,1);output=JSON.parse(e.stdout);}
+  assert.ok(output);assert.equal(output.requests,3);assert.equal(output.batch.requests,3);
+  const record=JSON.parse((await readFile(path.join(root,'data','history.jsonl'),'utf8')).trim());
+  assert.equal(record.requests,3);assert.equal(record.request_diagnostics.length,3);
+  assert.ok(record.request_diagnostics.every(r=>r.errors[1].code==='ECONNRESET'));
+  const logFile='crawl-'+record.observed_at.slice(0,10)+'.jsonl';
+  const rows=(await readFile(path.join(root,'data',logFile),'utf8')).trim().split('\n').map(JSON.parse);
+  assert.equal(rows.filter(r=>r.event==='request_failed').length,3);
+  assert.equal(rows.at(-1).event,'crawl_complete');assert.equal(rows.at(-1).exit_code,1);
 });
 
 test('watch launches its relocated child with the shared root and releases its lock on stop', async t => {
