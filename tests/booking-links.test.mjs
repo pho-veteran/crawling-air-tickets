@@ -22,7 +22,24 @@ test('booking links preserve itinerary parameters and label Flynow form caveat',
   assert.equal(ota.searchParams.get('dt'),'01032027.09032027');assert.equal(ota.searchParams.get('ps'),'2.0.0');
   assert.match(bookingLinks('vietjet',q)[1].label,/kiểm tra form tuyến\/ngày/);
   assert.doesNotMatch(direct.href+ota.href,/session|token|selection|bookingId/i);
-  assert.match(bookingLinks('vna',q)[0].label,/nhập lại tuyến\/ngày/);
+});
+
+test('VNA links prefill the current route and dates without retaining a booking session',()=>{
+  for(const q of [query,{...query,origin:'VCL',destination:'SGN',departureDate:'2027-03-01',returnDate:'2027-03-09',adults:2}]){
+    const link=bookingLinks('vna',q)[0],url=new URL(link.url);
+    assert.equal(url.origin,'https://www.vietnamairlines.com');
+    assert.equal(url.pathname,'/vn/vi');
+    assert.deepEqual(Object.fromEntries(url.searchParams),{
+      from:q.origin,to:q.destination,departureDate:q.departureDate,returnDate:q.returnDate
+    });
+    assert.match(link.label,/điền sẵn tuyến\/ngày/);
+    assert.match(link.label,/kiểm tra hành khách/);
+    const vna={id:'vna',name:'Vietnam Airlines',history:[{...record,query:q,source:'vna'}]};
+    for(const onDemand of [false,true]){
+      assert.ok(formatDaily({providers:[vna],query:q,now:Date.parse(record.observed_at),onDemand}).includes(link.url));
+    }
+    assert.ok(formatAlert(vna,{...record,query:q},[{key:'main',text:'Giá giảm',guard:{kind:'main',price:record.main_price}}]).includes(link.url));
+  }
 });
 
 test('daily, on-demand and directional alerts deliver clickable booking URLs and the matching flight',async()=>{

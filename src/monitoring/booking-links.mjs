@@ -1,7 +1,11 @@
 import {sourcePage as flynowPage} from '../providers/vietjet-flynow.mjs';
 // Recreate searches from the current query, never reuse supplier session URLs.
 export function bookingLinks(id,query){
-  if(id==='vna')return [{label:'Đặt vé VNA (nhập lại tuyến/ngày)',url:'https://www.vietnamairlines.com/vn/vi'}];
+  if(id==='vna')return [{
+    label:'Đặt vé VNA (điền sẵn tuyến/ngày; kiểm tra hành khách rồi bấm Tìm chuyến bay)',
+    url:'https://www.vietnamairlines.com/vn/vi?'+new URLSearchParams({
+      from:query.origin,to:query.destination,departureDate:query.departureDate,returnDate:query.returnDate})
+  }];
   if(id!=='vietjet')return [];
   return [
     {label:'Tìm cả hành trình trên Vietjet',url:'https://www.vietjetair.com/vi/?'+new URLSearchParams({

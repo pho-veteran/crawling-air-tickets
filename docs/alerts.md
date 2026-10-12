@@ -53,8 +53,8 @@ Giảm 533.181đ (10.0%), trước 5.333.181đ
 🏷 Thấp nhất từ khi theo dõi: 4.800.000đ (07:00 ngày 12/10/2026).
 🕒 07:00 ngày 12/10/2026 · giờ Việt Nam
 ℹ️ Gồm thuế theo nguồn; đây là giá mua riêng.
-🔗 Đặt vé VNA (nhập lại tuyến/ngày):
-https://www.vietnamairlines.com/vn/vi
+🔗 Đặt vé VNA (điền sẵn tuyến/ngày; kiểm tra hành khách rồi bấm Tìm chuyến bay):
+https://www.vietnamairlines.com/vn/vi?from=SGN&to=VCL&departureDate=2027-02-04&returnDate=2027-02-13
 ```
 
 Vietjet dùng kết quả tìm vé Flynow, gồm thuế/phí hãng và loại phí đại lý theo từng báo giá; hành lý tùy hạng vé. Tổng hiển thị là cộng hai vé một chiều. Không so hai hãng như cùng cơ sở giá; project không tự đặt vé hoặc giữ chỗ.
