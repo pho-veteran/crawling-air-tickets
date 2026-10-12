@@ -142,7 +142,7 @@ Bot nhận lệnh từ mọi private chat, tự đăng ký người lần đầu
 
 Bot dùng long polling, không mở server/port. Mỗi bot chỉ nên có một listener và không dùng webhook đồng thời. Khi khởi động, bot kiểm tra webhook và giữ nguyên nếu đang có webhook, rồi báo cần xử lý xung đột.
 
-Tin `/price`, bản tin sáng và cảnh báo giá có link đặt vé. Vietjet/Flynow mở tìm kiếm cả hành trình đúng tuyến, ngày và số người; cảnh báo từng chiều vẫn ghi rõ link tìm cả hành trình. Vé Vietjet kèm số hiệu chuyến, giờ và hạng khi nguồn cung cấp để chọn đúng báo giá. VNA mở trang đặt vé chính thức và ghi rõ cần nhập lại tuyến/ngày vì luồng đặt vé dùng phiên trình duyệt. Các link không giữ chỗ hoặc khóa giá; cần kiểm tra lại trước thanh toán.
+Tin `/price`, bản tin sáng và cảnh báo giá có link đặt vé. Vietjet mở tìm kiếm cả hành trình đúng tuyến, ngày và số người; cảnh báo từng chiều vẫn ghi rõ link tìm cả hành trình. Vé Vietjet kèm số hiệu chuyến, giờ và hạng khi nguồn cung cấp để chọn đúng báo giá. VNA và Flynow mở trang chính thức và ghi rõ cần nhập lại tuyến/ngày. Luồng VNA dùng phiên trình duyệt; URL kết quả Flynow không đồng bộ form tìm kiếm, có thể hiện hành trình cũ/mặc định của trình duyệt nên không dùng làm lối tắt đặt vé. Các link không giữ chỗ hoặc khóa giá; cần kiểm tra lại trước thanh toán.
 
 `/price` luôn lấy giá mới: gọi tất cả nguồn cùng lúc để có kết quả nhanh nhất, không giãn cách, không ngân sách chờ, không retry. Nếu lượt nền đang chạy, bot chờ nhả lock (tối đa ~100 giây) rồi kiểm tra mới thay vì trả cache; chỉ khi lượt nền kẹt quá lâu mới gửi dữ liệu đã lưu kèm lý do và thời điểm. Thời gian gửi Telegram/HTML còn tùy mạng.
 

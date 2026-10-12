@@ -11,14 +11,14 @@ const record={query,source:'vietjet-flynow-airline-fare-v1',status:'ok',observed
     inbound:[{date:query.returnDate,price:4870781,flight_number:'VJ371',departure:'2027-02-13T07:50:00',fare_family:'SkyBoss'}]}};
 const provider={id:'vietjet',name:'Vietjet',history:[record]};
 
-test('booking URLs preserve configured route, dates and passengers without session state',()=>{
+test('Vietjet preserves the itinerary; sites without reliable form prefill are labeled manual',()=>{
   const q={...query,origin:'VCL',destination:'SGN',departureDate:'2027-03-01',returnDate:'2027-03-09',adults:2};
   const [direct,ota]=bookingLinks('vietjet',q).map(x=>new URL(x.url));
   assert.equal(direct.searchParams.get('departAirport'),'VCL');assert.equal(direct.searchParams.get('arrivalAirport'),'SGN');
   assert.equal(direct.searchParams.get('departDate'),q.departureDate);assert.equal(direct.searchParams.get('returnDate'),q.returnDate);
   assert.equal(direct.searchParams.get('adultCount'),'2');assert.equal(direct.searchParams.get('tripType'),'roundTrip');
-  assert.equal(ota.searchParams.get('sp'),'VCL');assert.equal(ota.searchParams.get('ep'),'SGN');
-  assert.equal(ota.searchParams.get('dt'),'01032027.09032027');assert.equal(ota.searchParams.get('ps'),'2.0.0');
+  assert.equal(ota.href,'https://www.flynow.vn/');
+  assert.match(bookingLinks('vietjet',q)[1].label,/nhập lại tuyến\/ngày/);
   assert.doesNotMatch(direct.href+ota.href,/session|token|selection|bookingId/i);
   assert.match(bookingLinks('vna',q)[0].label,/nhập lại tuyến\/ngày/);
 });
@@ -36,6 +36,8 @@ test('daily, on-demand and directional alerts deliver clickable booking URLs and
     assert.equal(delivered.length,1);
     for(const {url} of bookingLinks('vietjet',query))assert.ok(delivered[0].text.includes(url));
     assert.match(delivered[0].text,/chưa giữ chỗ/i);
+    assert.match(delivered[0].text,/Flynow \(nhập lại tuyến\/ngày, có phí đại lý\)/);
+    assert.doesNotMatch(delivered[0].text,/flynow\.vn\/flights\?/);
   }
   assert.match(texts[0],/VJ376 · 14:10 · Eco/);
 });
