@@ -53,9 +53,9 @@ hideTooltip();
 const H=provider.history,isVietjet=provider.id==='vietjet';
 document.querySelector('.eyebrow').textContent='THEO DÕI GIÁ VÉ · '+provider.name.toUpperCase();
 $('source-note').textContent=provider.basis;
-$('footer-note').textContent='Nguồn: '+provider.name+'. Ô thiếu giá không đồng nghĩa hết vé. Lịch sử lưu thời điểm script lấy dữ liệu; riêng Vietjet có thể trễ đến 24 giờ theo nguồn. Giờ hiển thị: Việt Nam (UTC+7).';
+$('footer-note').textContent='Nguồn: '+provider.name+'. Ô thiếu giá không đồng nghĩa hết vé. Lịch sử lưu thời điểm script lấy dữ liệu; Vietjet qua Flynow đã loại phí dịch vụ đại lý, chưa giữ chỗ. Giờ hiển thị: Việt Nam (UTC+7).';
 $('warning').classList.add('hidden');$('warning').textContent='';
-$('badge').removeAttribute('style');$('badge-text').textContent=isVietjet?'Lịch tham khảo · trong 24 giờ':'Dữ liệu đã lưu';
+$('badge').removeAttribute('style');$('badge-text').textContent=isVietjet?'Flynow · đã loại phí đại lý':'Dữ liệu đã lưu';
 $('price-change').classList.remove('positive','negative');$('fare-legs').classList.add('hidden');
 const latest=H.at(-1),good=H.filter(s=>s.status==='ok'||s.status==='partial'),snapshot=good.at(-1);
 const mainKey=q.departureDate+'|'+q.returnDate;let selected=mainKey;
@@ -82,7 +82,7 @@ for(const [leg,day,from,to] of [['outbound',q.departureDate,q.origin,q.destinati
  $(leg+'-route').textContent=from+' → '+to+' · '+fullDate(day);
  amount(leg+'-price',quote?.price??null);$(leg+'-price').classList.toggle('missing',!known);
  if(!known)$(leg+'-price').textContent='Chưa có giá riêng';
- $(leg+'-detail').textContent=known?'Một chiều tham khảo'+(!isVietjet?' · gồm thuế theo nguồn':'')+(quote.fare_family?' · '+quote.fare_family:'')+' · Đọc lúc '+time(quote.observed_at||snapshot.observed_at):(snapshot?.leg_errors?.[leg]|| (isVietjet?'Nguồn chưa có giá cho ngày này.':'Lần ghi này chưa có dữ liệu một chiều riêng.'));
+ $(leg+'-detail').textContent=known?'Một chiều · gồm thuế theo nguồn'+(isVietjet?' · đã loại phí đại lý':'')+(quote.fare_family?' · '+quote.fare_family:'')+' · Đọc lúc '+time(quote.observed_at||snapshot.observed_at):(snapshot?.leg_errors?.[leg]|| (isVietjet?'Nguồn chưa có giá cho ngày này.':'Lần ghi này chưa có dữ liệu một chiều riêng.'));
 }
 $('main-detail').textContent=snapshot?.main_price!==null&&snapshot?date(q.departureDate)+' → '+date(q.returnDate)+' · VND': 'Chưa có giá cho đúng cặp ngày';
 const mainOut=legQuote('outbound',q.departureDate),mainBack=legQuote('inbound',q.returnDate);
@@ -98,7 +98,7 @@ function cellDetails(dep,ret){
  const lines=['Đi: '+q.origin+' → '+q.destination+' · '+fullDate(dep),'Về: '+q.destination+' → '+q.origin+' · '+fullDate(ret)];
  for(const [leg,day,label] of [['outbound',dep,'Vé đi'],['inbound',ret,'Vé về']]){const v=legQuote(leg,day);lines.push(label+': '+(v?.price!=null?money(v.price)+' ₫'+(v.fare_family?' · '+v.fare_family:''):'nguồn chưa cung cấp giá riêng'));}
  const total=cellPrice(snapshot,dep+'|'+ret);lines.push((isVietjet?'Tổng hai chiều tham khảo: ':'Tổng khứ hồi: ')+(total==null?'chưa có giá':money(total)+' ₫'));
- if(isVietjet)lines.push('Nguồn trong 24h · chưa xác định thuế/phí.');
+ if(isVietjet)lines.push('Flynow · gồm thuế/phí hãng · đã loại phí đại lý.');
  else{const out=legQuote('outbound',dep),back=legQuote('inbound',ret);if(out?.price!=null&&back?.price!=null)lines.push('Hai vé mua riêng: '+money(out.price+back.price)+' ₫');lines.push('Vé riêng gồm thuế theo nguồn; giá độc lập với khứ hồi.');} 
  return lines;
 }
@@ -142,6 +142,6 @@ function renderHistory(){const body=$('history-body');body.replaceChildren();con
 $('chart-price').onchange=drawChart;$('granularity').onchange=drawChart;$('period').onchange=drawChart;$('show-lowest').onchange=drawChart;$('reset').onclick=()=>{selected=mainKey;renderMatrix();drawChart();};
 renderMatrix();drawChart();renderHistory();
 }
-for(const provider of DATA.providers){const button=document.createElement('button');button.type='button';button.className='airline';button.dataset.provider=provider.id;button.setAttribute('aria-pressed','false');const name=document.createElement('strong');name.textContent=provider.name;const description=document.createElement('span');description.textContent=provider.id==='vietjet'?'Lịch tham khảo · hai chiều cộng lại':'Bảng giá khứ hồi';button.append(name,description);button.onclick=()=>{for(const b of $('airlines').children)b.setAttribute('aria-pressed',String(b===button));renderProvider(provider);};$('airlines').append(button);}
+for(const provider of DATA.providers){const button=document.createElement('button');button.type='button';button.className='airline';button.dataset.provider=provider.id;button.setAttribute('aria-pressed','false');const name=document.createElement('strong');name.textContent=provider.name;const description=document.createElement('span');description.textContent=provider.id==='vietjet'?'Flynow · giá hãng gồm thuế':'Bảng giá khứ hồi';button.append(name,description);button.onclick=()=>{for(const b of $('airlines').children)b.setAttribute('aria-pressed',String(b===button));renderProvider(provider);};$('airlines').append(button);}
 $('airlines').firstElementChild?.click();
 </script></body></html>

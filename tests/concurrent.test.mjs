@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {crawl as crawlVna, dateRange} from '../src/providers/vna.mjs';
 import {crawl as crawlVj} from '../src/providers/vietjet.mjs';
+import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
 
 const query={origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDate:'2027-02-13',adults:1};
 const shift=(date,days)=>new Date(Date.parse(date)+days*86400000).toISOString().slice(0,10);
@@ -16,10 +17,6 @@ function matrixBody(){
 function onewayBody(dates){
   return JSON.stringify({success:true,data:{dictionaries:{currency:{VND:{decimalPlaces:0}}},
     prices:dates.map(date=>({departureDate:date,price:[{base:'4000000',totalTaxes:'1333181',total:'5333181',currencyCode:'VND'}]}))}});
-}
-function vjPage(from,to,dates){
-  return 'Giá vé chỉ áp dụng cho chuyến bay một chiều'+dates.map(d=>
-    `<div class="price-calendar" data-startdate="${d}" data-origin="${from}" data-destination="${to}" data-currency="VND" data-triptype="oneway"><span class="price-bold">1 670 000</span><span class="price-sm">VND</span><div class="time-calendar">`).join('');
 }
 // Mock fetch that parks every request at a gate, so the test can observe overlap.
 function gateFetch(respond){
@@ -37,11 +34,7 @@ function vnaRespond(url,opts){
   if(body.route)return json(onewayBody(week(body.route.departureDateTime)));
   return json(matrixBody());
 }
-function vjRespond(url){
-  return html(url.includes('tp-ho-chi-minh-di-chu-lai')
-    ? vjPage('SGN','VCL',dateRange(query.departureDate))
-    : vjPage('VCL','SGN',dateRange(query.returnDate)));
-}
+const vjRespond=simulatedFlynow(query,{outbound:1670000,inbound:1670000}).fetch;
 
 test('vna fires matrix and one-way legs at once',async()=>{
   const g=gateFetch(vnaRespond);
@@ -56,7 +49,7 @@ test('vna fires matrix and one-way legs at once',async()=>{
   assert.equal(rec.legs.outbound.find(d=>d.date===query.departureDate).price,5333181);
 });
 
-test('vietjet fires both directions at once',async()=>{
+test('vietjet bounds seven search pairs to two concurrent requests',async()=>{
   const g=gateFetch(vjRespond);
   const pending=crawlVj(query,{fetchImpl:g.fetchImpl});
   await ticks();

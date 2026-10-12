@@ -16,7 +16,7 @@ const {values:args}=parseArgs({options:{'render-only':{type:'boolean',default:fa
 if(!['all','vna','vietjet'].includes(args.airline))throw new Error('--airline: all, vna hoặc vietjet.');
 const providers=[
   {id:'vna',name:'Vietnam Airlines',source:SOURCE,crawl,basis:'Tổng khứ hồi từ bảng so sánh VNA. Giá đi/về lấy riêng từ lịch một chiều, gồm thuế theo nguồn, cho 1 người lớn; tổng hai vé riêng có thể khác giá khứ hồi. Giá tham khảo, chưa xác nhận đặt chỗ.'},
-  {id:'vietjet',name:'Vietjet',source:vietjet.SOURCE,crawl:vietjet.crawl,basis:'Tổng hai giá một chiều trên lịch công khai Vietjet, được nguồn thu thập trong 24 giờ qua. Chưa xác định phần thuế/phí; không gồm hành lý ký gửi. Không so sánh trực tiếp với tổng giá VNA. Hạng vé là nhãn trên lịch tham khảo, không xác nhận tồn chỗ trực tiếp.'}
+  {id:'vietjet',name:'Vietjet',source:vietjet.SOURCE,crawl:vietjet.crawl,basis:vietjet.BASIS}
 ];
 const config=JSON.parse(await readFile(path.join(root,'config.json'),'utf8'));
 const query=queryFrom(config),settings=settingsFrom(config.monitoring);

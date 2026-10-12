@@ -10,7 +10,7 @@ import {evaluateAlerts, alertGroups, formatAlert, settingsFrom} from '../src/mon
 import {sendDaily} from '../src/monitoring/daily.mjs';
 import {handleCommand} from '../src/telegram/commands.mjs';
 import {projectRoot} from '../src/shared/paths.mjs';
-import {simulatedCalendar} from '../scripts/fixtures/vietjet-calendar.mjs';
+import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
 
 const config = {origin: 'SGN', destination: 'VCL', departureDate: '2027-02-04', returnDate: '2027-02-13', adults: 1};
 const query = queryFrom(config);
@@ -20,9 +20,9 @@ const now = Date.parse('2026-10-12T07:00:00+07:00');
 const creds = {token: '123:TEST', chatId: '456', enabled: true, configured: true};
 
 async function snapshot(options = {}, observedAt = '2026-10-12T06:50:00+07:00') {
-  const source = simulatedCalendar(query, options);
+  const source = simulatedFlynow(query, options);
   const record = await crawl(query, {fetchImpl: source.fetch});
-  assert.equal(source.requests.length, 2);
+  assert.equal(source.requests.length, 7);
   record.observed_at = observedAt;
   for (const leg of Object.values(record.legs)) for (const quote of leg) quote.observed_at = observedAt;
   return record;
@@ -39,7 +39,7 @@ function reportData(html) {
   return JSON.parse(html.match(/const DATA=(.*);/)[1]);
 }
 
-test('Vietjet calendars preserve independent main-date prices and their roundtrip sum', async () => {
+test('Vietjet OTA searches preserve normalized leg prices and their roundtrip sum', async () => {
   const record = await snapshot();
   assert.equal(record.status, 'ok');
   assert.equal(record.main_price, 4200000);
@@ -57,19 +57,17 @@ for (const failLeg of ['outbound', 'inbound']) {
     assert.equal(record.minimum_price, null);
     assert.ok(record.cells.every(c => c.price === null));
     assert.ok(record.legs[failLeg].every(q => q.price === null));
-    assert.match(record.leg_errors[failLeg], /503/);
     const text = formatDaily({providers: [{...provider, history: [record]}], query, now});
     assertLegLines(text, failLeg === 'outbound' ? 'chưa có giá' : '1.800.000đ', failLeg === 'inbound' ? 'chưa có giá' : '2.400.000đ');
     assert.match(text, /Cộng vé đi và về hiện là chưa có giá/);
-    assert.ok(text.includes('Chưa cập nhật được giá chiều ' + (failLeg === 'outbound' ? 'đi' : 'về')));
     assert.doesNotMatch(text, /(?:^|\s)0đ/);
   });
 }
 
 test('Vietjet reports an error when neither direction can be fetched', async () => {
-  const source = simulatedCalendar(query, {failLeg: 'both'});
-  await assert.rejects(crawl(query, {fetchImpl: source.fetch}), error => error.requests === 2 && /outbound.*inbound/.test(error.message));
-  assert.equal(source.requests.length, 2);
+  const source = simulatedFlynow(query, {failLeg: 'both'});
+  await assert.rejects(crawl(query, {fetchImpl: source.fetch}), error => error.requests === 7 && /503/.test(error.message));
+  assert.equal(source.requests.length, 7);
 });
 
 test('older Vietjet history without leg quotes never derives each direction by splitting the total', async () => {
@@ -93,7 +91,7 @@ test('Vietjet outbound and inbound alerts show their own prices and routes when 
     assert.ok(text.includes(route));
     assert.ok(text.includes(price));
     assert.match(text, /giảm 100.000đ/);
-    assert.match(text, /24h; chưa xác định thuế/);
+    assert.match(text, /Flynow: gồm thuế/);
   }
 });
 

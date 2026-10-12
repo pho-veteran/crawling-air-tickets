@@ -52,8 +52,8 @@ test('rolling low, budget crossing, flexible dates and Eco label',()=>{
 test('pending obsolete price discarded; messages label source basis',()=>{
   const a=snapshot(0),b=snapshot(25,4500000),event=evaluate(b,[a]).find(e=>e.key.startsWith('main:'));
   assert.equal(stillRelevant(event,b),true);assert.equal(stillRelevant(event,snapshot(50)),false);
-  assert.match(formatAlert({id:'vietjet',name:'Vietjet'},b,[event]),/24h; chưa xác định thuế/);
-  assert.match(formatAlert({id:'vietjet',name:'Vietjet'},{...b,status:'error',source_pages:undefined},[]),/https:\/\/www.vietjetair.com/);
+  assert.match(formatAlert({id:'vietjet',name:'Vietjet'},b,[event]),/Flynow: gồm thuế/);
+  assert.match(formatAlert({id:'vietjet',name:'Vietjet'},{...b,status:'error',source_pages:undefined},[]),/https:\/\/www.flynow.vn/);
 });
 test('neighbor pair threshold and missing main price recovery',()=>{
   const a=snapshot(0),b=snapshot(25);

@@ -68,7 +68,7 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
   if(prev) {
     for(const [leg,date] of [['outbound',record.query.departureDate],['inbound',record.query.returnDate]]) {
       const current=record.legs?.[leg]?.find(x=>x.date===date),previous=prev.legs?.[leg]?.find(x=>x.date===date);
-      if(current?.fare_family==='Eco'&&previous&&previous.fare_family!=='Eco')add('eco:'+leg+':'+date,'Lịch Vietjet xuất hiện nhãn Eco ở chiều '+(leg==='outbound'?'đi':'về')+' '+day(date)+'. Đây là nhãn tham khảo, chưa xác nhận tồn chỗ.',{kind:'fare',leg,date,fare:'Eco'});
+      if(current?.fare_family==='Eco'&&previous&&previous.fare_family!=='Eco')add('eco:'+leg+':'+date,'Nguồn Vietjet xuất hiện vé Eco ở chiều '+(leg==='outbound'?'đi':'về')+' '+day(date)+'. Giá qua Flynow, chưa giữ chỗ.',{kind:'fare',leg,date,fare:'Eco'});
     }
   }
   return events;
@@ -100,7 +100,7 @@ export function formatAlert(provider,record,events,history=[]) {
   const quotes=past.filter(r=>!leg||legSource(r)===legSource(record)).map(r=>({price:leg?r.legs?.[g.leg]?.find(x=>x.date===g.date)?.price:r.main_price,at:r.observed_at})).filter(x=>hasPrice(x.price));
   if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+' ('+when(low.at)+').');}
   rows.push('🕒 '+when(record.observed_at)+' · giờ Việt Nam');
-  rows.push(provider.id==='vietjet'?'ℹ️ Giá tham khảo trong 24h; chưa xác định thuế/phí.':'ℹ️ Gồm thuế theo nguồn; vé từng chiều là giá mua riêng.');
-  rows.push('Xem biểu đồ: /report · '+(provider.id==='vietjet'?'https://www.vietjetair.com/':'https://www.vietnamairlines.com/vn/vi'));
+  rows.push(provider.id==='vietjet'?'ℹ️ Vietjet qua Flynow: gồm thuế/phí hãng; đã loại phí dịch vụ đại lý theo báo giá, chưa giữ chỗ.':'ℹ️ Gồm thuế theo nguồn; vé từng chiều là giá mua riêng.');
+  rows.push('Xem biểu đồ: /report · '+(provider.id==='vietjet'?'https://www.flynow.vn/':'https://www.vietnamairlines.com/vn/vi'));
   return rows.filter(Boolean).join('\n');
 }

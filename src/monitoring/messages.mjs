@@ -7,7 +7,7 @@ export const when=t=>{const d=new Date(t),f=new Intl.DateTimeFormat('en-GB',{tim
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7),priced=n=>Number.isSafeInteger(n)&&n>0;
 export const change=(current,previous)=>!priced(current)||!priced(previous)?'chưa có mốc so sánh':current===previous?'↔ Không đổi':(current<previous?'🟢 ↓ ':'🔺 ↑ ')+money(Math.abs(current-previous))+' ('+(Math.abs(current-previous)/previous*100).toFixed(1)+'%)';
 export function routeLine(q){return q.origin+' ⇄ '+q.destination+' · '+day(q.departureDate)+'–'+day(q.returnDate)+'/'+q.returnDate.slice(0,4)+' · '+q.adults+' người lớn';}
-export function sourceNote(id){return id==='vietjet'?'ℹ️ Vietjet: cộng hai giá một chiều tham khảo trong 24h; chưa xác định thuế/phí, không gồm hành lý ký gửi.':'ℹ️ VNA: vé riêng gồm thuế theo nguồn, độc lập với bảng giá khứ hồi. Giá tham khảo, chưa giữ chỗ.';}
+export function sourceNote(id){return id==='vietjet'?'ℹ️ Vietjet qua Flynow: gồm thuế/phí hãng, đã loại phí dịch vụ đại lý theo từng báo giá. Tổng hai vé một chiều; hành lý tùy hạng vé. Chưa giữ chỗ.':'ℹ️ VNA: vé riêng gồm thuế theo nguồn, độc lập với bảng giá khứ hồi. Giá tham khảo, chưa giữ chỗ.';}
 export function formatDaily({providers,query,now=Date.now(),pollMinutes=25,settings={},onDemand=false}){
   const offset=settings.dailyUtcOffset||'+07:00',clock=settings.dailyTime||'07:00';
   const sections=[onDemand?'✈️ Giá vé bạn vừa hỏi đây!' :'☀️ Chào buổi sáng! Cùng xem giá vé hôm nay · '+clock,routeLine(query),'📅 '+localDay(now,offset).split('-').reverse().join('/')+' · UTC'+offset];
@@ -30,7 +30,7 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=25,setti
     lines.push('🕒 Cập nhật lúc '+when(r.observed_at)+' (UTC+7)'+(previous?' · So với mốc '+when(previous.observed_at)+(onDemand?' trước đó.':' trước hôm nay.'):' · Chưa có mốc so sánh.'));
     sections.push(lines.join('\n'));
   }
-  sections.push('🔔 Có giá giảm đáng chú ý, mình sẽ nhắn ngay khi thấy. File HTML đính kèm có biểu đồ và giá các ngày gần đó.',sourceNote('vna'),sourceNote('vietjet'),'Hai hãng có cách tính thuế/phí khác nhau; hãy xem tổng cuối cùng trước khi chọn vé nhé.','🔗 Kiểm tra trước khi đặt:\nhttps://www.vietnamairlines.com/vn/vi\nhttps://www.vietjetair.com/');
+  sections.push('🔔 Có giá giảm đáng chú ý, mình sẽ nhắn ngay khi thấy. File HTML đính kèm có biểu đồ và giá các ngày gần đó.',sourceNote('vna'),sourceNote('vietjet'),'Vietjet đã chuẩn hóa bỏ phí đại lý; tổng thanh toán tại đại lý có thể cao hơn. Kiểm tra lại trước khi đặt vé.','🔗 Kiểm tra trước khi đặt:\nhttps://www.vietnamairlines.com/vn/vi\nhttps://www.flynow.vn/');
   return sections.join('\n\n');
 }
 // Offsets use JavaScript UTF-16 indices, as required by Telegram MessageEntity.

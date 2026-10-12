@@ -109,7 +109,7 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | `monitoring.errorAfterConsecutive` | `3` | Số lượt lỗi liên tiếp trước cảnh báo nguồn khi tắt `priceOnly` |
 | `monitoring.targetVnd.vna` / `.vietjet` | `null` / `null` | Ngân sách khứ hồi từng hãng; `null` nghĩa là chưa đặt |
 
-VNA một chiều hiện chỉ được xác minh cho **1 người lớn**. Nếu `adults` khác 1, phần VNA một chiều được ghi rõ là thiếu dữ liệu. Adapter Vietjet hiện chỉ hỗ trợ **SGN ⇄ VCL, 1 người lớn**; tuyến khác hoặc số người lớn khác sẽ trả lỗi nguồn. Khoảng ngày lân cận cố định ±3 ngày, dùng cho history và HTML.
+VNA một chiều hiện chỉ được xác minh cho **1 người lớn**. Nếu `adults` khác 1, phần VNA một chiều được ghi rõ là thiếu dữ liệu. Adapter Vietjet dùng **Flynow làm nguồn duy nhất**, hiện chỉ xác minh **SGN ⇄ VCL, 1 người lớn**; tuyến khác hoặc số người lớn khác sẽ trả lỗi nguồn. Khoảng ngày lân cận cố định ±3 ngày, dùng cho history và HTML.
 
 ## Cấu hình Telegram
 
@@ -163,7 +163,7 @@ Chi tiết gộp sự kiện, chống lặp và retry: [`docs/alerts.md`](docs/a
 | Nguồn | Cách hiểu giá |
 | --- | --- |
 | Vietnam Airlines | Khứ hồi từ fare matrix; vé riêng từng chiều từ `air-best-price` không có `tripDuration`. Gồm thuế theo nguồn; cộng hai vé riêng có thể khác giá khứ hồi. |
-| Vietjet | Lịch công khai `vja-ui.useleadr.com`, giá tham khảo trong 24 giờ. Chưa xác định thuế/phí, không gồm hành lý ký gửi. Nhãn Eco không xác nhận tồn chỗ live. |
+| Vietjet | API tìm vé Flynow (`EVJ`): giá gồm thuế/phí hãng = `TotalFare + TotalTax`, đối chiếu `TotalPrice - TotalServiceFee`. Không trừ phí cố định. Hành lý tùy hạng vé. |
 
 Hai nguồn có cơ sở giá khác nhau nên không xếp hạng trực tiếp như cùng một loại giá. Project không tự đặt vé/giữ chỗ và không đảm bảo bắt kịp sale ngắn hạn.
 
@@ -226,3 +226,11 @@ Mã thoát của CLI lấy giá: `0` hoàn tất, `1` lỗi nguồn, `2` thiếu
 Chỉ còn 3 lệnh npm: `start` (bật bot), `stop` (dừng ngay), `telegram` (kiểm tra kết nối), cộng `test`. Mọi tác vụ khác gọi trực tiếp file trong `src/cli/` và `scripts/` bằng node (ví dụ `node src/cli/run.mjs`).
 
 Tham khảo API: [Telegram Bot API](https://core.telegram.org/bots/api).
+
+### Nguồn Vietjet qua Flynow
+
+Mỗi lượt dùng 7 request POST tìm vé thông thường, tối đa 2 request đồng thời, lấy 7 ngày đi và 7 ngày về. Bảng 7×7 cộng hai vé một chiều độc lập; không phải báo giá đặt chỗ khứ hồi được xác nhận cho từng ô. Không dùng lịch quảng cáo hoặc fallback về nguồn cũ.
+
+Giá đã chuẩn hóa bỏ phí đại lý; khi đặt tại Flynow, số phải trả còn có phí này. Lưu cả `price`, `ota_price`, `agency_fee`, hạng vé và hành lý để kiểm tra. Chiết khấu chưa xác minh, tổng tiền không khớp, sai ngày/tuyến/tiền tệ hoặc lỗi nguồn được ghi thiếu dữ liệu thay vì suy diễn giá rẻ. HTTP 403/429 dừng lên lịch request còn lại.
+
+Source mới `vietjet-flynow-airline-fare-v1` tách lịch sử lịch giá chưa rõ thuế trước đây. Chi tiết kiểm chứng: [đối chiếu OTA](docs/vietjet-ota-comparison.md). `npm test` chỉ chạy thư mục `tests/`, không chạy lại các thí nghiệm đã lưu trữ trong `data/`.
