@@ -5,6 +5,7 @@ Theo dõi giá vé Vietnam Airlines và Vietjet qua Flynow, gửi cảnh báo v�
 - `/price`: giá hiện tại và một giá thấp nhất từng ghi nhận cho tổng/đi/về của mỗi hãng, kèm nhắc `/flights`.
 - `/flights`: các chuyến có báo giá trong đúng hai ngày đã chọn của cả hai hãng.
 - Cron mỗi 10 phút; bản tin 07:00 Việt Nam. Không cần máy local chạy liên tục.
+- Group **Theo dõi giá vé SGN–VCL** nhận thông báo chung; mọi thành viên dùng được `/price` và `/flights` ngay trong nhóm. Chat riêng chỉ tra cứu, không nhận bản tin tự động riêng.
 - D1 chỉ giữ hai bản giá hiện tại và sáu giá thấp nhất, không lưu timeline. Lượt lỗi giữ giá gần nhất và đánh dấu giá cũ. Backup lịch sử cũ nằm trong ignored `data/`.
 
 [Vận hành, deploy và backup](docs/cloudflare-production.md), [đối chiếu giá web VNA](docs/cloudflare-selected-dates.md), [audit nghiệm thu](docs/cloudflare-gates.md). Người dùng đã bỏ yêu cầu bot staging riêng và 24 giờ, chọn triển khai bằng bot chính.

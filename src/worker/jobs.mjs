@@ -74,7 +74,8 @@ async function crawlJob(store,env,job,fetchImpl){
     results:results.map(r=>({source:r.source,status:r.status,requests:r.requests||1}))}));
 }
 async function fanout(store,env,job,kind){
-  const recipients=await store.subscribers(botId(env),job.body.after||'');
+  const shared=await store.state('shared-chat',{});
+  const recipients=shared.chatId?(job.body.after?[]:[shared.chatId]):await store.subscribers(botId(env),job.body.after||'');
   for(const chatId of recipients)await store.createJob(job.id+':'+hash(chatId),kind,{...job.body,parentId:job.body.parentId||job.id,chatId});
   if(recipients.length===15)await store.createJob(job.id+':next:'+hash(recipients.at(-1)),job.kind,{...job.body,parentId:job.body.parentId||job.id,after:recipients.at(-1)});
 }
@@ -120,9 +121,10 @@ async function command(store,env,job){
   let text=command==='stop'?'🔕 Đã ngừng nhận tin tự động. Bạn vẫn dùng được /price và /flights; /start để nhận lại.':
     ['start','help','hello'].includes(command)?(command==='start'?'🔔 Đã đăng ký nhận cảnh báo và bản tin.\n\n':'')+helpText+'\n\n/stop — Ngừng nhận tin tự động.':
     '🤔 Mình chưa có lệnh này. Gõ /help để xem hướng dẫn.';
+  if(job.body.shared&&['start','stop','help','hello'].includes(command))text=helpText+'\n\n👥 Thông báo tự động được gửi vào nhóm chung. Mọi thành viên dùng được /price và /flights. Bạn có thể tắt thông báo hoặc rời nhóm trong Telegram; /stop không tắt bản tin của cả nhóm.';
   if(['status','connection'].includes(command)){
     const c=await context(store),count=await store.statement('SELECT COUNT(*) AS n FROM subscribers WHERE bot_id=? AND active=1',botId(env)).first();
-    text='🟢 Bot đang hoạt động trên Cloudflare Workers.\n'+routeLine(query)+'\n🔄 Kiểm tra mỗi 10 phút.\n☀️ Bản tin 07:00 giờ Việt Nam.\n👥 Người đăng ký: '+count.n+'.\n'+c.providers.map(p=>p.name+': '+(p.history.at(-1)?when(p.history.at(-1).observed_at)+' · '+p.history.at(-1).status:'chưa có dữ liệu')).join('\n')+'\n\n/price — Kiểm tra giá mới. /flights — Xem giờ bay.';
+    text='🟢 Bot đang hoạt động trên Cloudflare Workers.\n'+routeLine(query)+'\n🔄 Kiểm tra mỗi 10 phút.\n☀️ Bản tin 07:00 giờ Việt Nam.\n'+(job.body.shared?'👥 Thông báo tại nhóm chung.':'👥 Người đăng ký: '+count.n+'.')+'\n'+c.providers.map(p=>p.name+': '+(p.history.at(-1)?when(p.history.at(-1).observed_at)+' · '+p.history.at(-1).status:'chưa có dữ liệu')).join('\n')+'\n\n/price — Kiểm tra giá mới. /flights — Xem giờ bay.';
   }
   await enqueueText(store,job.id,chatId,text);
 }
@@ -136,6 +138,8 @@ export async function sendJob(store,env,job,fetchImpl){
   const cooldown=await store.state('telegram-cooldown',{until:0}),at=Math.max(o.not_before,cooldown.until||0);
   if(at>store.now())throw Object.assign(new Error('Delivery delayed'),{delaySeconds:Math.ceil((at-store.now())/1000),noAttempt:true});
   if(o.kind!=='manual'){
+    const shared=await store.state('shared-chat',{});
+    if(shared.chatId&&o.chat_id!==shared.chatId){await store.mutate("UPDATE outbox SET status='discarded' WHERE id=?",o.id);return;}
     const sub=await store.statement('SELECT active FROM subscribers WHERE bot_id=? AND chat_id=?',botId(env),o.chat_id).first();
     if(!sub?.active){await store.mutate("UPDATE outbox SET status='discarded' WHERE id=?",o.id);return;}
   }

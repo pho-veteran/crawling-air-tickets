@@ -26,8 +26,48 @@ async function setup(t){
   const drain=async()=>{for(let i=0;queued.length&&i<100;i++){const m=queued.shift();await execute(m.jobId);}assert.equal(queued.length,0);};
   return {DB,store,env,execute,drain,delivered,queued,source,now:()=>clock};
 }
-const request=(id,command='/price',chat=456)=>new Request('https://example.test/telegram',{method:'POST',
-  headers:{'x-telegram-bot-api-secret-token':'expected'},body:JSON.stringify({update_id:id,message:{text:command,chat:{id:chat,type:'private'}}})});
+const request=(id,command='/price',chat=456,type='private')=>new Request('https://example.test/telegram',{method:'POST',
+  headers:{'x-telegram-bot-api-secret-token':'expected'},body:JSON.stringify({update_id:id,message:{text:command,chat:{id:chat,type}}})});
+
+test('shared group accepts member commands, ignores conversation/other groups, and stop cannot unsubscribe the group',async t=>{
+  const x=await setup(t);await x.store.putState('shared-chat',{chatId:'-789'});
+  await x.store.subscriber('123','-789','start');
+  await webhook(request(1,'hello',-789,'group'),x.env,x.store);
+  await webhook(request(2,'/price@other',-789,'group'),x.env,x.store);
+  await webhook(request(3,'/price',-111,'supergroup'),x.env,x.store);
+  assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM jobs').first()).n,0);
+  await webhook(request(4,'/price@test',-789,'group'),x.env,x.store);await x.drain();
+  assert.equal(x.delivered.length,2);assert.ok(x.delivered.every(m=>String(m.chat_id)==='-789'));
+  assert.match(x.delivered[0].text,/Đang kiểm tra/);assert.match(x.delivered[1].text,/Giá vé hiện tại/);
+  await webhook(request(5,'/flights',-789,'supergroup'),x.env,x.store);await x.drain();
+  assert.match(x.delivered.at(-1).text,/VN1468/);
+  await webhook(request(6,'/stop',-789,'group'),x.env,x.store);await x.drain();
+  assert.equal((await x.store.statement('SELECT active FROM subscribers WHERE chat_id=?','-789').first()).active,1);
+  assert.match(x.delivered.at(-1).text,/không tắt bản tin/);
+  await webhook(request(7,'/start'),x.env,x.store);await x.drain();
+  assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM subscribers').first()).n,1);
+});
+
+test('shared broadcasts target only the group and suppress previously queued private notifications',async t=>{
+  const x=await setup(t);await x.store.subscriber('123','456','start');await x.store.subscriber('123','-789','start');
+  await x.store.putState('shared-chat',{chatId:'-789'});
+  await x.store.queueText('old-private','456','old broadcast',{kind:'daily'});
+  await x.store.createJob('shared-daily','daily',{day:'2026-10-13'});
+  await x.execute('shared-daily');await x.drain();
+  assert.equal((await x.store.statement('SELECT status FROM outbox WHERE id=?','old-private').first()).status,'discarded');
+  assert.equal(x.delivered.length,1);assert.equal(String(x.delivered[0].chat_id),'-789');
+});
+
+test('Telegram group upgrade moves the configured destination and subscriber atomically',async t=>{
+  const x=await setup(t);await x.store.putState('shared-chat',{chatId:'-789',title:'Flights'});await x.store.subscriber('123','-789','start');
+  const update=new Request('https://example.test/telegram',{method:'POST',headers:{'x-telegram-bot-api-secret-token':'expected'},
+    body:JSON.stringify({update_id:10,message:{chat:{id:-789,type:'group'},migrate_to_chat_id:-100789}})});
+  await webhook(update,x.env,x.store);
+  assert.equal((await x.store.state('shared-chat')).chatId,'-100789');
+  assert.equal((await x.store.statement('SELECT chat_id FROM subscribers').first()).chat_id,'-100789');
+  await webhook(request(11,'/price',-100789,'supergroup'),x.env,x.store);await x.drain();
+  assert.equal(x.delivered.length,2);assert.ok(x.delivered.every(m=>String(m.chat_id)==='-100789'));
+});
 
 test('webhook authentication and durable job/update/subscriber transaction precede ACK; duplicate updates do not duplicate jobs',async t=>{
   const x=await setup(t);

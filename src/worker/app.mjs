@@ -27,13 +27,21 @@ export async function webhook(request,env,store){
   let u;try{u=await body(request);}catch{return json({error:'Invalid update'},400);}
   if(!Number.isSafeInteger(u.update_id)||u.update_id<0)return json({error:'Invalid update ID'},400);
   const floor=await store.state('telegram-min-update',{offset:0});if(u.update_id<floor.offset)return json({ok:true});
-  const m=u.message;if(m?.chat?.type!=='private'||!Number.isSafeInteger(m.chat.id)||m.chat.id<=0||m.from?.is_bot)return json({ok:true});
+  const m=u.message,shared=await store.state('shared-chat',{});
+  if(String(m?.chat?.id)===shared.chatId&&m.chat.type==='group'&&Number.isSafeInteger(m.migrate_to_chat_id)&&m.migrate_to_chat_id<0){
+    await store.migrateSharedChat(shared,String(m.migrate_to_chat_id),env.TELEGRAM_BOT_TOKEN.split(':')[0]);
+    return json({ok:true});
+  }
+  const group=['group','supergroup'].includes(m?.chat?.type);
+  if(!m?.chat||!Number.isSafeInteger(m.chat.id)||m.from?.is_bot)return json({ok:true});
+  if(group?String(m.chat.id)!==shared.chatId:m.chat.type!=='private'||m.chat.id<=0)return json({ok:true});
   const match=typeof m.text==='string'?m.text.trim().match(/^\/(\w+)(?:@(\w+))?(?:\s|$)/):null;
   if(match?.[2]&&match[2].toLowerCase()!==env.BOT_USERNAME?.toLowerCase())return json({ok:true});
+  if(group&&!match)return json({ok:true});
   if(m.date&&store.now()/1000-m.date>300)return json({ok:true});
   const command=match?.[1]?.toLowerCase()||'hello';
   try{
-    const id=await store.receiveUpdate(env.TELEGRAM_BOT_TOKEN.split(':')[0],u.update_id,{chatId:String(m.chat.id),command});
+    const id=await store.receiveUpdate(env.TELEGRAM_BOT_TOKEN.split(':')[0],u.update_id,{chatId:String(m.chat.id),command,shared:!!shared.chatId,group}, {subscribe:!shared.chatId});
     await env.JOBS.send({jobId:id});
   }catch{console.log(JSON.stringify({event:'webhook_persistence_failed'}));return json({error:'Persistence unavailable'},503);}
   return json({ok:true});

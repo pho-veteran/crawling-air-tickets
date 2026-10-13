@@ -3,11 +3,21 @@
 Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không nâng gói trả phí. Người dùng chọn bot chính, bỏ bot staging riêng/24 giờ và thay timeline bằng giá hiện tại + giá thấp nhất.
 
 - [Worker health](https://crawling-air-tickets.thanhvinhlqt2016.workers.dev/health); [bot Telegram](https://t.me/synapse_vinh_notify_test_bot).
-- Phiên bản `ae445954-2e27-429f-bbdf-29b92760204a`.
+- Phiên bản `4b89a3d1-f538-415b-a864-8dddbe3cdcb1`.
 - D1 `crawling-air-tickets-state`: `aa8be7a3-77e5-4de3-a124-d28b2a056f9d`.
 - Queue `crawling-air-tickets-jobs`: batch 1, concurrency 1, tối đa 5 retries.
 - Cron `*/10 * * * *` và `0 0 * * *` (07:00 Việt Nam).
-- Webhook `/telegram`, secret header, private chat; 2 người đăng ký active.
+- Webhook `/telegram`, secret header; nhận lệnh trong private chat và group được cấu hình. Một group nhận bản tin tự động, các subscriber private cũ đã ngừng nhận tự động.
+
+## Group dùng chung
+
+Group **Theo dõi giá vé SGN–VCL** được tạo ngày 13/10/2026. Mọi thành viên có thể dùng `/price`, `/flights`, `/status`, `/help`; bot bỏ qua hội thoại thường và lệnh gửi cho bot khác. Chỉ group trong `runtime_state['shared-chat'].chatId` được xử lý. `/start` và `/stop` không đổi đăng ký của cả nhóm; mỗi người tự mute hoặc rời nhóm trong Telegram. Private chat vẫn tra cứu được nhưng không đăng ký nhận bản tin riêng khi shared mode bật.
+
+Menu command riêng cho group chỉ gồm các lệnh tra cứu. Bot là thành viên thường, không cần quyền admin. Nếu có thêm bot khác, dùng `/price@synapse_vinh_notify_test_bot` hoặc chọn lệnh từ menu để Telegram định tuyến đúng. Tin migration chính thức từ Telegram cập nhật destination khi basic group được nâng thành supergroup.
+
+Kiểm tra group live ngày 13/10/2026: `/price` và `/flights` đều nhận loading rồi kết quả; bản tin daily thử nghiệm có Telegram ACK trong group. D1 xác nhận một group active và hai subscriber private inactive. **105 tests** qua, thêm kiểm tra shared fanout, chặn bản tin private đã xếp hàng, `/stop` không tắt cả nhóm và migration basic group. Command menu đã đăng ký cho cả ngôn ngữ mặc định và tiếng Việt.
+
+Sau deploy, cấu hình/chuyển destination bằng `node --dns-result-order=ipv4first scripts/cloudflare-shared-group.mjs <negative-chat-id>`. Script xác minh group và membership qua Telegram, backup subscribers/shared state vào ignored `data/shared-group-backup-*.json`, rồi cập nhật D1 trong một batch và đặt command menu. Link mời lấy trong Group Info; không commit link mời riêng tư vào Git. Fanout và bước gửi đều chặn bản tin tự động tới private chat cũ.
 
 `/price` gửi “⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...”; `/flights` gửi “⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...”. Crawl chỉ được tạo sau ACK của tin loading. ACK đã lưu được dùng để phục hồi follow-up khi retry, không gửi lại loading. 429 của loading giữ crawl chờ thay vì lấy giá trước. [Bằng chứng hai lệnh live](cloudflare-spike/loading-evidence.json).
 

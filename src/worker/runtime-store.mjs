@@ -53,24 +53,30 @@ export class RuntimeStore extends D1Repository {
     await this.mutate('INSERT INTO jobs(id,kind,body_json,not_before,created_ms) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING',id,kind,canonicalJson(body),notBefore,this.now());
     return id;
   }
-  async receiveUpdate(botId,updateId,body){
+  async receiveUpdate(botId,updateId,body,{subscribe=true}={}){
     const id='update:'+botId+':'+updateId;
     await this.db.batch([
       this.statement("INSERT INTO jobs(id,kind,body_json,created_ms) VALUES(?,'command',?,?) ON CONFLICT(id) DO NOTHING",id,canonicalJson(body),this.now()),
       this.statement('INSERT INTO telegram_updates(bot_id,update_id,job_id,received_ms) VALUES(?,?,?,?) ON CONFLICT(bot_id,update_id) DO NOTHING',botId,updateId,id,this.now()),
-      this.statement(`INSERT INTO subscribers(bot_id,chat_id,active,record_json,last_update_id) VALUES(?,?,?,?,?)
+      ...(subscribe?[this.statement(`INSERT INTO subscribers(bot_id,chat_id,active,record_json,last_update_id) VALUES(?,?,?,?,?)
         ON CONFLICT(bot_id,chat_id) DO UPDATE SET
         active=CASE WHEN ?='stop' THEN 0 WHEN ?='start' THEN 1 ELSE subscribers.active END,
         record_json=json_set(subscribers.record_json,'$.active',json(CASE WHEN ?='stop' THEN 'false' WHEN ?='start' THEN 'true' ELSE CASE WHEN subscribers.active=1 THEN 'true' ELSE 'false' END END),
           '$.lastSeenAt',?),last_update_id=excluded.last_update_id
         WHERE excluded.last_update_id>subscribers.last_update_id`,botId,body.chatId,body.command==='stop'?0:1,
-        canonicalJson({active:body.command!=='stop',subscribedAt:this.now(),lastSeenAt:this.now()}),updateId,body.command,body.command,body.command,body.command,this.now()),
+        canonicalJson({active:body.command!=='stop',subscribedAt:this.now(),lastSeenAt:this.now()}),updateId,body.command,body.command,body.command,body.command,this.now())]:[]),
     ]);
     return id;
   }
   async history(source,queryId,limit=30){
     const result=await this.statement('SELECT record_json FROM observations WHERE source=? AND query_id=? ORDER BY observed_ms DESC,id DESC LIMIT ?',source,queryId,limit).all();
     return result.results.map(r=>JSON.parse(r.record_json)).reverse();
+  }
+  async migrateSharedChat(shared,chatId,botId){
+    await this.db.batch([
+      this.statement("UPDATE runtime_state SET document_json=? WHERE key='shared-chat' AND json_extract(document_json,'$.chatId')=?",canonicalJson({...shared,chatId}),shared.chatId),
+      this.statement('UPDATE subscribers SET chat_id=? WHERE bot_id=? AND chat_id=?',chatId,botId,shared.chatId),
+    ]);
   }
   async latest(source,queryId){return (await this.history(source,queryId,1))[0];}
   async subscribers(botId,after=''){return (await this.statement('SELECT chat_id FROM subscribers WHERE bot_id=? AND active=1 AND chat_id>? ORDER BY chat_id LIMIT 15',botId,after).all()).results.map(r=>r.chat_id);}
