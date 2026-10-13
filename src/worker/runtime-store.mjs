@@ -89,9 +89,9 @@ export class RuntimeStore extends D1Repository {
     await this.mutate(`INSERT INTO subscribers(bot_id,chat_id,active,record_json) VALUES(?,?,?,?)
       ON CONFLICT(bot_id,chat_id) DO UPDATE SET active=excluded.active,record_json=excluded.record_json`,botId,chatId,Number(entry.active),canonicalJson(entry));
   }
-  async queueText(id,chatId,text,{kind='manual',guards=[],stateKey=null,notBefore=0,afterSend=null}={}){
+  async queueText(id,chatId,text,{kind='manual',guards=[],stateKey=null,notBefore=0,afterSend=null,requestId=null}={}){
     await this.mutate(`INSERT INTO outbox(id,chat_id,kind,message,guards_json,state_key,created_ms,not_before)
       VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`,id,chatId,kind,text,canonicalJson(guards),stateKey,this.now(),notBefore);
-    return this.createJob('send:'+digest(id),'send',{outboxId:id,...(afterSend?{afterSend}:{})},{notBefore});
+    return this.createJob('send:'+digest(id),'send',{outboxId:id,...(afterSend?{afterSend}:{}),...(requestId?{requestId}:{})},{notBefore});
   }
 }

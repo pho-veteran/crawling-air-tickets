@@ -11,6 +11,7 @@ import {helpText,flightsReminder} from '../telegram/menu.mjs';
 import {messageParts} from '../telegram/text.mjs';
 import {sendMessage} from './telegram.mjs';
 import {digest} from '../storage/d1.mjs';
+import {fastLoading,attachRefresh,completeRefresh} from './interactive.mjs';
 
 export const query=queryFrom(config);
 export const settings={...settingsFrom(config.monitoring,{}),historyMode:'current-and-minimum'};
@@ -66,10 +67,16 @@ async function crawlJob(store,env,job,fetchImpl){
   for(const [i,p] of providers.entries()){
     const record={...results[i],job_id:job.id,history_mode:'current-and-minimum'};
     if(!existing[i])await store.observeCurrent(record);
-    if(!job.body.silent)await store.createJob(job.id+':notify:'+p.id,'notify',{providerId:p.id,record:compact(record),history:histories[i]});
+    if(!job.body.silent&&job.kind!=='refresh')await store.createJob(job.id+':notify:'+p.id,'notify',{providerId:p.id,record:compact(record),history:histories[i]});
   }
   if(job.body.command)await store.createJob(job.id+':reply','reply',{chatId:job.body.chatId,command:job.body.command});
-  if(job.body.day)await store.createJob('daily:'+job.body.day,'daily',{day:job.body.day});
+  if(job.body.day&&job.kind!=='refresh')await store.createJob('daily:'+job.body.day,'daily',{day:job.body.day});
+  if(job.kind==='refresh'){
+    const latestJob=await store.statement('SELECT body_json FROM jobs WHERE id=?',job.id).first();
+    const day=JSON.parse(latestJob.body_json).day;
+    await store.createJob(job.id+':broadcast','broadcast',{day,items:providers.map((p,i)=>({providerId:p.id,record:compact(results[i]),history:histories[i]}))});
+    await completeRefresh(store,job.id,results.every(r=>r.status==='ok'));
+  }
   console.log(JSON.stringify({event:'crawl_complete',job_id:job.id,wall_ms:store.now()-began,
     results:results.map(r=>({source:r.source,status:r.status,requests:r.requests||1}))}));
 }
@@ -109,11 +116,15 @@ async function dailyRecipient(store,env,job){
 async function reply(store,job){
   const c=await context(store),text=job.body.command==='flights'?formatFlights({...c,now:store.now(),pollMinutes:settings.pollMinutes}):
     formatCurrentPrices({...c,now:store.now(),pollMinutes:settings.pollMinutes,onDemand:true})+'\n\n'+flightsReminder;
-  await enqueueText(store,job.id,job.body.chatId,text);
+  await enqueueText(store,job.id,job.body.chatId,text,{requestId:job.body.requestId});
 }
-async function command(store,env,job){
+async function command(store,env,job,fetchImpl){
   const {command,chatId}=job.body;
   if(['price','flights'].includes(command)){
+    if(job.body.optimized){
+      if(!await fastLoading(store,env,job.id,fetchImpl))throw Object.assign(new Error('Loading awaiting delivery'),{delaySeconds:5});
+      await attachRefresh(store,job.id);return;
+    }
     const text=command==='flights'?'⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...':
       '⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...';
     await store.queueText(job.id+':loading',chatId,text,{afterSend:{id:job.id+':crawl',kind:'crawl',body:{silent:true,command,chatId}}});return;
@@ -126,7 +137,7 @@ async function command(store,env,job){
     const c=await context(store),count=await store.statement('SELECT COUNT(*) AS n FROM subscribers WHERE bot_id=? AND active=1',botId(env)).first();
     text='🟢 Bot đang hoạt động trên Cloudflare Workers.\n'+routeLine(query)+'\n🔄 Kiểm tra mỗi 10 phút.\n☀️ Bản tin 07:00 giờ Việt Nam.\n'+(job.body.shared?'👥 Thông báo tại nhóm chung.':'👥 Người đăng ký: '+count.n+'.')+'\n'+c.providers.map(p=>p.name+': '+(p.history.at(-1)?when(p.history.at(-1).observed_at)+' · '+p.history.at(-1).status:'chưa có dữ liệu')).join('\n')+'\n\n/price — Kiểm tra giá mới. /flights — Xem giờ bay.';
   }
-  await enqueueText(store,job.id,chatId,text);
+  await enqueueText(store,job.id,chatId,text,{requestId:job.body.optimized?job.id:null});
 }
 export async function sendJob(store,env,job,fetchImpl){
   const o=await store.statement('SELECT * FROM outbox WHERE id=?',job.body.outboxId).first();
@@ -154,6 +165,11 @@ export async function sendJob(store,env,job,fetchImpl){
     const result=await sendMessage(env,o.chat_id,o.message,fetchImpl);
     if(!Number.isSafeInteger(result?.message_id))throw Object.assign(new Error('Delivery ACK missing'),{uncertain:true});
     await store.mutate("UPDATE outbox SET status='sent',message_id=?,message='',guards_json='[]' WHERE id=?",result.message_id,o.id);
+    if(job.body.requestId){
+      await store.mutate('UPDATE interactive SET completed_ms=? WHERE id=?',store.now(),job.body.requestId);
+      const req=await store.statement('SELECT created_ms,loading_ms FROM interactive WHERE id=?',job.body.requestId).first();
+      console.log(JSON.stringify({event:'interactive_complete',request_id:job.body.requestId,latency_ms:store.now()-req.created_ms,loading_ms:req.loading_ms?req.loading_ms-req.created_ms:null}));
+    }
     if(o.state_key){
       const state=await store.state(o.state_key,{});
       if(o.kind==='daily'){
@@ -184,8 +200,19 @@ export async function sendJob(store,env,job,fetchImpl){
 }
 export async function executeJob(store,env,job,fetchImpl=fetch){
   job={...job,body:JSON.parse(job.body_json)};
-  if(job.kind==='crawl')return crawlJob(store,env,job,fetchImpl);
-  if(job.kind==='command')return command(store,env,job);
+  if(['crawl','refresh'].includes(job.kind))return crawlJob(store,env,job,fetchImpl);
+  if(job.kind==='command')return command(store,env,job,fetchImpl);
+  if(job.kind==='broadcast'){
+    const shared=await store.state('shared-chat',{});
+    if(shared.chatId){
+      for(const item of job.body.items)await alertRecipient(store,env,{...job,body:{...item,chatId:shared.chatId}});
+      if(job.body.day)await dailyRecipient(store,env,{...job,body:{day:job.body.day,chatId:shared.chatId}});
+    }else{
+      for(const item of job.body.items)await store.createJob(job.id+':'+item.providerId,'notify',item);
+      if(job.body.day)await store.createJob('daily:'+job.body.day,'daily',{day:job.body.day});
+    }
+    return;
+  }
   if(job.kind==='reply')return reply(store,job);
   if(job.kind==='notify')return fanout(store,env,job,'alert-recipient');
   if(job.kind==='alert-recipient')return alertRecipient(store,env,job);
@@ -193,6 +220,7 @@ export async function executeJob(store,env,job,fetchImpl=fetch){
   if(job.kind==='daily-recipient')return dailyRecipient(store,env,job);
   if(job.kind==='send')return sendJob(store,env,job,fetchImpl);
   if(job.kind==='retention'){
+    await store.mutate('DELETE FROM interactive WHERE completed_ms<?',store.now()-30*86400000);
     await store.mutate("UPDATE runtime_state SET document_json=json_remove(document_json,'$.message','$.messageVersion') WHERE key LIKE 'daily:%' AND (json_extract(document_json,'$.sent')=1 OR json_extract(document_json,'$.messageId') IS NOT NULL)");
     await store.mutate("DELETE FROM telegram_updates WHERE received_ms<?",store.now()-30*86400000);
     // Job/outbox ACKs remain 30 days; stable update IDs prevent duplicate commands.

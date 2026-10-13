@@ -3,6 +3,7 @@ import {RuntimeStore} from './runtime-store.mjs';
 import {executeJob,context,settings} from './jobs.mjs';
 import {localDay} from '../monitoring/messages.mjs';
 import {meter} from './d1-meter.mjs';
+import {admit,requestRefresh,completeRefresh,fastLoading} from './interactive.mjs';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
 const equal=(a,b)=>{const x=new TextEncoder().encode(a||''),y=new TextEncoder().encode(b||'');return x.length===y.length&&timingSafeEqual(x,y);};
@@ -41,6 +42,12 @@ export async function webhook(request,env,store){
   if(m.date&&store.now()/1000-m.date>300)return json({ok:true});
   const command=match?.[1]?.toLowerCase()||'hello';
   try{
+    if(env.OPTIMIZED==='1'){
+      if(!['price','flights','status','help','start','stop','connection'].includes(command))return json({ok:true});
+      const accepted=await admit(store,env.TELEGRAM_BOT_TOKEN.split(':')[0],u.update_id,{chatId:String(m.chat.id),command,shared:!!shared.chatId,group});
+      if(accepted?.status==='pending')await dispatch(store,env);
+      return json({ok:true});
+    }
     const id=await store.receiveUpdate(env.TELEGRAM_BOT_TOKEN.split(':')[0],u.update_id,{chatId:String(m.chat.id),command,shared:!!shared.chatId,group}, {subscribe:!shared.chatId});
     await env.JOBS.send({jobId:id});
   }catch{console.log(JSON.stringify({event:'webhook_persistence_failed'}));return json({error:'Persistence unavailable'},503);}
@@ -67,6 +74,8 @@ export async function consume(message,env,{fetchImpl=fetch,now=Date.now}={}){
     const attempts=job.attempts+(error.noAttempt?0:1),wait=Math.min(86400,Math.max(1,error.delaySeconds||Math.min(900,30*2**job.attempts)));
     const failed=attempts>=5;
     try{await store.mutate('UPDATE jobs SET status=?,attempts=?,not_before=? WHERE id=?',failed?'failed':'pending',attempts,now()+wait*1000,id);
+      if(failed&&job.kind==='refresh')await completeRefresh(store,id,false);
+      if(failed&&job.kind==='command')await store.mutate('UPDATE interactive SET completed_ms=? WHERE id=?',now(),id);
       if(failed&&job.kind==='send')await store.mutate("UPDATE outbox SET status='failed' WHERE id=?",JSON.parse(job.body_json).outboxId);
     }catch{/* A new lease owner is responsible for recovery; never commit without ownership. */}
     console.log(JSON.stringify({event:'job_retry',job_id:id,kind:job.kind,attempts,failed,delay_seconds:wait,error_name:error.name,uncertain:!!error.uncertain}));
@@ -113,7 +122,8 @@ export default {
   async scheduled(controller,env){
     const store=new RuntimeStore(env.DB),active=await store.state('control',{active:false});if(!active.active)return;
     const stamp=controller.scheduledTime,day=localDay(stamp);
-    if(controller.cron==='0 0 * * *'&&settings.dailyReport)await store.createJob('daily-crawl:'+day,'crawl',{day});
+    if(env.OPTIMIZED==='1')await requestRefresh(store,'poll:'+Math.floor(stamp/600000),{force:true,day:controller.cron==='0 0 * * *'&&settings.dailyReport?day:null});
+    else if(controller.cron==='0 0 * * *'&&settings.dailyReport)await store.createJob('daily-crawl:'+day,'crawl',{day});
     else await store.createJob('poll:'+Math.floor(stamp/600000),'crawl',{});
     await store.createJob('retention:'+day,'retention',{});
     await dispatch(store,env);
