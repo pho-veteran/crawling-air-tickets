@@ -1,0 +1,29 @@
+import {money,routeLine,when} from './messages.mjs';
+import {bookingText,flightHint,priceNote} from './booking-links.mjs';
+const priced=p=>Number.isSafeInteger(p)&&p>0;
+const lowest=values=>{const prices=values.filter(priced);return prices.length?Math.min(...prices):null;};
+export function formatCurrentPrices({providers,query,now=Date.now(),pollMinutes=10,onDemand=false}){
+  const sections=[onDemand?'✈️ Giá vé hiện tại':'☀️ Giá vé hôm nay · 07:00 giờ Việt Nam',routeLine(query)];
+  for(const p of providers){
+    const history=p.history.filter(r=>Date.parse(r.observed_at)<=now),last=history.at(-1),r=history.filter(r=>['ok','partial'].includes(r.status)).at(-1);
+    const lines=[(p.id==='vna'?'🟦 ':'🟥 ')+p.name.toUpperCase()];
+    if(!r)lines.push('⚠️ Chưa cập nhật được giá hiện tại.');
+    else if(last?.status==='error'||r.last_attempt_failed||now-Date.parse(r.observed_at)>(pollMinutes+5)*60000)lines.push('⚠️ GIÁ CŨ — chưa cập nhật được ở lượt này.');
+    else if(r.status==='partial')lines.push('⚠️ Giá còn thiếu một chiều; không suy diễn là hết vé.');
+    lines.push('🎟 Tổng hai chiều: '+money(r?.main_price));
+    for(const [leg,date,label] of [['outbound',query.departureDate,'🛫 Đi'],['inbound',query.returnDate,'🛬 Về']]){
+      const quote=r?.legs?.[leg]?.find(q=>q.date===date);
+      lines.push(label+' '+date.split('-').reverse().join('/')+': '+money(quote?.price));
+      if(priced(quote?.price)&&flightHint(quote))lines.push('Chọn chuyến: '+flightHint(quote));
+    }
+    const minima=p.minimums||{
+      main:lowest(history.map(r=>r.main_price)),
+      outbound:lowest(history.flatMap(r=>r.legs?.outbound?.filter(q=>q.date===query.departureDate).map(q=>q.price)||[])),
+      inbound:lowest(history.flatMap(r=>r.legs?.inbound?.filter(q=>q.date===query.returnDate).map(q=>q.price)||[])),
+    };
+    lines.push('🏷 Thấp nhất đã ghi nhận: tổng '+money(minima.main)+' · đi '+money(minima.outbound)+' · về '+money(minima.inbound));
+    if(r)lines.push('🕒 Cập nhật '+when(r.observed_at));
+    lines.push(priceNote(p.id,r),bookingText(p.id,query,r));sections.push(lines.join('\n'));
+  }
+  return sections.join('\n\n');
+}

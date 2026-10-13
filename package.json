@@ -17,6 +17,8 @@
     "telegram": "node src/cli/telegram.mjs",
     "cf:check": "cf deploy --dry-run",
     "cf:deploy:spike": "cf deploy --secrets-file .env.spike",
+    "cf:deploy": "cf deploy --mode production --secrets-file .env.worker.json",
+    "cf:status": "node --dns-result-order=ipv4first scripts/cloudflare-runtime.mjs --inspect",
     "cf:probe": "node scripts/cloudflare-spike.mjs",
     "cf:import:check": "node scripts/cloudflare-import.mjs",
     "cf:import:snapshot": "node scripts/cloudflare-import.mjs --snapshot",

@@ -43,7 +43,7 @@ Hai POST đồng thời tới endpoint tìm vé công khai Flynow: `system=EVN` 
 
 Chỉ một báo giá ngày ở mỗi `legs.outbound` / `legs.inbound`. `main_price` là tổng hai chiều khi đủ cả hai; thiếu một chiều thì `partial` và tổng `null`, lỗi toàn bộ là error. Snapshot còn một `cells` cho cặp ngày chính để tương thích storage. Không lưu session/token/FlightValue của nhà cung cấp. `/flights` đọc danh sách `flights` đã có trong báo giá, không tăng requests hoặc lấy thêm ngày, và không tự gửi schedule dài trong `/price`/daily.
 
-Nguồn `vna-flynow-selected-flight-fares-v1`, `vietjet-flynow-selected-flight-fares-v2` và query `nearbyDays: 0` tách lịch sử/minimum/cooldown khỏi VNA matrix và lịch ngày lân cận trước đây. Giữ nguyên dữ liệu lịch sử để import, không gán đổi nguồn hoặc dùng mốc cũ làm giảm giá giả. Tổng báo giá chiều đi/về của đại lý được ghi đúng cơ sở này; dù mẫu hiện tại khớp tổng khứ hồi VNA, không coi hai cơ sở giá luôn tương đương.
+Nguồn hiện tại tách khỏi VNA matrix và lịch ngày lân cận cũ. Worker chỉ giữ bản giá hiện tại và mức thấp nhất của ba chiều giá (tổng/đi/về) mỗi hãng. Khi compact, chỉ chuyển mức thấp nhất từ Vietjet Flynow v1 có cùng tuyến, ngày, hành khách, tiền tệ và cơ sở giá đã xác minh sang v2; không dùng mức thấp của ngày lân cận hoặc nguồn chưa xác minh thuế/phí. VNA matrix khác cơ sở báo giá được lưu trong backup, không gán lại thành lịch sử Flynow.
 
 ## Worker và giới hạn Free
 
@@ -57,4 +57,4 @@ Manual revalidation (không gửi Telegram): `cf auth whoami`, rồi `node --dns
 
 ## Mục tiêu triển khai cập nhật
 
-Deploy bot lên Workers Free với **giá hai ngày chính** cho VNA/Vietjet qua Flynow, giá VNA phải được đối chiếu đúng tuyến/ngày/hành khách/hạng vé với web chính thức trước nghiệm thu. Tiếp tục webhook Telegram, cron 10 phút, bản tin 07:00 Việt Nam, D1/Queues, history/subscribers/alerts, import/rollback và staging bot test tối thiểu 24 giờ. Nhiều giờ bay là commit riêng sau. Chỉ chuyển bot chính khi các gate tích hợp và staging đạt; không nâng gói trả phí.
+Bot đã deploy và active trên Workers Free với webhook Telegram, cron 10 phút, bản tin 07:00 Việt Nam, D1/Queues, subscribers và chống lặp. `/flights` nằm trong commit riêng `2c55d16`. Người dùng đã bỏ staging bot riêng/24 giờ, chọn bot chính, và đổi lưu trữ sang giá hiện tại + mức thấp nhất, không còn timeline. Local watcher/listener đã dừng. [Runbook và bằng chứng production](cloudflare-production.md).

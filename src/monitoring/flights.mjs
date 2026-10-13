@@ -18,7 +18,7 @@ export function formatFlights({providers,query,now=Date.now(),pollMinutes=10}){
     const r=history.filter(r=>['ok','partial'].includes(r.status)).at(-1);
     const lines=[(p.id==='vna'?'🟦 ':'🟥 ')+p.name.toUpperCase()];
     if(!r){lines.push('⚠️ Chưa lấy được danh sách chuyến có giá của hãng này.');sections.push(lines.join('\n'));continue;}
-    if(last?.status==='error'||now-Date.parse(r.observed_at)>(pollMinutes+5)*60000)
+    if(last?.status==='error'||r.last_attempt_failed||now-Date.parse(r.observed_at)>(pollMinutes+5)*60000)
       lines.push('⚠️ GIÁ CŨ — lần cập nhật gần nhất '+when(r.observed_at));
     else if(r.status==='partial')lines.push('⚠️ Nguồn còn thiếu một phần; không suy diễn là hết vé.');
     for(const [leg,date,label,from,to] of [['outbound',query.departureDate,'🛫 Đi',query.origin,query.destination],['inbound',query.returnDate,'🛬 Về',query.destination,query.origin]]){

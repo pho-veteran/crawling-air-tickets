@@ -23,7 +23,7 @@ export function settingsFrom(config,env=process.env) {
 }
 export function evaluateAlerts(provider,record,history,state={},settings=defaults) {
   const events=[],add=(key,text,guard)=>events.push({key,text,guard});
-  const earlier=history.filter(s=>s.observed_at<record.observed_at),good=earlier.filter(valid),prev=good.at(-1);
+  const earlier=history.filter(s=>s.observed_at<record.observed_at),good=earlier.filter(valid),prev=good.filter(s=>!s.comparison_only).at(-1)||good.at(-1);
   const mainPast=good.filter(s=>hasPrice(s.main_price));
   if(record.status==='error') {
     let errors=1;for(const s of [...earlier].reverse()){if(s.status!=='error')break;errors++;}
@@ -39,7 +39,7 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
       reasons.push('Giảm '+money(prev.main_price-record.main_price)+' ('+((prev.main_price-record.main_price)/prev.main_price*100).toFixed(1)+'%) so với lần có dữ liệu trước: '+money(prev.main_price));
     if(mainPast.length&&record.main_price<Math.min(...mainPast.map(s=>s.main_price)))reasons.push('Đây là giá thấp nhất mình từng thấy từ khi bắt đầu theo dõi! ');
     const window=mainPast.filter(s=>Date.parse(record.observed_at)-Date.parse(s.observed_at)<=settings.rollingWindowDays*86400000);
-    if(window.length&&record.main_price<Math.min(...window.map(s=>s.main_price))&&!reasons.some(x=>x.includes('từng thấy')))reasons.push('Thấp nhất trong '+settings.rollingWindowDays+' ngày quan sát gần đây');
+    if(settings.historyMode!=='current-and-minimum'&&window.length&&record.main_price<Math.min(...window.map(s=>s.main_price))&&!reasons.some(x=>x.includes('từng thấy')))reasons.push('Thấp nhất trong '+settings.rollingWindowDays+' ngày quan sát gần đây');
     if(prev&&prev.main_price===null)reasons.push('Ngày bạn muốn bay đã có giá trở lại rồi! ');
     const target=settings.targetVnd[provider.id];
     if(target!==null&&record.main_price<=target&&(!state.initialized||!hasPrice(prev?.main_price)||prev.main_price>target||record.main_price<prev.main_price))reasons.push('Vừa chạm ngân sách bạn đặt: '+money(target));
@@ -53,14 +53,15 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
         return value?{...value,observed_at:value.observed_at||s.observed_at}:null;
       }).filter(x=>x&&hasPrice(x.price));
       if(!past.length)continue; // The first quote is a baseline, never a historical low alert.
-      const previous=past.at(-1),main=quote.date===mainDate,why=[];
+      const previousRecord=good.filter(s=>!s.comparison_only&&legSource(s)===legSource(record)).at(-1);
+      const previous=previousRecord?.legs?.[leg]?.find(x=>x.date===quote.date)||past.at(-1),main=quote.date===mainDate,why=[];
       if(previous.price-quote.price>=settings.legDropMinVnd)
         why.push('giảm '+money(previous.price-quote.price)+' ('+((previous.price-quote.price)/previous.price*100).toFixed(1)+'%), trước '+money(previous.price));
       const lowest=values=>values.reduce((min,x)=>Math.min(min,x.price),Infinity);
       const allLow=quote.price<lowest(past);
       const window=past.filter(x=>Date.parse(quote.observed_at||record.observed_at)-Date.parse(x.observed_at)<=settings.rollingWindowDays*86400000);
       if(allLow)why.push('chưa từng thấy vé chiều này, ngày này rẻ hơn kể từ khi theo dõi! ');
-      else if(window.length&&quote.price<lowest(window))why.push('giá tốt nhất của chiều bay này trong '+settings.rollingWindowDays+' ngày vừa qua');
+      else if(settings.historyMode!=='current-and-minimum'&&window.length&&quote.price<lowest(window))why.push('giá tốt nhất của chiều bay này trong '+settings.rollingWindowDays+' ngày vừa qua');
       if(why.length)add('leg:'+legSource(record)+':'+leg+':'+quote.date+':'+quote.price,
         label+' '+from+' → '+to+' '+day(quote.date)+'/'+quote.date.slice(0,4)+': '+money(quote.price)+' · '+why.join(' · '),
         {kind:'leg',source:legSource(record),leg,date:quote.date,price:quote.price});
@@ -99,7 +100,7 @@ export function formatAlert(provider,record,events,history=[]) {
   rows.push(...events.filter(e=>e.key!=='baseline'&&e.key!=='recovery').map(e=>e.text.split(' · ').filter(t=>!t.includes('thấp nhất mình từng thấy')&&!t.includes('chưa từng thấy vé chiều')).join('\n').trim()));
   const past=history.filter(r=>r.observed_at<=record.observed_at&&valid(r));if(valid(record))past.push(record);
   const quotes=past.filter(r=>!leg||legSource(r)===legSource(record)).map(r=>({price:leg?r.legs?.[g.leg]?.find(x=>x.date===g.date)?.price:r.main_price,at:r.observed_at})).filter(x=>hasPrice(x.price));
-  if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+' ('+when(low.at)+').');}
+  if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+(record.history_mode==='current-and-minimum'?'.':' ('+when(low.at)+').'));}
   rows.push('🕒 '+when(record.observed_at)+' · giờ Việt Nam');
   rows.push(priceNote(provider.id,record));
   for(const [direction,date,label] of [['outbound',q.departureDate,'Đi'],['inbound',q.returnDate,'Về']]){

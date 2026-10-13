@@ -48,6 +48,7 @@ export function observationModel(record) {
 export class D1Repository {
   constructor(db){this.db=db;}
   statement(sql,...values){return this.db.prepare(sql).bind(...values);}
+  commitBatch(statements){return this.db.batch(statements);}
   async putObservation(id,record) {
     text(id,'observation ID');const model=observationModel(record);
     const statements=[this.statement(`INSERT INTO observations(id,source,query_id,observed_ms,status,record_json)
@@ -70,7 +71,7 @@ export class D1Repository {
       WHERE excluded.price<price_minima.price OR
         (excluded.price=price_minima.price AND excluded.observed_ms<price_minima.observed_ms)`,id,id,model.recordJson));
     if(statements.length>45)throw new Error('Observation exceeds the Free query budget; split persistence before deployment.');
-    const results=await this.db.batch(statements);
+    const results=await this.commitBatch(statements);
     const stored=await this.statement('SELECT record_json FROM observations WHERE id=?',id).first();
     if(stored?.record_json!==model.recordJson)throw new Error('Observation ID collision; existing history was preserved.');
     return {inserted:results[0].meta.changes>0,quotes:model.quotes.length,statements:statements.length+1};

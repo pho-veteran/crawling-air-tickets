@@ -1,12 +1,13 @@
 # Air Ticket Price Tracker
 
-Theo dõi giá vé Vietnam Airlines và Vietjet, lưu lịch sử và gửi cảnh báo qua Telegram. CLI local dùng JavaScript ESM và module có sẵn của Node.js, **không cần `npm install`**. Công cụ phát triển Cloudflare cần `npm ci`.
+Theo dõi giá vé Vietnam Airlines và Vietjet qua Flynow, gửi cảnh báo và trả lời slash command qua Telegram. **Bot chính đã chạy trên Cloudflare Workers Free**, dùng D1 và Queues; watcher local đã dừng.
 
-Migration Cloudflare đang ở bước kiểm chứng. [Scope hai ngày chính và bằng chứng nguồn](docs/cloudflare-selected-dates.md): Worker đã lấy được cả Vietnam Airlines và Vietjet qua Flynow. Endpoint chính thức VNA vẫn trả 403; bot production chưa chuyển webhook.
+- `/price`: giá hiện tại và một giá thấp nhất từng ghi nhận cho tổng/đi/về của mỗi hãng, kèm nhắc `/flights`.
+- `/flights`: các chuyến có báo giá trong đúng hai ngày đã chọn của cả hai hãng.
+- Cron mỗi 10 phút; bản tin 07:00 Việt Nam. Không cần máy local chạy liên tục.
+- D1 chỉ giữ hai bản giá hiện tại và sáu giá thấp nhất, không lưu timeline. Lượt lỗi giữ giá gần nhất và đánh dấu giá cũ. Backup lịch sử cũ nằm trong ignored `data/`.
 
-[Schema D1, kiểm tra import và backup local](docs/cloudflare-storage.md) đã có. Chạy `npm run cf:import:check` để đối chiếu dữ liệu mà không sửa dữ liệu gốc; đây chưa phải import production.
-
-[Audit nghiệm thu](docs/cloudflare-gates.md) ghi rõ các bước tích hợp, staging và chuyển bot production còn lại. Các mẫu spike 49 ô trong báo cáo cũ chỉ là bằng chứng lịch sử.
+[Vận hành, deploy và backup](docs/cloudflare-production.md), [đối chiếu giá web VNA](docs/cloudflare-selected-dates.md), [audit nghiệm thu](docs/cloudflare-gates.md). Người dùng đã bỏ yêu cầu bot staging riêng và 24 giờ, chọn triển khai bằng bot chính.
 
 Cấu hình đang có: **SGN ⇄ VCL**, đi **04/02/2027**, về **13/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Có thể đổi tuyến và ngày trong [`config.json`](config.json).
 
@@ -14,18 +15,29 @@ Cấu hình đang có: **SGN ⇄ VCL**, đi **04/02/2027**, về **13/02/2027**,
 
 - Node.js **24 trở lên** (có npm).
 - Kết nối mạng để lấy giá và sử dụng Telegram.
-- Máy cần tiếp tục chạy và có mạng nếu muốn theo dõi thường xuyên. `watch` không tự cài service Windows.
+- Khi dùng CLI local để rollback, máy cần tiếp tục chạy và có mạng. `watch` không tự cài service Windows.
 
 Chạy các lệnh bên dưới tại thư mục project. Trên PowerShell, nếu `npm.ps1` bị chặn, dùng `npm.cmd` thay cho `npm`.
 
-## Bắt đầu nhanh
+## Kiểm tra và deploy Worker
 
 ```sh
 node --version
 npm test
 ```
 
-Chỉ còn 3 lệnh:
+Cài công cụ phát triển bằng `npm ci`. OAuth Cloudflare đã được cấu hình; đăng nhập lại khi cần bằng `cf auth login`.
+
+```sh
+npm run cf:status
+npm run cf:deploy
+```
+
+Secrets ở `.env.worker.json` đã được Git ignore. Không gửi token vào chat hoặc commit vào Git.
+
+## CLI local để chẩn đoán hoặc rollback
+
+Các lệnh local:
 
 | Lệnh | Chức năng |
 | --- | --- |
@@ -33,7 +45,9 @@ Chỉ còn 3 lệnh:
 | `npm stop` | Dừng ngay tiến trình bot |
 | `npm run telegram` | Kiểm tra kết nối Telegram (cấu hình, bot, webhook, người đăng ký) |
 
-### Bật Telegram và theo dõi liên tục
+### Bật chế độ local sau khi rollback
+
+Watcher từ chối khởi động khi Telegram vẫn có webhook. Phải pause Worker và gỡ webhook thuộc app theo runbook trước khi chạy local.
 
 1. Copy [`.env.example`](.env.example) thành `.env` nếu chưa có. Giữ nguyên `.env` đã điền trước đó.
 2. Tạo bot qua [BotFather](https://t.me/BotFather), điền token vào `.env`. Không cần cấu hình `TELEGRAM_CHAT_ID`.
@@ -63,6 +77,7 @@ Mỗi người mở bot và gửi `/start` để đăng ký nhận bản tin/c�
 │   ├── providers/        # Lấy và chuẩn hóa giá VNA, VNA một chiều, Vietjet
 │   ├── monitoring/       # Quy tắc cảnh báo, outbox, bản tin và định dạng tin
 │   ├── telegram/         # Telegram API client và xử lý slash command
+│   ├── worker/           # Webhook, cron, Queues, D1, outbox và lease fencing
 │   ├── reporting/        # Đọc lịch sử và tạo context
 │   └── shared/           # Đường dẫn project, HTTP fetch song song và TLS
 ├── scripts/              # Preflight và các công cụ smoke
@@ -72,7 +87,7 @@ Mỗi người mở bot và gửi `/start` để đăng ký nhận bản tin/c�
 │   └── alerts.md         # Chi tiết quy tắc cảnh báo và chống lặp
 ├── config.json           # Tuyến, ngày, hành khách và thiết lập theo dõi
 ├── .env.example          # Mẫu cấu hình Telegram và giờ bản tin
-├── package.json          # Các lệnh npm; không có dependency ngoài
+├── package.json          # Các lệnh npm; công cụ cf/wrangler cho phát triển
 ├── Dockerfile
 └── data/                 # Sinh khi chạy: lịch sử, trạng thái, preview, lock
 ```

@@ -1,5 +1,5 @@
 import {writeFileSync} from 'node:fs';
-import {loadEnv,credentials} from '../telegram/client.mjs';
+import {loadEnv,credentials,telegramCall} from '../telegram/client.mjs';
 import {readFile,mkdir,open,unlink,access} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
@@ -10,6 +10,11 @@ import {nextMorning,morningAt} from '../monitoring/messages.mjs';
 const root=projectRoot;
 loadEnv(root);
 const settings=settingsFrom(JSON.parse(await readFile(path.join(root,'config.json'),'utf8')).monitoring);
+const connection=credentials(root);
+if(connection.enabled&&connection.configured){
+  const webhook=await telegramCall(connection.token,'getWebhookInfo');
+  if(webhook.url)throw new Error('Bot đang dùng webhook; watcher local không được khởi động để tránh hai nơi cùng gửi tin.');
+}
 const lockFile=path.join(root,'data','watch.lock');
 await mkdir(path.dirname(lockFile),{recursive:true});
 let lock;

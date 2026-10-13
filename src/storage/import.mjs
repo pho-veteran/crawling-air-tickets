@@ -55,7 +55,10 @@ export async function applyImport(repository,plan) {
   const expectedSubscribers=new Map(plan.subscribers.map(s=>[s.botId+'|'+s.chatId,canonicalJson(s.entry)]));
   for(const row of existingSubscribers.results)if(expectedSubscribers.get(row.bot_id+'|'+row.chat_id)!==row.record_json)throw new Error('Destination subscriber state differs; opt-outs were preserved.');
   let inserted=0;
-  for(const observation of plan.observations)inserted+=Number((await repository.putObservation(observation.id,observation.record)).inserted);
+  const existingIds=new Set(existingObservations.results.map(row=>row.id));
+  // Existing IDs were reconciled above and each observation commits atomically.
+  // A repeated import verifies them instead of issuing the same writes again.
+  for(const observation of plan.observations)if(!existingIds.has(observation.id))inserted+=Number((await repository.putObservation(observation.id,observation.record)).inserted);
   for(const subscriber of plan.subscribers)await repository.putSubscriber(subscriber.botId,subscriber.chatId,subscriber.entry);
   for(const item of plan.documents)await repository.putLegacyDocument(item.namespace,item.document,item.hash);
   return {insertedObservations:inserted,...await verifyImport(repository,plan)};

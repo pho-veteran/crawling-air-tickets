@@ -1,8 +1,8 @@
 # D1 storage preparation and local import validation
 
-This is preparation for issue #1. **Production migration is not approved**:
-VNA still returns 403 from Workers. Telegram webhook/cron/live job orchestration,
-recipient outbox translation and the 24-hour test-bot staging gate remain pending.
+Production is now active; see [the current runbook](cloudflare-production.md). The user authorized the verified agency sources, waived separate staging/24 hours, and replaced timeline retention with current prices plus minima. The original full import was reconciled and backed up, then compacted to two current records, zero time-series quote rows and six minima. `RuntimeStore.observeCurrent` performs a fenced atomic replacement/minimum update. Completed jobs and delivered outbox messages discard their pricing payloads; operational ACK/cooldown timestamps remain.
+
+The sections below document the **original import/archive contract**, retained for backup and recovery. They do not describe production pricing retention.
 
 ## Implemented storage contract
 
@@ -27,9 +27,7 @@ and the offline SQLite adapter remain under `scripts/`.
   epoch fence renew/release after takeover. A release keeps a tombstone so the
   same owner cannot accidentally reuse an epoch.
 
-These lease primitives are not yet connected to effectful job/snapshot/outbox
-commits. Implementing and testing that full ownership boundary is still required
-before claiming cron/`/price` concurrency is safe.
+Production now fences effectful D1 commits using the lease owner, epoch and expiry checked inside each transaction. Telegram delivery renews ownership before its external call. Worker orchestration regression tests cover expired-owner rejection, duplicate updates, opt-out ordering, retries and 429 cooldown.
 
 Bulk quote insert uses a multi-row `VALUES` CTE, at most 92 bind parameters per
 statement. Real D1 rejected the earlier ten-term `UNION ALL SELECT`; its compound

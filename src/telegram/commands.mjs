@@ -8,9 +8,8 @@ import {recipientState} from './subscribers.mjs';
 import {loadContext} from '../reporting/context.mjs';
 import {formatDaily,nextMorning,routeLine,when} from '../monitoring/messages.mjs';
 import {formatFlights} from '../monitoring/flights.mjs';
-export const commandMenu=[{command:'start',description:'Đăng ký hoặc nhận lại cảnh báo và bản tin'},{command:'stop',description:'Ngừng nhận cảnh báo và bản tin tự động'},{command:'price',description:'Xem giá mới hai hãng và link đặt vé'},{command:'flights',description:'Xem các giờ bay hai ngày chính của hai hãng'},{command:'status',description:'Kiểm tra kết nối và lần cập nhật gần nhất'},{command:'help',description:'Hướng dẫn dùng bot săn vé'}];
-export const helpText='👋 Mình đang canh vé cho bạn!\n\n/price — Kiểm tra giá mới hai hãng và mở link đặt vé.\n/flights — Xem các giờ bay và giá trong hai ngày chính của cả hai hãng.\n/status — Xem kết nối, lịch kiểm tra và lần cập nhật gần nhất.\n\n🔔 Kiểm tra mỗi 10 phút, báo ngay khi phát hiện giá giảm. Bản tin hằng ngày lúc 07:00 giờ Việt Nam.';
-export const flightsReminder='💡 /flights — Xem các giờ bay trong hai ngày này của cả hai hãng.';
+import {helpText,flightsReminder} from './menu.mjs';
+export {commandMenu,helpText,flightsReminder} from './menu.mjs';
 export const quickRun=root=>new Promise((resolve,reject)=>{const p=spawn(process.execPath,[cliPath('run.mjs',root),'--quick','--no-notify'],{cwd:root,stdio:['ignore','inherit','inherit'],windowsHide:true});p.once('error',reject);p.once('exit',code=>resolve(code??1));});
 const watcherLine=async root=>{
   try{
