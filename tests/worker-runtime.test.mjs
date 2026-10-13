@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {LocalD1} from '../scripts/lib/local-d1.mjs';
 import {RuntimeStore} from '../src/worker/runtime-store.mjs';
 import app,{consume,webhook} from '../src/worker/app.mjs';
-import {query,providers} from '../src/worker/jobs.mjs';
+import {query,providers,sendJob} from '../src/worker/jobs.mjs';
 import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
 import {formatCurrentPrices} from '../src/monitoring/current-prices.mjs';
 import {evaluateAlerts,defaults} from '../src/monitoring/alerts.mjs';
@@ -43,18 +43,49 @@ test('webhook authentication and durable job/update/subscriber transaction prece
 });
 test('real orchestration persists selected-date observations, replies /price and /flights, and survives duplicate delivery',async t=>{
   const x=await setup(t);
-  await webhook(request(1),x.env,x.store);await x.drain();
-  assert.equal(x.source.requests.length,2);assert.equal(x.delivered.length,1);
-  assert.match(x.delivered[0].text,/\/flights/);
-  await x.execute('update:123:1');assert.equal(x.delivered.length,1);
+  await webhook(request(1),x.env,x.store);await x.execute('update:123:1');
+  assert.equal(x.source.requests.length,0);assert.equal(x.delivered.length,0);
+  assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM jobs WHERE kind='crawl'").first()).n,0);
+  const loading=await x.store.statement("SELECT id FROM jobs WHERE kind='send'").first();
+  await x.execute(loading.id);assert.equal(x.source.requests.length,0);
+  assert.match(x.delivered[0].text,/Đang kiểm tra giá mới hai hãng/);
+  await x.drain();
+  assert.equal(x.source.requests.length,2);assert.equal(x.delivered.length,2);
+  assert.match(x.delivered[1].text,/\/flights/);
+  await x.execute('update:123:1');assert.equal(x.delivered.length,2);
   await webhook(request(2,'/flights'),x.env,x.store);await x.drain();
-  assert.equal(x.source.requests.length,4);assert.equal(x.delivered.length,2);
-  assert.match(x.delivered[1].text,/VN1468/);assert.match(x.delivered[1].text,/VJ370/);
+  assert.equal(x.source.requests.length,4);assert.equal(x.delivered.length,4);
+  assert.match(x.delivered[2].text,/Đang kiểm tra giờ bay và giá hai hãng/);
+  assert.match(x.delivered[3].text,/VN1468/);assert.match(x.delivered[3].text,/VJ370/);
   assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM observations').first()).n,2);
   assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM price_quotes').first()).n,0);
   assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM price_minima').first()).n,6);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM jobs WHERE status='done' AND body_json<>'{}'").first()).n,0);
   for(const p of providers)assert.equal((await x.store.history(p.source,(await x.store.statement('SELECT query_id FROM observations WHERE source=?',p.source).first()).query_id)).length,1);
+});
+
+test('loading ACK replay recovers the crawl without resending loading or duplicating the follow-up',async t=>{
+  const x=await setup(t),afterSend={id:'loading-follow-up',kind:'crawl',body:{silent:true,command:'price',chatId:'456'}};
+  await x.store.queueText('loading-fixture','456','Đang kiểm tra...',{afterSend});
+  x.store.lease=await x.store.acquireLease('bot-runtime','fixture',{ttlMs:300000});
+  const create=x.store.createJob.bind(x.store);x.store.createJob=async()=>{throw new Error('follow-up write failed');};
+  const job={body:{outboxId:'loading-fixture',afterSend}},deliver=async()=>{
+    x.delivered.push('loading');return Response.json({ok:true,result:{message_id:1}});
+  };
+  await assert.rejects(sendJob(x.store,x.env,job,deliver),/follow-up write failed/);
+  assert.equal((await x.store.statement('SELECT status FROM outbox WHERE id=?','loading-fixture').first()).status,'sent');
+  x.store.createJob=create;await sendJob(x.store,x.env,job,deliver);await sendJob(x.store,x.env,job,deliver);
+  assert.equal(x.delivered.length,1);
+  assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM jobs WHERE id=?',afterSend.id).first()).n,1);
+});
+
+test('rate-limited loading retries before any provider crawl is created',async t=>{
+  const x=await setup(t);await webhook(request(1),x.env,x.store);await x.execute('update:123:1');
+  const job=await x.store.statement("SELECT id FROM jobs WHERE kind='send'").first();let retry;
+  await consume({body:{jobId:job.id},ack(){},retry(r){retry=r;}},x.env,{now:x.now,
+    fetchImpl:async()=>Response.json({ok:false,error_code:429,parameters:{retry_after:120}},{status:429})});
+  assert.equal(retry.delaySeconds,120);assert.equal(x.source.requests.length,0);
+  assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM jobs WHERE kind='crawl'").first()).n,0);
 });
 test('stop is applied on durable receipt, stale start redelivery cannot undo opt-out, and manual requests still work',async t=>{
   const x=await setup(t);

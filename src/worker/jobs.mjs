@@ -113,7 +113,9 @@ async function reply(store,job){
 async function command(store,env,job){
   const {command,chatId}=job.body;
   if(['price','flights'].includes(command)){
-    await store.createJob(job.id+':crawl','crawl',{silent:true,command,chatId});return;
+    const text=command==='flights'?'⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...':
+      '⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...';
+    await store.queueText(job.id+':loading',chatId,text,{afterSend:{id:job.id+':crawl',kind:'crawl',body:{silent:true,command,chatId}}});return;
   }
   let text=command==='stop'?'🔕 Đã ngừng nhận tin tự động. Bạn vẫn dùng được /price và /flights; /start để nhận lại.':
     ['start','help','hello'].includes(command)?(command==='start'?'🔔 Đã đăng ký nhận cảnh báo và bản tin.\n\n':'')+helpText+'\n\n/stop — Ngừng nhận tin tự động.':
@@ -126,7 +128,11 @@ async function command(store,env,job){
 }
 export async function sendJob(store,env,job,fetchImpl){
   const o=await store.statement('SELECT * FROM outbox WHERE id=?',job.body.outboxId).first();
-  if(!o||o.status!=='pending')return;
+  const continueAfterSend=async()=>{const next=job.body.afterSend;if(next)await store.createJob(next.id,next.kind,next.body);};
+  if(!o)return;
+  // Recover a crash between the durable Telegram ACK and enqueueing the crawl.
+  if(o.status==='sent'){await continueAfterSend();return;}
+  if(o.status!=='pending')return;
   const cooldown=await store.state('telegram-cooldown',{until:0}),at=Math.max(o.not_before,cooldown.until||0);
   if(at>store.now())throw Object.assign(new Error('Delivery delayed'),{delaySeconds:Math.ceil((at-store.now())/1000),noAttempt:true});
   if(o.kind!=='manual'){
@@ -170,6 +176,7 @@ export async function sendJob(store,env,job,fetchImpl){
     if(error.uncertain)console.log(JSON.stringify({event:'delivery_uncertain',job_id:job.id,attempt:o.attempts+1}));
     throw Object.assign(error,{delaySeconds:wait});
   }
+  await continueAfterSend();
 }
 export async function executeJob(store,env,job,fetchImpl=fetch){
   job={...job,body:JSON.parse(job.body_json)};

@@ -17,4 +17,4 @@ Cập nhật **13/10/2026, UTC+7**. Bot chính đã chạy trên Workers Free. N
 | Backup/rollback | Local/remote pricing backup verified, helper rollback khi cutover thất bại; chưa diễn tập chuyển production qua lại toàn bộ |
 | Active Worker/dừng local | Worker active, webhook pending 0 ở lần xác nhận; watcher/listener cũ đã kết thúc |
 
-100 tests đã qua. [Runbook](cloudflare-production.md), [production evidence](cloudflare-spike/production-evidence.json), [đối chiếu nguồn](cloudflare-selected-dates.md). Không coi smoke samples là chứng minh ổn định 24 giờ hoặc tải không giới hạn. Không nâng gói trả phí.
+102 tests đã qua. [Runbook](cloudflare-production.md), [production evidence](cloudflare-spike/production-evidence.json), [đối chiếu nguồn](cloudflare-selected-dates.md). Không coi smoke samples là chứng minh ổn định 24 giờ hoặc tải không giới hạn. Không nâng gói trả phí.

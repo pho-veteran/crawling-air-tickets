@@ -3,11 +3,13 @@
 Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không nâng gói trả phí. Người dùng chọn bot chính, bỏ bot staging riêng/24 giờ và thay timeline bằng giá hiện tại + giá thấp nhất.
 
 - [Worker health](https://crawling-air-tickets.thanhvinhlqt2016.workers.dev/health); [bot Telegram](https://t.me/synapse_vinh_notify_test_bot).
-- Phiên bản `893cc543-a5f7-47f3-8c2c-256879e27881`.
+- Phiên bản `ae445954-2e27-429f-bbdf-29b92760204a`.
 - D1 `crawling-air-tickets-state`: `aa8be7a3-77e5-4de3-a124-d28b2a056f9d`.
 - Queue `crawling-air-tickets-jobs`: batch 1, concurrency 1, tối đa 5 retries.
 - Cron `*/10 * * * *` và `0 0 * * *` (07:00 Việt Nam).
 - Webhook `/telegram`, secret header, private chat; 2 người đăng ký active.
+
+`/price` gửi “⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...”; `/flights` gửi “⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...”. Crawl chỉ được tạo sau ACK của tin loading. ACK đã lưu được dùng để phục hồi follow-up khi retry, không gửi lại loading. 429 của loading giữ crawl chờ thay vì lấy giá trước. [Bằng chứng hai lệnh live](cloudflare-spike/loading-evidence.json).
 
 ## Giá hiện tại và mức thấp nhất
 
@@ -23,7 +25,7 @@ Cảnh báo vẫn so với giá hiện tại trước khi thay và minimum. Base
 
 ## Bằng chứng và quota
 
-[Production evidence](cloudflare-spike/production-evidence.json) chỉ chứa số liệu tổng hợp, không có token/chat ID. `/price` và `/flights` đã thử trực tiếp từ Telegram Web và nhận phản hồi Worker; chạy daily lại cùng ngày không gửi trùng bản tin local đã ACK. **100 tests** qua, gồm webhook replay, opt-out ordering, fencing, 429 và current/minimum. Watcher PID 19688 và listener PID 25780 đã kết thúc, không còn lock local; watcher từ chối chạy khi bot có webhook.
+[Production evidence](cloudflare-spike/production-evidence.json) chỉ chứa số liệu tổng hợp, không có token/chat ID. `/price` và `/flights` đã thử trực tiếp từ Telegram Web và nhận phản hồi Worker; chạy daily lại cùng ngày không gửi trùng bản tin local đã ACK. **102 tests** qua, gồm webhook replay, opt-out ordering, fencing, 429 và current/minimum. Watcher PID 19688 và listener PID 25780 đã kết thúc, không còn lock local; watcher từ chối chạy khi bot có webhook.
 
 Mẫu production trong giờ kiểm tra: HTTP tối đa **7ms CPU**, cron **4ms**, Queue **45ms**, tất cả outcome `ok`; D1 tối đa **45 statements/job**. Lượt `/price` minimal: 39 statements crawl, 23 reply, 18 send. D1 sau compact khoảng **213KB**. Heap thực tế chưa đo được. Webhook cap 64KB, nguồn cap 2MiB, tối đa hai source fetch đồng thời, fan-out tối đa 15 người/job.
 
