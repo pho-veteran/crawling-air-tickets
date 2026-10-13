@@ -1,4 +1,3 @@
-import {sendMessage} from './telegram.mjs';
 
 export const DAILY_COMMAND_LIMIT=200;
 export const CACHE_MS=30000;
@@ -6,26 +5,24 @@ const pricing=c=>['price','flights'].includes(c);
 
 // Admission, replay protection and group coalescing are a single D1 transaction.
 // Rejected requests create neither jobs nor a reply storm. Limits reset at UTC midnight.
-export async function admit(store,botId,updateId,body){
+export async function admit(store,botId,updateId,body,{dailyLimit=DAILY_COMMAND_LIMIT}={}){
+  dailyLimit=Math.max(0,Math.min(DAILY_COMMAND_LIMIT,Math.floor(dailyLimit)));
   const now=store.now(),day=new Date(now).toISOString().slice(0,10),id='interactive:'+botId+':'+updateId;
-  const replay=await store.statement('SELECT i.*,j.status FROM interactive i JOIN telegram_updates u ON u.job_id=i.id JOIN jobs j ON j.id=i.id WHERE u.bot_id=? AND u.update_id=?',botId,updateId).first();
-  if(replay)return replay;
-  const raw=await store.statement('SELECT COUNT(*) AS n FROM telegram_updates WHERE received_ms>=?',Date.parse(day)).first();
-  if(raw.n>=1000)return null;
   const recent="bot_id=? AND chat_id=? AND command=? AND (completed_ms IS NULL OR created_ms>?)";
   const args=[botId,body.chatId,body.command,now-CACHE_MS];
-  await store.db.batch([
+  const admitted=await store.db.batch([
     store.statement(`INSERT INTO interactive(id,bot_id,chat_id,command,day,created_ms)
       SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM interactive WHERE day=?)<?
+      AND (SELECT COUNT(*) FROM telegram_updates WHERE received_ms>=?)<1000
       AND NOT EXISTS(SELECT 1 FROM telegram_updates WHERE bot_id=? AND update_id=?)
       AND NOT EXISTS(SELECT 1 FROM interactive WHERE ${recent}) ON CONFLICT DO NOTHING`,
-      id,botId,body.chatId,body.command,day,now,day,DAILY_COMMAND_LIMIT,botId,updateId,...args),
+      id,botId,body.chatId,body.command,day,now,day,dailyLimit,Date.parse(day),botId,updateId,...args),
     store.statement("INSERT INTO jobs(id,kind,body_json,created_ms) SELECT id,'command',?,created_ms FROM interactive WHERE id=? ON CONFLICT DO NOTHING",JSON.stringify({...body,optimized:true}),id),
     store.statement(`INSERT INTO telegram_updates(bot_id,update_id,job_id,received_ms)
-      SELECT ?,?,id,? FROM interactive WHERE ${recent} ORDER BY created_ms DESC LIMIT 1 ON CONFLICT DO NOTHING`,botId,updateId,now,...args),
+      SELECT ?,?,id,? FROM interactive WHERE ${recent} AND (SELECT COUNT(*) FROM telegram_updates WHERE received_ms>=?)<1000 ORDER BY created_ms DESC LIMIT 1 ON CONFLICT DO NOTHING`,botId,updateId,now,...args,Date.parse(day)),
+    store.statement('SELECT i.*,j.status FROM interactive i JOIN telegram_updates u ON u.job_id=i.id JOIN jobs j ON j.id=i.id WHERE u.bot_id=? AND u.update_id=?',botId,updateId),
   ]);
-  const row=await store.statement('SELECT i.*,j.status FROM interactive i JOIN telegram_updates u ON u.job_id=i.id JOIN jobs j ON j.id=i.id WHERE u.bot_id=? AND u.update_id=?',botId,updateId).first();
-  return row;
+  return admitted[3].results[0]||null;
 }
 
 export async function requestRefresh(store,id,{force=false,day=null}={}){
@@ -70,15 +67,13 @@ export async function completeRefresh(store,id,valid){
 // This path does no crawling/formatting. A durable ACK suppresses repeat loading.
 // The delivery lease is shared with queued sends, independently of the crawl lease.
 export async function fastLoading(store,env,id,fetchImpl=fetch){
-  const r=await store.statement('SELECT * FROM interactive WHERE id=?',id).first();
-  if(!r||!pricing(r.command)||r.loading_status==='sent'||r.completed_ms)return true;
+  const {sendMessage}=await import('./telegram.mjs');
   const lease=await store.acquireLease('telegram-delivery',crypto.randomUUID(),{now:store.now(),ttlMs:30000});
   if(!lease)return false;
   try{
-    const again=await store.statement('SELECT loading_status FROM interactive WHERE id=?',id).first();
-    if(again.loading_status==='sent')return true;
-    const cooldown=await store.state('telegram-cooldown',{until:0});
-    if(cooldown.until>store.now())return false;
+    const r=await store.statement("SELECT i.*,COALESCE((SELECT json_extract(document_json,'$.until') FROM runtime_state WHERE key='telegram-cooldown'),0) AS cooldown_until FROM interactive i WHERE id=?",id).first();
+    if(!r||!pricing(r.command)||r.loading_status==='sent'||r.completed_ms)return true;
+    if(r.cooldown_until>store.now())return false;
     const text=r.command==='flights'?'⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...':'⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...';
     const sent=await sendMessage(env,r.chat_id,text,(url,options)=>fetchImpl(url,{...options,signal:AbortSignal.timeout(5000)}));
     if(!Number.isSafeInteger(sent?.message_id))throw new Error('Missing loading ACK');

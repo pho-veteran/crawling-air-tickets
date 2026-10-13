@@ -1,34 +1,45 @@
 import {timingSafeEqual} from 'node:crypto';
 import {RuntimeStore} from './runtime-store.mjs';
-import {executeJob,context,settings} from './jobs.mjs';
+import config from '../../config.json' with {type:'json'};
 import {localDay} from '../monitoring/messages.mjs';
 import {meter} from './d1-meter.mjs';
 import {admit,requestRefresh,completeRefresh,fastLoading} from './interactive.mjs';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
-const equal=(a,b)=>{const x=new TextEncoder().encode(a||''),y=new TextEncoder().encode(b||'');return x.length===y.length&&timingSafeEqual(x,y);};
+const equal=(a,b)=>{const x=new TextEncoder().encode(a||''),y=new TextEncoder().encode(b||'');return x.length===y.length&&(crypto.subtle.timingSafeEqual?crypto.subtle.timingSafeEqual(x,y):timingSafeEqual(x,y));};
 const admin=(r,env)=>!!env.ADMIN_SECRET&&equal(r.headers.get('authorization'),'Bearer '+env.ADMIN_SECRET);
 async function body(request){
   const reader=request.body?.getReader();if(!reader)return {};
   const chunks=[];let bytes=0;
   try{while(true){const r=await reader.read();if(r.done)break;bytes+=r.value.length;if(bytes>65536)throw new Error('body size');chunks.push(r.value);}}
   finally{await reader.cancel().catch(()=>{});}
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  const data=new Uint8Array(bytes);let offset=0;
+  for(const chunk of chunks){data.set(chunk,offset);offset+=chunk.length;}
+  return JSON.parse(new TextDecoder().decode(data));
 }
 export async function dispatch(store,env){
-  const rows=(await store.statement("SELECT id FROM jobs WHERE status IN ('pending','running') AND not_before<=? AND queued_ms<? ORDER BY created_ms,id LIMIT 15",store.now(),store.now()-60000).all()).results;
+  const stamp=store.now();
+  // Claim before sending: both lanes and webhook may dispatch concurrently.
+  const rows=(await store.statement("UPDATE jobs SET queued_ms=? WHERE id IN (SELECT id FROM jobs WHERE status IN ('pending','running') AND not_before<=? AND queued_ms<? ORDER BY created_ms,id LIMIT 15) RETURNING id,kind",stamp,stamp,stamp-60000).all()).results;
+  const priority={command:0,reply:1,send:2};rows.sort((a,b)=>(priority[a.kind]??3)-(priority[b.kind]??3));
   if(!rows.length)return 0;
-  await env.JOBS.sendBatch(rows.map(r=>({body:{jobId:r.id}})));
-  await store.mutate('UPDATE jobs SET queued_ms=? WHERE id IN ('+rows.map(()=>'?').join(',')+')',store.now(),...rows.map(r=>r.id));
+  try{
+    const crawl=rows.filter(r=>['crawl','refresh','retention'].includes(r.kind)),delivery=rows.filter(r=>!['crawl','refresh','retention'].includes(r.kind));
+    if(crawl.length)await env.JOBS.sendBatch(crawl.map(r=>({body:{jobId:r.id}})));
+    if(delivery.length)await (env.DELIVERY||env.JOBS).sendBatch(delivery.map(r=>({body:{jobId:r.id}})));
+  }catch(error){
+    await store.statement('UPDATE jobs SET queued_ms=0 WHERE queued_ms=? AND id IN ('+rows.map(()=>'?').join(',')+')',stamp,...rows.map(r=>r.id)).run();throw error;
+  }
   return rows.length;
 }
-export async function webhook(request,env,store){
+export async function webhook(request,env,store,{fast=false,fetchImpl=fetch}={}){
   if(!env.WEBHOOK_SECRET||!equal(request.headers.get('x-telegram-bot-api-secret-token'),env.WEBHOOK_SECRET))return json({error:'Unauthorized'},401);
-  const control=await store.state('control',{active:false});if(!control.active)return json({error:'Temporarily inactive'},503);
+  const state=Object.fromEntries((await store.statement("SELECT key,document_json FROM runtime_state WHERE key IN ('control','telegram-min-update','shared-chat','quota-policy')").all()).results.map(r=>[r.key,JSON.parse(r.document_json)]));
+  if(!state.control?.active)return json({error:'Temporarily inactive'},503);
   let u;try{u=await body(request);}catch{return json({error:'Invalid update'},400);}
   if(!Number.isSafeInteger(u.update_id)||u.update_id<0)return json({error:'Invalid update ID'},400);
-  const floor=await store.state('telegram-min-update',{offset:0});if(u.update_id<floor.offset)return json({ok:true});
-  const m=u.message,shared=await store.state('shared-chat',{});
+  if(u.update_id<(state['telegram-min-update']?.offset||0))return json({ok:true});
+  const m=u.message,shared=state['shared-chat']||{};
   if(String(m?.chat?.id)===shared.chatId&&m.chat.type==='group'&&Number.isSafeInteger(m.migrate_to_chat_id)&&m.migrate_to_chat_id<0){
     await store.migrateSharedChat(shared,String(m.migrate_to_chat_id),env.TELEGRAM_BOT_TOKEN.split(':')[0]);
     return json({ok:true});
@@ -44,8 +55,14 @@ export async function webhook(request,env,store){
   try{
     if(env.OPTIMIZED==='1'){
       if(!['price','flights','status','help','start','stop','connection'].includes(command))return json({ok:true});
-      const accepted=await admit(store,env.TELEGRAM_BOT_TOKEN.split(':')[0],u.update_id,{chatId:String(m.chat.id),command,shared:!!shared.chatId,group});
-      if(accepted?.status==='pending')await dispatch(store,env);
+      const policy=state['quota-policy'],dailyLimit=policy?.day===new Date(store.now()).toISOString().slice(0,10)?policy.command_limit:200;
+      const accepted=await admit(store,env.TELEGRAM_BOT_TOKEN.split(':')[0],u.update_id,{chatId:String(m.chat.id),command,shared:!!shared.chatId,group},{dailyLimit});
+      if(fast&&accepted?.status==='pending')await fastLoading(store,env,accepted.id,fetchImpl);
+      if(accepted?.status==='pending'){
+        const claimed=await store.statement("UPDATE jobs SET queued_ms=? WHERE id=? AND queued_ms=0 RETURNING id",store.now(),accepted.id).first();
+        if(claimed)try{await (env.DELIVERY||env.JOBS).send({jobId:claimed.id});}
+        catch(error){await store.statement('UPDATE jobs SET queued_ms=0 WHERE id=?',claimed.id).run();throw error;}
+      }
       return json({ok:true});
     }
     const id=await store.receiveUpdate(env.TELEGRAM_BOT_TOKEN.split(':')[0],u.update_id,{chatId:String(m.chat.id),command,shared:!!shared.chatId,group}, {subscribe:!shared.chatId});
@@ -54,6 +71,7 @@ export async function webhook(request,env,store){
   return json({ok:true});
 }
 export async function consume(message,env,{fetchImpl=fetch,now=Date.now}={}){
+  const {executeJob}=await import('./jobs.mjs');
   const measured=meter(env.DB),store=new RuntimeStore(measured.db,{now}),id=message.body?.jobId;
   if(typeof id!=='string'||id.length>250){message.ack();return;}
   const job=await store.statement('SELECT * FROM jobs WHERE id=?',id).first();
@@ -61,8 +79,9 @@ export async function consume(message,env,{fetchImpl=fetch,now=Date.now}={}){
   const control=await store.state('control',{active:false});
   if(!control.active&&!JSON.parse(job.body_json).preflight){message.retry({delaySeconds:60});return;}
   if(job.not_before>now()){message.retry({delaySeconds:Math.min(86400,Math.ceil((job.not_before-now())/1000))});return;}
-  const lease=await store.acquireLease('bot-runtime',crypto.randomUUID(),{now:now(),ttlMs:300000});
-  if(!lease){message.retry({delaySeconds:10});return;}store.lease=lease;
+  const lane=env.DELIVERY?(['crawl','refresh','retention'].includes(job.kind)?'crawl-runtime':'delivery-runtime'):'bot-runtime';
+  const lease=await store.acquireLease(lane,crypto.randomUUID(),{now:now(),ttlMs:300000});
+  if(!lease){message.retry({delaySeconds:2});return;}store.lease=lease;
   const start=now();
   try{
     await store.mutate("UPDATE jobs SET status='running',attempts=attempts+1 WHERE id=?",id);
@@ -76,11 +95,26 @@ export async function consume(message,env,{fetchImpl=fetch,now=Date.now}={}){
     try{await store.mutate('UPDATE jobs SET status=?,attempts=?,not_before=? WHERE id=?',failed?'failed':'pending',attempts,now()+wait*1000,id);
       if(failed&&job.kind==='refresh')await completeRefresh(store,id,false);
       if(failed&&job.kind==='command')await store.mutate('UPDATE interactive SET completed_ms=? WHERE id=?',now(),id);
-      if(failed&&job.kind==='send')await store.mutate("UPDATE outbox SET status='failed' WHERE id=?",JSON.parse(job.body_json).outboxId);
+      if(failed&&job.kind==='send'){
+        const send=JSON.parse(job.body_json);await store.mutate("UPDATE outbox SET status='failed' WHERE id=?",send.outboxId);
+        if(send.requestId)await store.mutate('UPDATE interactive SET completed_ms=? WHERE id=?',now(),send.requestId);
+      }
     }catch{/* A new lease owner is responsible for recovery; never commit without ownership. */}
     console.log(JSON.stringify({event:'job_retry',job_id:id,kind:job.kind,attempts,failed,delay_seconds:wait,error_name:error.name,uncertain:!!error.uncertain}));
     if(failed)message.ack();else message.retry({delaySeconds:wait});
   }finally{
+    if(env.DELIVERY&&job.kind==='refresh'){
+      // A Queue hand-off has variable latency. Once prices are committed, release
+      // the crawl lease and opportunistically deliver waiting replies here.
+      // Another crawl consumer can proceed even while Telegram is slow.
+      await store.releaseLease(lease).catch(()=>{});store.lease=null;
+      const replies=(await store.statement("SELECT j.id FROM jobs j JOIN interactive i ON j.id=i.id||':reply' WHERE i.refresh_id=? AND j.status='pending' LIMIT 2",id).all()).results;
+      for(const reply of replies){
+        let retry;
+        await consume({body:{jobId:reply.id},ack(){},retry(value){retry=value;}},env,{fetchImpl,now});
+        if(retry)await env.DELIVERY.send({jobId:reply.id},{delaySeconds:retry.delaySeconds});
+      }
+    }
     try{await dispatch(store,env);}catch{console.log(JSON.stringify({event:'dispatch_failed',job_id:id}));}
     await store.releaseLease(lease).catch(()=>{});
     console.log(JSON.stringify({event:'job_resources',job_id:id,kind:job.kind,d1:measured.totals}));
@@ -93,15 +127,19 @@ export default {
       try{return json({ok:true,service:'air-ticket-telegram-worker',active:(await store.state('control',{active:false})).active});}
       catch{return json({ok:false},503);}
     }
-    if(url.pathname==='/telegram'&&request.method==='POST')return webhook(request,env,store);
+    if(url.pathname==='/telegram'&&request.method==='POST'){
+      return webhook(request,env,store);
+    }
     if(!url.pathname.startsWith('/admin/')||!admin(request,env))return json({error:'Not found'},404);
     if(url.pathname==='/admin/state'){
       const jobs=(await store.statement('SELECT status,COUNT(*) AS count FROM jobs GROUP BY status').all()).results;
       const outbox=(await store.statement('SELECT status,COUNT(*) AS count FROM outbox GROUP BY status').all()).results;
       const subs=await store.statement('SELECT COUNT(*) AS count FROM subscribers WHERE active=1').first();
-      return json({control:await store.state('control',{active:false}),jobs,outbox,active_subscribers:subs.count});
+      const budget=env.OPTIMIZED==='1'?await store.statement('SELECT COUNT(*) AS accepted,200 AS limit_per_day FROM interactive WHERE day=?',new Date().toISOString().slice(0,10)).first():null;
+      const policy=await store.state('quota-policy',{});if(budget&&policy.day===new Date().toISOString().slice(0,10))budget.limit_per_day=Math.min(200,policy.command_limit);
+      return json({control:await store.state('control',{active:false}),jobs,outbox,active_subscribers:subs.count,budget});
     }
-    if(url.pathname==='/admin/context')return json(await context(store));
+    if(url.pathname==='/admin/context')return json(await (await import('./jobs.mjs')).context(store));
     if(url.pathname==='/admin/job'){
       const id=url.searchParams.get('id');return json(await store.statement('SELECT id,kind,status,attempts,not_before FROM jobs WHERE id=?',id).first());
     }
@@ -122,8 +160,8 @@ export default {
   async scheduled(controller,env){
     const store=new RuntimeStore(env.DB),active=await store.state('control',{active:false});if(!active.active)return;
     const stamp=controller.scheduledTime,day=localDay(stamp);
-    if(env.OPTIMIZED==='1')await requestRefresh(store,'poll:'+Math.floor(stamp/600000),{force:true,day:controller.cron==='0 0 * * *'&&settings.dailyReport?day:null});
-    else if(controller.cron==='0 0 * * *'&&settings.dailyReport)await store.createJob('daily-crawl:'+day,'crawl',{day});
+    if(env.OPTIMIZED==='1')await requestRefresh(store,'poll:'+Math.floor(stamp/600000),{force:true,day:controller.cron==='0 0 * * *'&&config.monitoring.dailyReport?day:null});
+    else if(controller.cron==='0 0 * * *'&&config.monitoring.dailyReport)await store.createJob('daily-crawl:'+day,'crawl',{day});
     else await store.createJob('poll:'+Math.floor(stamp/600000),'crawl',{});
     await store.createJob('retention:'+day,'retention',{});
     await dispatch(store,env);

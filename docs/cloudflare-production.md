@@ -3,9 +3,9 @@
 Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không nâng gói trả phí. Người dùng chọn bot chính, bỏ bot staging riêng/24 giờ và thay timeline bằng giá hiện tại + giá thấp nhất.
 
 - [Worker health](https://crawling-air-tickets.thanhvinhlqt2016.workers.dev/health); [bot Telegram](https://t.me/synapse_vinh_notify_test_bot).
-- Phiên bản `4b89a3d1-f538-415b-a864-8dddbe3cdcb1`.
+- Phiên bản `037adeca-b01c-464c-8162-8a880b31dc9c`.
 - D1 `crawling-air-tickets-state`: `aa8be7a3-77e5-4de3-a124-d28b2a056f9d`.
-- Queue `crawling-air-tickets-jobs`: batch 1, concurrency 1, tối đa 5 retries.
+- Hai Queue `crawling-air-tickets-jobs` (crawl) và `crawling-air-tickets-delivery` (Telegram): batch 1, concurrency 2, tối đa 5 retries; lease riêng cho mỗi lane.
 - Cron `*/10 * * * *` và `0 0 * * *` (07:00 Việt Nam).
 - Webhook `/telegram`, secret header; nhận lệnh trong private chat và group được cấu hình. Một group nhận bản tin tự động, các subscriber private cũ đã ngừng nhận tự động.
 
@@ -35,13 +35,11 @@ Cảnh báo vẫn so với giá hiện tại trước khi thay và minimum. Base
 
 ## Bằng chứng và quota
 
-[Production evidence](cloudflare-spike/production-evidence.json) chỉ chứa số liệu tổng hợp, không có token/chat ID. `/price` và `/flights` đã thử trực tiếp từ Telegram Web và nhận phản hồi Worker; chạy daily lại cùng ngày không gửi trùng bản tin local đã ACK. **102 tests** qua, gồm webhook replay, opt-out ordering, fencing, 429 và current/minimum. Watcher PID 19688 và listener PID 25780 đã kết thúc, không còn lock local; watcher từ chối chạy khi bot có webhook.
+Bản tối ưu ngày 13/10/2026: **116 tests qua**. Xem [đo delay và dự toán Free](cloudflare-optimization.md) và [số liệu tổng hợp](cloudflare-spike/optimization-evidence.json). Cache dùng chung 30 giây, một refresh đang chạy cho cả cron và slash command; lệnh giống nhau trong cùng chat được gộp. HTTP chỉ nhận/enqueue; loading và trả lời chạy ở consumer. Hai lane dùng lease độc lập; crawl thả lease trước khi thử gửi ngay kết quả để giảm một lần chờ Queue.
 
-Mẫu production trong giờ kiểm tra: HTTP tối đa **7ms CPU**, cron **4ms**, Queue **45ms**, tất cả outcome `ok`; D1 tối đa **45 statements/job**. Lượt `/price` minimal: 39 statements crawl, 23 reply, 18 send. D1 sau compact khoảng **213KB**. Heap thực tế chưa đo được. Webhook cap 64KB, nguồn cap 2MiB, tối đa hai source fetch đồng thời, fan-out tối đa 15 người/job.
+Cron vẫn mỗi 10 phút. Hạn mức mặc định **200 yêu cầu được nhận/ngày**, **1.000 update được lưu/ngày**, **60 phần tin cảnh báo/ngày**, reset 00:00 UTC (07:00 Việt Nam). Khi hết hạn mức, lệnh mới bị bỏ qua, cron vẫn chạy. Cache hit vẫn tính một yêu cầu; lệnh đã gộp không tính thêm yêu cầu. Đây là giới hạn chung của bot, không phải mỗi thành viên.
 
-HTTP/cron Free có 10ms CPU, isolate 128MB theo [Workers limits](https://developers.cloudflare.com/workers/platform/limits/). Queue consumer mặc định 30 giây CPU theo [Queues limits](https://developers.cloudflare.com/queues/platform/limits/); crawl/format chạy ở consumer, HTTP/cron chỉ ghi job/enqueue. Đây là smoke test ngắn, không phải benchmark tải dài.
-
-Với 2 subscribers, giá ổn định và 144 polls/ngày, một poll dùng 7 jobs: khoảng **3.100 Queue operations/ngày**, gồm daily/retention, trước commands/retry/cảnh báo. Free có 10.000 operations/ngày; message thường dùng 3 operations, retry thêm read theo [Queues pricing](https://developers.cloudflare.com/queues/platform/pricing/). Dựa trên mức ghi cao nhất đã đo, poll khoảng 18.500 D1 writes/ngày trước retention/commands/cảnh báo; Free có 100.000 writes và 5 triệu reads/ngày theo [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/). Đây là dự phóng cho 2 người nhận, không cam kết tải không giới hạn.
+Riêng ngày UTC 13/10/2026, policy tạm giới hạn 60 yêu cầu để dành D1 quota còn lại sau migration/thử nghiệm; ngày UTC tiếp theo tự trở về 200. Không nâng gói. Quota là của toàn account; dự toán không bao gồm lưu lượng vô hạn hoặc ứng dụng khác. Watcher/listener local vẫn dừng.
 
 ## Vận hành
 

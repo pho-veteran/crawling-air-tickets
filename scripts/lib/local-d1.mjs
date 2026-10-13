@@ -14,7 +14,7 @@ export class LocalD1 {
   }
   async batch(statements) {
     this.sqlite.exec('BEGIN IMMEDIATE');
-    try {const result=[];for(const statement of statements)result.push(await statement.run());this.sqlite.exec('COMMIT');return result;}
+    try {const result=[];for(const statement of statements)result.push(await (/^\s*SELECT\b/i.test(statement.sql)?statement.all():statement.run()));this.sqlite.exec('COMMIT');return result;}
     catch(error){this.sqlite.exec('ROLLBACK');throw error;}
   }
   close(){this.sqlite.close();}

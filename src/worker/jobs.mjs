@@ -25,11 +25,11 @@ const portableFetch=fetchImpl=>(url,options)=>fetchImpl(url,{...options,redirect
 const compact=record=>({...record,request_diagnostics:undefined,cells:undefined,
   legs:Object.fromEntries(Object.entries(record.legs||{}).map(([leg,dates])=>[leg,dates.map(q=>({...q,flights:undefined}))]))});
 
-async function baseline(store,p){
-  const qid=queryId(query,p.source),current=await store.latest(p.source,qid),history=[];
+function baseline(p){
+  const qid=queryId(query,p.source),current=p.history.at(-1),history=[];
   for(const [kind,date,back] of [['roundtrip',query.departureDate,query.returnDate],['outbound',query.departureDate,''],['inbound',query.returnDate,'']]){
-    const min=await store.minimum({basisSource:p.source,queryId:qid,kind,departure:date,back});
-    if(min)history.push({schema:1,status:'ok',source:p.source,query_id:qid,query,observed_at:min.observed_at,
+    const min=p.minimumRecords.find(m=>m.kind===kind&&m.departure_date===date&&m.return_date===back);
+    if(min)history.push({schema:1,status:'ok',source:p.source,query_id:qid,query,observed_at:new Date(min.observed_ms).toISOString(),
       main_price:kind==='roundtrip'?min.price:null,legs:kind==='roundtrip'?{}:{[kind]:[{date,price:min.price}]},comparison_only:true});
   }
   // Put the actual previous current last; minimum candidates are never a previous crawl.
@@ -37,27 +37,36 @@ async function baseline(store,p){
   return history;
 }
 export async function context(store){
+  const pairs=providers.flatMap(p=>[p.source,queryId(query,p.source)]);
+  const [records,minima]=await Promise.all([
+    store.statement('SELECT source,record_json FROM observations WHERE (source=? AND query_id=?) OR (source=? AND query_id=?)',...pairs).all(),
+    store.statement('SELECT * FROM price_minima WHERE (basis_source=? AND query_id=?) OR (basis_source=? AND query_id=?)',...pairs).all(),
+  ]);
   const result=[];
   for(const p of providers){
-    const qid=queryId(query,p.source),record=await store.latest(p.source,qid),minimums={};
+    const raw=records.results.find(r=>r.source===p.source),record=raw?JSON.parse(raw.record_json):null,minimums={};
+    const minimumRecords=minima.results.filter(m=>m.basis_source===p.source);
     for(const [kind,key,date,back] of [['roundtrip','main',query.departureDate,query.returnDate],['outbound','outbound',query.departureDate,''],['inbound','inbound',query.returnDate,'']])
-      minimums[key]=(await store.minimum({basisSource:p.source,queryId:qid,kind,departure:date,back}))?.price??null;
-    result.push({...p,history:record?[record]:[],minimums});
+      minimums[key]=minimumRecords.find(m=>m.kind===kind&&m.departure_date===date&&m.return_date===back)?.price??null;
+    result.push({...p,history:record?[record]:[],minimums,minimumRecords});
   }
   return {providers:result,query,settings};
 }
 export async function enqueueText(store,id,chatId,text,options={}){
-  for(const [i,part] of messageParts(text).entries())await store.queueText(id+':'+i,chatId,part,options);
+  const ids=[];
+  for(const [i,part] of messageParts(text).entries())ids.push(await store.queueText(id+':'+i,chatId,part,options));
+  return ids;
 }
 async function crawlJob(store,env,job,fetchImpl){
   const began=store.now(),histories=job.body.baselines||[];
+  const current=await context(store);
   if(!job.body.baselines){
-    for(const p of providers)histories.push(await baseline(store,p));
+    for(const p of current.providers)histories.push(baseline(p));
     job.body.baselines=histories;
     await store.mutate('UPDATE jobs SET body_json=? WHERE id=?',JSON.stringify(job.body),job.id);
   }
   const existing=[];
-  for(const p of providers){const record=await store.latest(p.source,queryId(query,p.source));existing.push(record?.job_id===job.id?{record_json:JSON.stringify(record)}:null);}
+  for(const p of current.providers){const record=p.history.at(-1);existing.push(record?.job_id===job.id?{record_json:JSON.stringify(record)}:null);}
   const results=await Promise.all(providers.map(async(p,i)=>{
     if(existing[i]){const r=JSON.parse(existing[i].record_json);return r.last_attempt_failed?{...r,status:'error',main_price:null,legs:{},cells:[],observed_at:r.last_attempt_at,error:r.last_attempt_error}:r;}
     try{return await p.crawl(query,{fetchImpl:portableFetch(fetchImpl)});}
@@ -113,17 +122,36 @@ async function dailyRecipient(store,env,job){
   const c=await context(store),text=state.day===parent.day&&state.messageVersion===2&&state.message||formatCurrentPrices({...c,now:store.now(),pollMinutes:settings.pollMinutes});
   await enqueueText(store,'daily:'+hash(key)+'|'+parent.day,job.body.chatId,text,{kind:'daily',stateKey:key,notBefore:state.day===parent.day?state.nextAttemptAt||0:0});
 }
-async function reply(store,job){
+async function reply(store,job,env,fetchImpl){
   const c=await context(store),text=job.body.command==='flights'?formatFlights({...c,now:store.now(),pollMinutes:settings.pollMinutes}):
     formatCurrentPrices({...c,now:store.now(),pollMinutes:settings.pollMinutes,onDemand:true})+'\n\n'+flightsReminder;
-  await enqueueText(store,job.id,job.body.chatId,text,{requestId:job.body.requestId});
+  const ids=await enqueueText(store,job.id,job.body.chatId,text,{requestId:job.body.requestId});
+  if(job.body.requestId)for(const id of ids){
+    const cooldown=await store.state('telegram-cooldown',{until:0});
+    if(cooldown.until>store.now())break;
+    const row=await store.statement('SELECT * FROM jobs WHERE id=?',id).first();
+    if(row.status!=='pending')continue;
+    // Same delivery-lane lease, durable outbox and ACK; Queue is only fallback.
+    try{
+      await sendJob(store,env,{...row,body:JSON.parse(row.body_json)},fetchImpl);
+      await store.mutate("UPDATE jobs SET status='done',done_ms=?,body_json='{}' WHERE id=?",store.now(),id);
+    }catch{console.log(JSON.stringify({event:'inline_send_deferred',job_id:id}));}
+  }
 }
 async function command(store,env,job,fetchImpl){
   const {command,chatId}=job.body;
   if(['price','flights'].includes(command)){
     if(job.body.optimized){
       if(!await fastLoading(store,env,job.id,fetchImpl))throw Object.assign(new Error('Loading awaiting delivery'),{delaySeconds:5});
-      await attachRefresh(store,job.id);return;
+      const refresh=await attachRefresh(store,job.id);
+      if(refresh.status==='done'){
+        const ready=await store.statement('SELECT * FROM jobs WHERE id=?',job.id+':reply').first();
+        if(ready?.status==='pending'){
+          await reply(store,{...ready,body:JSON.parse(ready.body_json)},env,fetchImpl);
+          await store.mutate("UPDATE jobs SET status='done',done_ms=?,body_json='{}' WHERE id=?",store.now(),ready.id);
+        }
+      }
+      return;
     }
     const text=command==='flights'?'⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...':
       '⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...';
@@ -140,8 +168,20 @@ async function command(store,env,job,fetchImpl){
   await enqueueText(store,job.id,chatId,text,{requestId:job.body.optimized?job.id:null});
 }
 export async function sendJob(store,env,job,fetchImpl){
+  if(!env.DELIVERY)return sendJobLocked(store,env,job,fetchImpl);
+  const lease=await store.acquireLease('telegram-delivery',crypto.randomUUID(),{now:store.now(),ttlMs:30000});
+  if(!lease)throw Object.assign(new Error('Telegram sender busy'),{delaySeconds:2,noAttempt:true});
+  try{return await sendJobLocked(store,env,job,fetchImpl);}finally{await store.releaseLease(lease);}
+}
+async function sendJobLocked(store,env,job,fetchImpl){
   const o=await store.statement('SELECT * FROM outbox WHERE id=?',job.body.outboxId).first();
-  const continueAfterSend=async()=>{const next=job.body.afterSend;if(next)await store.createJob(next.id,next.kind,next.body);};
+  const continueAfterSend=async()=>{
+    const next=job.body.afterSend;if(next)await store.createJob(next.id,next.kind,next.body);
+    if(job.body.requestId){
+      const pending=await store.statement("SELECT COUNT(*) AS n FROM outbox WHERE id LIKE ? AND status='pending'",job.body.requestId+':reply:%').first();
+      if(!pending.n)await store.mutate('UPDATE interactive SET completed_ms=COALESCE(completed_ms,?) WHERE id=?',store.now(),job.body.requestId);
+    }
+  };
   if(!o)return;
   // Recover a crash between the durable Telegram ACK and enqueueing the crawl.
   if(o.status==='sent'){await continueAfterSend();return;}
@@ -166,7 +206,6 @@ export async function sendJob(store,env,job,fetchImpl){
     if(!Number.isSafeInteger(result?.message_id))throw Object.assign(new Error('Delivery ACK missing'),{uncertain:true});
     await store.mutate("UPDATE outbox SET status='sent',message_id=?,message='',guards_json='[]' WHERE id=?",result.message_id,o.id);
     if(job.body.requestId){
-      await store.mutate('UPDATE interactive SET completed_ms=? WHERE id=?',store.now(),job.body.requestId);
       const req=await store.statement('SELECT created_ms,loading_ms FROM interactive WHERE id=?',job.body.requestId).first();
       console.log(JSON.stringify({event:'interactive_complete',request_id:job.body.requestId,latency_ms:store.now()-req.created_ms,loading_ms:req.loading_ms?req.loading_ms-req.created_ms:null}));
     }
@@ -188,7 +227,9 @@ export async function sendJob(store,env,job,fetchImpl){
   }catch(error){
     if(error.apiCode===403){
       await store.mutate('UPDATE subscribers SET active=0 WHERE bot_id=? AND chat_id=?',botId(env),o.chat_id);
-      await store.mutate("UPDATE outbox SET status='discarded' WHERE id=?",o.id);return;
+      await store.mutate("UPDATE outbox SET status='discarded' WHERE id=?",o.id);
+      if(job.body.requestId)await store.mutate('UPDATE interactive SET completed_ms=? WHERE id=?',store.now(),job.body.requestId);
+      return;
     }
     const wait=error.apiCode===429?error.retryAfter:Math.min(21600,60*2**Math.min(o.attempts,8));
     await store.mutate('UPDATE outbox SET not_before=? WHERE id=?',store.now()+wait*1000,o.id);
@@ -213,7 +254,7 @@ export async function executeJob(store,env,job,fetchImpl=fetch){
     }
     return;
   }
-  if(job.kind==='reply')return reply(store,job);
+  if(job.kind==='reply')return reply(store,job,env,fetchImpl);
   if(job.kind==='notify')return fanout(store,env,job,'alert-recipient');
   if(job.kind==='alert-recipient')return alertRecipient(store,env,job);
   if(job.kind==='daily')return fanout(store,env,job,'daily-recipient');

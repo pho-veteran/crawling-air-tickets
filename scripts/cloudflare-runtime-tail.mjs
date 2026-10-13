@@ -20,7 +20,8 @@ try{
     const result=await promisify(execFile)(process.execPath,['--dns-result-order=ipv4first','scripts/cloudflare-runtime.mjs','--preflight'],{windowsHide:true});
     process.stdout.write(result.stdout);
   }
-  await new Promise(r=>setTimeout(r,process.argv.includes('--preflight')?10000:45000));
+  const seconds=Number(process.argv.find(a=>a.startsWith('--seconds='))?.split('=')[1]||45);
+  await new Promise(r=>setTimeout(r,process.argv.includes('--preflight')?10000:Math.max(10,Math.min(300,seconds))*1000));
 }finally{
   ws.terminate();await cloudflare(route+'/'+session.id,{method:'DELETE'}).catch(()=>{});
   const filename='data/worker-tail-'+Date.now()+'.json';await writeFile(filename,JSON.stringify(events,null,2)+'\n');
