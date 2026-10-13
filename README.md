@@ -135,6 +135,7 @@ Token là thông tin bí mật duy nhất cần cho Telegram. Chat ID được b
 | `/start` | Đăng ký hoặc nhận lại cảnh báo và bản tin tự động |
 | `/stop` | Ngừng nhận tin tự động; vẫn dùng được `/price` |
 | `/price` | Kiểm tra giá hai hãng, gửi giá, chuyến được chọn và link đặt vé |
+| `/flights` | Kiểm tra mới các chuyến có giá trong hai ngày chính của VNA/Vietjet, giờ đi/đến Việt Nam, giá và phí đại lý |
 | `/status` | Kiểm tra kết nối, bản tin tiếp theo, vòng poll tiếp theo, watcher, subscriber, cấu hình và trạng thái nguồn đã lưu |
 | `/help` | Hướng dẫn sử dụng |
 | `/connection` | Tương đương `/status` |
@@ -146,6 +147,8 @@ Bot dùng long polling, không mở server/port. Mỗi bot chỉ nên có một 
 Tin `/price`, bản tin sáng và cảnh báo giá có link đặt vé. Vietjet mở tìm kiếm cả hành trình đúng tuyến, ngày và số người; cảnh báo từng chiều vẫn ghi rõ link tìm cả hành trình. Vé Vietjet kèm số hiệu chuyến, giờ và hạng khi nguồn cung cấp để chọn đúng báo giá. VNA mở trang chính thức với tuyến/ngày được điền sẵn từ truy vấn hiện tại; kiểm tra số hành khách rồi bấm Tìm chuyến bay. Link không mang phiên đặt vé. Flynow mở URL kết quả chứa đúng tuyến/ngày/số người; form phía trên có thể hiện hành trình cũ hoặc mặc định nên nhãn link nhắc kiểm tra form. Các link không giữ chỗ hoặc khóa giá; cần kiểm tra lại trước thanh toán.
 
 `/price` luôn lấy giá mới: gọi tất cả nguồn cùng lúc để có kết quả nhanh nhất, không giãn cách, không ngân sách chờ, không retry. Nếu lượt nền đang chạy, bot chờ nhả lock (tối đa ~100 giây) rồi kiểm tra mới thay vì trả cache; chỉ khi lượt nền kẹt quá lâu mới gửi dữ liệu đã lưu kèm lý do và thời điểm. Thời gian gửi Telegram còn tùy mạng.
+
+`/price` giữ bản giá ngắn và có một dòng nhắc `/flights` ở cuối. `/flights` lấy mới bằng cùng lượt tìm kiếm hai ngày, không gọi thêm ngày lân cận; hiển thị mỗi số chuyến/giờ bay một lần với giá thấp nhất có báo giá, giữ rõ thời điểm, dữ liệu cũ/thiếu và phí đại lý. Không cam kết đủ toàn bộ lịch bay hoặc giữ chỗ. Menu `/flights` được đăng ký khi listener khởi động, nên listener đã chạy từ trước cần khởi động lại để nhận mã lệnh mới.
 
 Lệnh quá 5 phút không được thực hiện, nhưng private chat vẫn được ghi nhận và yêu cầu hủy nhận tin vẫn có hiệu lực. Cursor lưu trước khi xử lý; nếu tiến trình chết giữa chừng, gửi lại lệnh cần thực hiện. Bot chỉ có thể ghi nhận người từ update còn trên Telegram hoặc danh sách đã lưu; người dùng cũ chưa có trong danh sách cần nhắn lại `/start`.
 
@@ -230,7 +233,7 @@ Tham khảo API: [Telegram Bot API](https://core.telegram.org/bots/api).
 
 ### Nguồn chuyến bay qua Flynow
 
-Mỗi hãng tìm một lần cho hai ngày chính, lấy giá thấp nhất từng chiều và tổng hai chiều. Tính năng hiển thị nhiều giờ bay tách sang commit riêng. Đây không phải cam kết toàn bộ lịch bay hoặc giữ chỗ.
+Mỗi hãng tìm một lần cho hai ngày chính, lấy giá thấp nhất từng chiều và tổng hai chiều. `/flights` hiển thị nhiều giờ bay trong commit riêng, dùng cùng dữ liệu nguồn; `/price` và daily vẫn ngắn. Đây không phải cam kết toàn bộ lịch bay hoặc giữ chỗ.
 
 Giá so sánh là `TotalFare + TotalTax`; lưu riêng `ota_price` và `agency_fee`. Số phải trả tại Flynow còn có phí đại lý. Chiết khấu chưa xác minh, tổng tiền không khớp, sai tuyến/ngày/giờ/hành khách hoặc lỗi nguồn không được suy diễn thành giá rẻ.
 

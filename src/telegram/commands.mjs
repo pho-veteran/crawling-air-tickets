@@ -7,8 +7,10 @@ import {sendTelegram,telegramCall} from './client.mjs';
 import {recipientState} from './subscribers.mjs';
 import {loadContext} from '../reporting/context.mjs';
 import {formatDaily,nextMorning,routeLine,when} from '../monitoring/messages.mjs';
-export const commandMenu=[{command:'start',description:'Đăng ký hoặc nhận lại cảnh báo và bản tin'},{command:'stop',description:'Ngừng nhận cảnh báo và bản tin tự động'},{command:'price',description:'Xem giá mới hai hãng và link đặt vé'},{command:'status',description:'Kiểm tra kết nối và lần cập nhật gần nhất'},{command:'help',description:'Hướng dẫn dùng bot săn vé'}];
-export const helpText='👋 Mình đang canh vé cho bạn!\n\n/price — Kiểm tra giá mới hai hãng và mở link đặt vé.\n/status — Xem kết nối, lịch kiểm tra và lần cập nhật gần nhất.\n\n🔔 Kiểm tra mỗi 10 phút, báo ngay khi phát hiện giá giảm. Bản tin hằng ngày lúc 07:00 giờ Việt Nam.';
+import {formatFlights} from '../monitoring/flights.mjs';
+export const commandMenu=[{command:'start',description:'Đăng ký hoặc nhận lại cảnh báo và bản tin'},{command:'stop',description:'Ngừng nhận cảnh báo và bản tin tự động'},{command:'price',description:'Xem giá mới hai hãng và link đặt vé'},{command:'flights',description:'Xem các giờ bay hai ngày chính của hai hãng'},{command:'status',description:'Kiểm tra kết nối và lần cập nhật gần nhất'},{command:'help',description:'Hướng dẫn dùng bot săn vé'}];
+export const helpText='👋 Mình đang canh vé cho bạn!\n\n/price — Kiểm tra giá mới hai hãng và mở link đặt vé.\n/flights — Xem các giờ bay và giá trong hai ngày chính của cả hai hãng.\n/status — Xem kết nối, lịch kiểm tra và lần cập nhật gần nhất.\n\n🔔 Kiểm tra mỗi 10 phút, báo ngay khi phát hiện giá giảm. Bản tin hằng ngày lúc 07:00 giờ Việt Nam.';
+export const flightsReminder='💡 /flights — Xem các giờ bay trong hai ngày này của cả hai hãng.';
 export const quickRun=root=>new Promise((resolve,reject)=>{const p=spawn(process.execPath,[cliPath('run.mjs',root),'--quick','--no-notify'],{cwd:root,stdio:['ignore','inherit','inherit'],windowsHide:true});p.once('error',reject);p.once('exit',code=>resolve(code??1));});
 const watcherLine=async root=>{
   try{
@@ -24,7 +26,7 @@ export async function handleCommand({root,update,creds,state,save=async()=>{},us
   if(m?.chat?.type!=='private'||String(m.chat.id)!==String(creds.chatId))return {status:'ignored'};
   const match=m.text?.trim().match(/^\/(\w+)(?:@(\w+))?(?:\s|$)/);if(!match||match[2]&&match[2].toLowerCase()!==username.toLowerCase())return {status:'ignored'};
   const command=match[1].toLowerCase();
-  if(!['price','status','connection','help','start','stop'].includes(command)){await send(creds,'🤔 Mình chưa có lệnh này. Gõ /help để xem những gì mình có thể giúp nhé.');return {status:'unknown'};}
+  if(!['price','flights','status','connection','help','start','stop'].includes(command)){await send(creds,'🤔 Mình chưa có lệnh này. Gõ /help để xem những gì mình có thể giúp nhé.');return {status:'unknown'};}
   if(command==='stop'){await send(creds,'🔕 Đã ngừng gửi cảnh báo và bản tin tự động cho bạn. Bạn vẫn dùng được /price; gửi /start để nhận lại.');return {status:'unsubscribed'};}
   if(['help','start'].includes(command)){await send(creds,(command==='start'?'🔔 Đã đăng ký nhận cảnh báo giá và bản tin sáng.\n\n':'')+helpText+'\n\n/stop — Ngừng nhận tin tự động. /start — Đăng ký nhận lại.');return {status:'help'};}
   if(command==='status'||command==='connection'){
@@ -48,8 +50,8 @@ export async function handleCommand({root,update,creds,state,save=async()=>{},us
     lines.push('\nĐây là trạng thái đã lưu của nguồn vé. Muốn kiểm tra giá mới, gửi /price nhé.');await send(creds,lines.join('\n'));return {status:'status'};
   }
   let note='',elapsed=null,code=null;
-  if(command==='price'){
-    // /price luôn lấy giá mới nhất: chờ lượt tự động nhả lock rồi chạy quick mới.
+  if(['price','flights'].includes(command)){
+    // Both price commands refresh: wait for the existing crawl lock, then run quick.
     // Chỉ dùng giá đã lưu khi lượt nền kẹt quá lâu (mặc định ~100s) hoặc quick va phải lock.
     if(await busy()){
       await send(creds,'⏳ Lượt tự động đang chạy, mình chờ xong rồi kiểm tra giá mới cho bạn nhé...');
@@ -60,12 +62,13 @@ export async function handleCommand({root,update,creds,state,save=async()=>{},us
       }
     }
     if(await busy())note='⏳ Lượt tự động chạy khá lâu. Mình gửi giá đã lưu gần nhất trước nhé; thời gian cập nhật nằm dưới mỗi hãng.';
-    else{state.lastQuickAt=now();await save();
-      await send(creds,'⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...');
+    else{state[command==='price'?'lastQuickAt':'lastFlightsAt']=now();await save();
+      await send(creds,command==='flights'?'⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...':'⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...');
       const began=now();code=await quick(root);elapsed=now()-began;
       note=code===0?'':code===3?'⏳ Lượt tự động vừa bắt đầu. Mình gửi giá đã lưu gần nhất trước nhé.':'⚠️ Lần này chưa cập nhật đủ giá. Mình gửi những giá đã có và ghi rõ thời gian bên dưới nhé.';}
   }
   const c=await context(root);
-  if(command==='price')await send(creds,formatDaily({...c,now:now(),pollMinutes:c.settings.pollMinutes,onDemand:true})+(note?'\n\n'+note:''));
+  if(command==='price')await send(creds,formatDaily({...c,now:now(),pollMinutes:c.settings.pollMinutes,onDemand:true})+(note?'\n\n'+note:'')+'\n\n'+flightsReminder);
+  if(command==='flights')await send(creds,formatFlights({...c,now:now(),pollMinutes:c.settings.pollMinutes})+(note?'\n\n'+note:''));
   return {status:command,elapsed_ms:elapsed,crawl_code:code};
 }

@@ -20,7 +20,7 @@ try{
   const webhook=await telegramCall(creds.token,'getWebhookInfo');
   if(webhook.url)throw new Error('Bot đang dùng webhook; cần dừng listener/webhook hiện có trước khi long polling.');
   await telegramCall(creds.token,'setMyCommands',{commands:commandMenu,scope:{type:'all_private_chats'}});
-  console.log('Bot @'+me.username+' sẵn sàng cho mọi private chat: /start /stop /price /status /help.');
+  console.log('Bot @'+me.username+' sẵn sàng cho mọi private chat: /start /stop /price /flights /status /help.');
   while(!stopping){
     try{await access(path.join(dir,'watch.stop'));if(process.env.TRACKER_MANAGED==='1')break;}catch{}
     try{

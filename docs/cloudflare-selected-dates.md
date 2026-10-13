@@ -4,7 +4,7 @@ Scope người dùng cập nhật ngày **13/10/2026 (UTC+7)**:
 
 - Chỉ ngày đi 04/02/2027 và ngày về 13/02/2027, SGN ⇄ VCL, 1 người lớn.
 - Mỗi hãng lấy giá thấp nhất có báo giá phù hợp cho mỗi chiều, rồi cộng tổng.
-- Không lấy ngày lân cận hoặc bảng 49 ô. Hiển thị/theo dõi nhiều giờ bay là thay đổi cho commit sau; không triển khai trong scope này.
+- Không lấy ngày lân cận hoặc bảng 49 ô. Tính năng nhiều giờ bay tách riêng qua `/flights` trong commit sau phần simplify, theo yêu cầu tiếp theo của người dùng. `/price` vẫn ngắn, có một dòng reminder cuối.
 - Người dùng cho phép lấy Vietnam Airlines qua đại lý khi endpoint chính thức không dùng được từ Worker, và yêu cầu đối chiếu với web VNA chính thức.
 
 ## Giá VNA đã đối chiếu trên web chính thức
@@ -41,7 +41,7 @@ Giữ request IDs/CF Ray và timestamp trong bằng chứng để phía VNA tra 
 
 Hai POST đồng thời tới endpoint tìm vé công khai Flynow: `system=EVN` cho VNA, `system=EVJ` cho Vietjet. Các mã này được đọc từ form/script tìm kiếm công khai của Flynow; `system=VNA` có trên UI nhưng thử nghiệm không trả báo giá thành công cho query này, không được dùng làm fallback.
 
-Chỉ một báo giá ngày ở mỗi `legs.outbound` / `legs.inbound`. `main_price` là tổng hai chiều khi đủ cả hai; thiếu một chiều thì `partial` và tổng `null`, lỗi toàn bộ là error. Snapshot còn một `cells` cho cặp ngày chính để tương thích storage. Không lưu session/token/FlightValue của nhà cung cấp. Thông tin lựa chọn chuyến có sẵn trong dữ liệu không được biến thành tính năng nhiều giờ bay ở scope này.
+Chỉ một báo giá ngày ở mỗi `legs.outbound` / `legs.inbound`. `main_price` là tổng hai chiều khi đủ cả hai; thiếu một chiều thì `partial` và tổng `null`, lỗi toàn bộ là error. Snapshot còn một `cells` cho cặp ngày chính để tương thích storage. Không lưu session/token/FlightValue của nhà cung cấp. `/flights` đọc danh sách `flights` đã có trong báo giá, không tăng requests hoặc lấy thêm ngày, và không tự gửi schedule dài trong `/price`/daily.
 
 Nguồn `vna-flynow-selected-flight-fares-v1`, `vietjet-flynow-selected-flight-fares-v2` và query `nearbyDays: 0` tách lịch sử/minimum/cooldown khỏi VNA matrix và lịch ngày lân cận trước đây. Giữ nguyên dữ liệu lịch sử để import, không gán đổi nguồn hoặc dùng mốc cũ làm giảm giá giả. Tổng báo giá chiều đi/về của đại lý được ghi đúng cơ sở này; dù mẫu hiện tại khớp tổng khứ hồi VNA, không coi hai cơ sở giá luôn tương đương.
 
