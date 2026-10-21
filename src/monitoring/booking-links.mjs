@@ -1,16 +1,18 @@
 import {sourcePage as flynowPage} from '../providers/vietjet-flynow.mjs';
+import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 // Recreate searches from the current query, never reuse supplier session URLs.
 export function bookingLinks(id,query,record){
+  const single=trackingMode(query)!=='roundtrip',leg=trackedLegs(query)[0];
   if(id==='vna')return [{
     label:'Đặt vé VNA (điền sẵn tuyến/ngày; kiểm tra hành khách rồi bấm Tìm chuyến bay)',
     url:'https://www.vietnamairlines.com/vn/vi?'+new URLSearchParams({
-      from:query.origin,to:query.destination,departureDate:query.departureDate,returnDate:query.returnDate})
+      from:leg.from,to:leg.to,departureDate:leg.date,...(single?{}:{returnDate:query.returnDate})})
   },...(record?.agency==='Flynow'?[{label:'Tìm cả hành trình trên Flynow (có phí đại lý; kiểm tra form tuyến/ngày)',url:flynowPage(query)}]:[])];
   if(id!=='vietjet')return [];
   return [
-    {label:'Tìm cả hành trình trên Vietjet',url:'https://www.vietjetair.com/vi/?'+new URLSearchParams({
-      departAirport:query.origin,arrivalAirport:query.destination,currency:'VND',
-      departDate:query.departureDate,returnDate:query.returnDate,tripType:'roundTrip',adultCount:query.adults,languageCode:'vi'})},
+    {label:single?'Tìm vé một chiều trên Vietjet':'Tìm cả hành trình trên Vietjet',url:'https://www.vietjetair.com/vi/?'+new URLSearchParams({
+      departAirport:leg.from,arrivalAirport:leg.to,currency:'VND',
+      departDate:leg.date,...(single?{}:{returnDate:query.returnDate}),tripType:single?'oneWay':'roundTrip',adultCount:query.adults,languageCode:'vi'})},
     {label:'Tìm cả hành trình trên Flynow (có phí đại lý; kiểm tra form tuyến/ngày)',url:flynowPage(query)}
   ];
 }

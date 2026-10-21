@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 
 export const digest=value=>createHash('sha256').update(value).digest('hex');
 export function canonicalJson(value) {
@@ -25,17 +26,17 @@ export function observationModel(record) {
     if(keys.has(key))throw new Error('Duplicate quote dimension in observation.');
     keys.add(key);quotes.push({basisSource,queryId,kind,departure,back,price,observedMs:timestamp(at),detailsJson:canonicalJson(details)});
   };
-  for(const cell of record.cells||[]) {
+  for(const cell of trackingMode(record.query)==='roundtrip'?record.cells||[]:[]) {
     assertPrice(cell.price);date(cell.depart);date(cell.return);
     if(record.status!=='error')add(source,'roundtrip',cell.depart,cell.return,cell.price,record.observed_at,cell);
   }
-  if(record.status!=='error'&&hasPrice(record.main_price)) {
+  if(trackingMode(record.query)==='roundtrip'&&record.status!=='error'&&hasPrice(record.main_price)) {
     const main=quotes.find(q=>q.kind==='roundtrip'&&q.departure===mainDeparture&&q.back===mainReturn);
     if(main&&main.price!==record.main_price)throw new Error('Main price differs from its calendar cell.');
     if(!main)add(source,'roundtrip',mainDeparture,mainReturn,record.main_price,record.observed_at,{main_price:record.main_price});
   }
   const legSource=text(record.legs_source||source,'leg source');
-  for(const kind of ['outbound','inbound'])for(const quote of record.legs?.[kind]||[]) {
+  for(const {leg:kind} of trackedLegs(record.query))for(const quote of record.legs?.[kind]||[]) {
     date(quote.date);assertPrice(quote.price);
     if(record.status!=='error')add(legSource,kind,quote.date,'',quote.price,quote.observed_at||record.observed_at,quote);
   }

@@ -21,9 +21,9 @@ test('portable probe gets flight quotes from both agencies for selected dates on
   };
   const result=await probe({fetchImpl,runId:'fixture-run'});
   assert.equal(result.requests,2);
-  assert.equal(result.results[0].snapshot.main_price,4200000);
-  assert.equal(result.results[1].snapshot.main_price,4200000);
-  for(const r of result.results){assert.equal(r.snapshot.status,'ok');assert.equal(r.snapshot.cells.length,1);}
+  assert.equal(result.results[0].snapshot.main_price,2400000);
+  assert.equal(result.results[1].snapshot.main_price,2400000);
+  for(const r of result.results){assert.equal(r.snapshot.status,'ok');assert.equal(r.snapshot.cells.length,0);}
   assert.equal(result.results[0].snapshot.supplier_system,'EVN');
   assert.equal(result.results[1].snapshot.supplier_system,'EVJ');
   assert.equal(result.diagnostics.filter(d=>d.event==='response_complete').length,2);

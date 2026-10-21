@@ -1,5 +1,6 @@
 import {money,routeLine,when} from './messages.mjs';
 import {bookingText,priceNote} from './booking-links.mjs';
+import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 
 function choices(quote,date,airline){
   const best=new Map();
@@ -12,7 +13,7 @@ function choices(quote,date,airline){
   return [...best.values()].sort((a,b)=>a.departure.localeCompare(b.departure)||a.flight_number.localeCompare(b.flight_number));
 }
 export function formatFlights({providers,query,now=Date.now(),pollMinutes=10}){
-  const sections=['✈️ Giờ bay trong hai ngày bạn chọn',routeLine(query),'Giờ đi/đến là giờ Việt Nam (UTC+7). Giá thấp nhất có báo giá cho từng chuyến; chưa giữ chỗ.'];
+  const sections=[trackingMode(query)==='roundtrip'?'✈️ Giờ bay trong hai ngày bạn chọn':'✈️ Giờ bay ngày bạn chọn',routeLine(query),'Giờ đi/đến là giờ Việt Nam (UTC+7). Giá thấp nhất có báo giá cho từng chuyến; chưa giữ chỗ.'];
   for(const p of providers){
     const history=p.history.filter(r=>Date.parse(r.observed_at)<=now),last=history.at(-1);
     const r=history.filter(r=>['ok','partial'].includes(r.status)).at(-1);
@@ -21,7 +22,7 @@ export function formatFlights({providers,query,now=Date.now(),pollMinutes=10}){
     if(last?.status==='error'||r.last_attempt_failed||now-Date.parse(r.observed_at)>(pollMinutes+5)*60000)
       lines.push('⚠️ GIÁ CŨ — lần cập nhật gần nhất '+when(r.observed_at));
     else if(r.status==='partial')lines.push('⚠️ Nguồn còn thiếu một phần; không suy diễn là hết vé.');
-    for(const [leg,date,label,from,to] of [['outbound',query.departureDate,'🛫 Đi',query.origin,query.destination],['inbound',query.returnDate,'🛬 Về',query.destination,query.origin]]){
+    for(const {leg,date,label,from,to} of trackedLegs(query)){
       lines.push(label+' '+from+' → '+to+' · '+date.split('-').reverse().join('/'));
       const quote=r.legs?.[leg]?.find(q=>q.date===date),flights=choices(quote,date,p.id==='vna'?'VN':'VJ');
       if(!flights.length){lines.push('Chưa có danh sách chuyến có giá cho chiều này.');continue;}

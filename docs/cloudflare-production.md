@@ -3,7 +3,7 @@
 Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không nâng gói trả phí. Người dùng chọn bot chính, bỏ bot staging riêng/24 giờ và thay timeline bằng giá hiện tại + giá thấp nhất.
 
 - [Worker health](https://crawling-air-tickets.thanhvinhlqt2016.workers.dev/health); [bot Telegram](https://t.me/synapse_vinh_notify_test_bot).
-- Phiên bản `037adeca-b01c-464c-8162-8a880b31dc9c`.
+- Phiên bản `de16e45e-2ceb-4fd5-956a-3ed1585c91d5` (21/10/2026).
 - D1 `crawling-air-tickets-state`: `aa8be7a3-77e5-4de3-a124-d28b2a056f9d`.
 - Hai Queue `crawling-air-tickets-jobs` (crawl) và `crawling-air-tickets-delivery` (Telegram): batch 1, concurrency 2, tối đa 5 retries; lease riêng cho mỗi lane.
 - Cron `*/10 * * * *` và `0 0 * * *` (07:00 Việt Nam).
@@ -22,6 +22,10 @@ Sau deploy, cấu hình/chuyển destination bằng `node --dns-result-order=ipv
 `/price` gửi “⏳ Đang kiểm tra giá mới hai hãng, xong mình gửi ngay nhé...”; `/flights` gửi “⏳ Đang kiểm tra giờ bay và giá hai hãng, xong mình gửi ngay nhé...”. Crawl chỉ được tạo sau ACK của tin loading. ACK đã lưu được dùng để phục hồi follow-up khi retry, không gửi lại loading. 429 của loading giữ crawl chờ thay vì lấy giá trước. [Bằng chứng hai lệnh live](cloudflare-spike/loading-evidence.json).
 
 ## Giá hiện tại và mức thấp nhất
+
+Từ 21/10/2026, `monitoring.trackingMode` hỗ trợ `outbound` (vé đi), `inbound` (vé về), `roundtrip` (hai chiều; mặc định khi không cấu hình). Production đang chọn **inbound: VCL → SGN ngày 13/02/2027** vì đã mua vé đi. Đổi cờ trong `config.json` rồi deploy lại để chuyển chế độ. Cron, `/price`, `/flights`, daily, cảnh báo và link tìm vé dùng chiều đã chọn; truy vấn một chiều gửi một chặng Leg 0 tới Flynow và ánh xạ kết quả về đúng chiều của hành trình.
+
+Không đổi định danh các chiều giá đã xác minh: minimum vé về cũ vẫn dùng được; giá một chiều không được ghi vào minimum khứ hồi. Cache của chế độ cũ không được dùng cho chế độ mới. Alert chờ của tổng/chiều đã tắt bị loại khi gửi. Live Worker đã crawl một lần thành công cả hai hãng, chỉ lưu legs.inbound; VNA có 1 chuyến, Vietjet có 4 chuyến ở mẫu kiểm tra. **125 tests qua**, gồm ba chế độ, wire Leg 0 cho vé về, giữ minima khi chuyển chế độ và chặn cảnh báo chiều đã tắt. Xem [bằng chứng triển khai](cloudflare-spike/tracking-mode-evidence.json).
 
 `/price` và bản tin sáng hiển thị giá hiện tại, một mức thấp nhất từng ghi nhận cho tổng/đi/về mỗi hãng, và thời điểm cập nhật giá hiện tại. Không còn timeline, mốc hôm qua, phần trăm thay đổi hoặc mức thấp nhất trong cửa sổ 7 ngày. Tổng thấp nhất là tổng đã được báo giá trong cùng một lượt, không cộng hai minima từng chiều ở các lượt khác nhau để tạo tổng giả.
 

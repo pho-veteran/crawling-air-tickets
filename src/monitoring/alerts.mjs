@@ -1,5 +1,6 @@
 import {when} from './messages.mjs';
 import {bookingText,flightHint,isSeparateTickets,priceNote} from './booking-links.mjs';
+import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';
 const hasPrice=n=>Number.isSafeInteger(n)&&n>0;
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7);
@@ -32,9 +33,9 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
   }
   if(!valid(record))return events;
   if(state.incidentOpen)add('recovery','Lấy được giá trở lại rồi! Mình tiếp tục canh vé cho bạn nhé.',{kind:'recovery'});
-  if(!state.initialized&&hasPrice(record.main_price))add('baseline','Bắt đầu canh vé cho bạn rồi nhé! Giá khởi điểm là '+money(record.main_price)+'.',{kind:'main',price:record.main_price});
+  if(trackingMode(record.query)==='roundtrip'&&!state.initialized&&hasPrice(record.main_price))add('baseline','Bắt đầu canh vé cho bạn rồi nhé! Giá khởi điểm là '+money(record.main_price)+'.',{kind:'main',price:record.main_price});
   const reasons=[];
-  if(hasPrice(record.main_price)) {
+  if(trackingMode(record.query)==='roundtrip'&&hasPrice(record.main_price)) {
     if(hasPrice(prev?.main_price)&&prev.main_price-record.main_price>=settings.mainDropMinVnd)
       reasons.push('Giảm '+money(prev.main_price-record.main_price)+' ('+((prev.main_price-record.main_price)/prev.main_price*100).toFixed(1)+'%) so với lần có dữ liệu trước: '+money(prev.main_price));
     if(mainPast.length&&record.main_price<Math.min(...mainPast.map(s=>s.main_price)))reasons.push('Đây là giá thấp nhất mình từng thấy từ khi bắt đầu theo dõi! ');
@@ -46,6 +47,7 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
     if(reasons.length)add('main:'+record.main_price,reasons.join(' · '),{kind:'main',price:record.main_price});
   }
   for(const [leg,mainDate,from,to,label] of [['outbound',record.query.departureDate,record.query.origin,record.query.destination,'Vé đi'],['inbound',record.query.returnDate,record.query.destination,record.query.origin,'Vé về']]){
+    if(!trackedLegs(record.query).some(l=>l.leg===leg))continue;
     for(const quote of record.legs?.[leg]||[]){
       if(quote.date!==mainDate||!hasPrice(quote.price))continue;
       const past=good.filter(s=>legSource(s)===legSource(record)).map(s=>{
@@ -69,6 +71,7 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
   }
   if(prev) {
     for(const [leg,date] of [['outbound',record.query.departureDate],['inbound',record.query.returnDate]]) {
+      if(!trackedLegs(record.query).some(l=>l.leg===leg))continue;
       const current=record.legs?.[leg]?.find(x=>x.date===date),previous=prev.legs?.[leg]?.find(x=>x.date===date);
       if(current?.fare_family==='Eco'&&previous&&previous.fare_family!=='Eco')add('eco:'+leg+':'+date,'Nguồn Vietjet xuất hiện vé Eco ở chiều '+(leg==='outbound'?'đi':'về')+' '+day(date)+'. Giá qua Flynow, chưa giữ chỗ.',{kind:'fare',leg,date,fare:'Eco'});
     }
@@ -77,6 +80,7 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
 }
 export function stillRelevant(event,record) {
   const g=event.guard;
+  if(g.kind==='main'&&trackingMode(record.query)!=='roundtrip'||['leg','fare'].includes(g.kind)&&!trackedLegs(record.query).some(l=>l.leg===g.leg))return false;
   if(['minimum','flex','cell'].includes(g.kind)||g.kind==='leg'&&g.date!==(g.leg==='outbound'?record.query.departureDate:record.query.returnDate))return false;
   if(g.kind==='error')return record.status==='error';
   if(!valid(record))return false;
@@ -103,7 +107,7 @@ export function formatAlert(provider,record,events,history=[]) {
   if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+(record.history_mode==='current-and-minimum'?'.':' ('+when(low.at)+').'));}
   rows.push('🕒 '+when(record.observed_at)+' · giờ Việt Nam');
   rows.push(priceNote(provider.id,record));
-  for(const [direction,date,label] of [['outbound',q.departureDate,'Đi'],['inbound',q.returnDate,'Về']]){
+  for(const {leg:direction,date,label} of trackedLegs(q)){
     if(leg&&direction!==g.leg)continue;
     const quote=record.legs?.[direction]?.find(x=>x.date===(leg?g.date:date));
     if(valid(record)&&hasPrice(quote?.price)&&flightHint(quote))rows.push('✈️ '+label+': '+flightHint(quote));

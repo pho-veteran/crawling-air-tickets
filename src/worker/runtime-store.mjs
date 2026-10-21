@@ -1,4 +1,5 @@
 import {D1Repository,canonicalJson,digest,observationModel} from '../storage/d1.mjs';
+import {trackedRecord} from '../shared/tracking.mjs';
 
 export const sqlNow="CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)";
 export class LostLease extends Error {constructor(){super('Lease ownership lost');this.name='LostLease';}}
@@ -37,6 +38,7 @@ export class RuntimeStore extends D1Repository {
       history_mode:'current-and-minimum',last_attempt_failed:true,last_attempt_at:record.observed_at,
       last_attempt_error:record.error,consecutive_errors:(prior.consecutive_errors||0)+1};
     if(record.status!=='error')current.consecutive_errors=0;
+    current=trackedRecord(current,record.query);
     const model=observationModel(current),id='current:'+model.source+':'+model.queryId;
     const statements=[this.statement(`INSERT INTO observations(id,source,query_id,observed_ms,status,record_json) VALUES(?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET observed_ms=excluded.observed_ms,status=excluded.status,record_json=excluded.record_json`,

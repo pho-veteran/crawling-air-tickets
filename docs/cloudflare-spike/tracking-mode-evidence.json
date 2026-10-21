@@ -1,0 +1,15 @@
+{
+  "verified_date_vietnam": "2026-10-21",
+  "worker_version": "de16e45e-2ceb-4fd5-956a-3ed1585c91d5",
+  "tracking_mode": "inbound",
+  "route": {"origin": "VCL", "destination": "SGN", "date": "2027-02-13", "adults": 1},
+  "tests": {"passed": 125, "failed": 0},
+  "worker_crawl": {"status": "done", "attempts": 1},
+  "providers": [
+    {"id": "vna", "status": "ok", "legs": ["inbound"], "priced_flights": 1},
+    {"id": "vietjet", "status": "ok", "legs": ["inbound"], "priced_flights": 4}
+  ],
+  "existing_minima_preserved": true,
+  "main_price_not_persisted_as_roundtrip_minimum": true,
+  "cron_minutes": 10
+}

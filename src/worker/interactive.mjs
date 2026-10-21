@@ -1,4 +1,6 @@
-
+import config from '../../config.json' with {type:'json'};
+import {trackingMode} from '../shared/tracking.mjs';
+const refreshMode=trackingMode({trackingMode:config.monitoring?.trackingMode});
 export const DAILY_COMMAND_LIMIT=200;
 export const CACHE_MS=30000;
 const pricing=c=>['price','flights'].includes(c);
@@ -26,7 +28,7 @@ export async function admit(store,botId,updateId,body,{dailyLimit=DAILY_COMMAND_
 }
 
 export async function requestRefresh(store,id,{force=false,day=null}={}){
-  const cache="SELECT json_extract(document_json,'$.id') FROM runtime_state WHERE key='refresh-cache' AND json_extract(document_json,'$.valid')=1 AND json_extract(document_json,'$.at')>?";
+  const cache="SELECT json_extract(document_json,'$.id') FROM runtime_state WHERE key='refresh-cache' AND json_extract(document_json,'$.valid')=1 AND COALESCE(json_extract(document_json,'$.trackingMode'),'roundtrip')='"+refreshMode+"' AND json_extract(document_json,'$.at')>?";
   await store.fencedBatch([
     store.statement(`INSERT INTO jobs(id,kind,body_json,created_ms)
       SELECT ?,'refresh',?,? WHERE (?=1 OR NOT EXISTS(${cache})) ON CONFLICT DO NOTHING`,id,JSON.stringify({optimized:true}),store.now(),Number(force),store.now()-CACHE_MS),
@@ -56,7 +58,7 @@ export async function queueReply(store,id){
 
 export async function completeRefresh(store,id,valid){
   await store.fencedBatch([
-    store.statement("INSERT INTO runtime_state(key,document_json) VALUES('refresh-cache',?) ON CONFLICT(key) DO UPDATE SET document_json=excluded.document_json",JSON.stringify({id,at:store.now(),valid})),
+    store.statement("INSERT INTO runtime_state(key,document_json) VALUES('refresh-cache',?) ON CONFLICT(key) DO UPDATE SET document_json=excluded.document_json",JSON.stringify({id,at:store.now(),valid,trackingMode:refreshMode})),
     store.statement("UPDATE jobs SET status='done',done_ms=? WHERE id=?",store.now(),id),
     store.statement(`INSERT INTO jobs(id,kind,body_json,created_ms)
       SELECT id||':reply','reply',json_object('chatId',chat_id,'command',command,'requestId',id),?

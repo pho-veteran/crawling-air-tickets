@@ -2,8 +2,8 @@
 
 Theo dõi giá vé Vietnam Airlines và Vietjet qua Flynow, gửi cảnh báo và trả lời slash command qua Telegram. **Bot chính đã chạy trên Cloudflare Workers Free**, dùng D1 và Queues; watcher local đã dừng.
 
-- `/price`: giá hiện tại và một giá thấp nhất từng ghi nhận cho tổng/đi/về của mỗi hãng, kèm nhắc `/flights`.
-- `/flights`: các chuyến có báo giá trong đúng hai ngày đã chọn của cả hai hãng.
+- `/price`: giá hiện tại và mức thấp nhất của chiều đang theo dõi, kèm nhắc `/flights`.
+- `/flights`: các chuyến có báo giá trong ngày và chiều đang theo dõi của cả hai hãng.
 - Cache chung 30 giây, gộp lệnh trùng và tách queue crawl/Telegram. Giới hạn chung 200 yêu cầu/ngày, 60 phần tin cảnh báo/ngày để dự trù Free; [số đo và quota](docs/cloudflare-optimization.md).
 - Cron mỗi 10 phút; bản tin 07:00 Việt Nam. Không cần máy local chạy liên tục.
 - Group **Theo dõi giá vé SGN–VCL** nhận thông báo chung; mọi thành viên dùng được `/price` và `/flights` ngay trong nhóm. Chat riêng chỉ tra cứu, không nhận bản tin tự động riêng.
@@ -11,7 +11,9 @@ Theo dõi giá vé Vietnam Airlines và Vietjet qua Flynow, gửi cảnh báo v�
 
 [Vận hành, deploy và backup](docs/cloudflare-production.md), [đối chiếu giá web VNA](docs/cloudflare-selected-dates.md), [audit nghiệm thu](docs/cloudflare-gates.md). Người dùng đã bỏ yêu cầu bot staging riêng và 24 giờ, chọn triển khai bằng bot chính.
 
-Cấu hình đang có: **SGN ⇄ VCL**, đi **04/02/2027**, về **13/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Có thể đổi tuyến và ngày trong [`config.json`](config.json).
+Cấu hình đang bật: **chỉ vé về VCL → SGN ngày 13/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Vé đi SGN → VCL ngày 04/02/2027 đã mua; ngày đi vẫn được giữ trong cấu hình để có thể bật lại.
+
+Đổi `monitoring.trackingMode` trong [`config.json`](config.json) thành `outbound` (vé đi), `inbound` (vé về), hoặc `roundtrip` (hai chiều), rồi deploy lại. Cờ áp dụng cho truy vấn nguồn, cảnh báo, bản tin sáng, `/price`, `/flights` và link tìm vé. Mức thấp nhất đã ghi nhận của từng chiều được giữ nguyên; giá một chiều không ghi vào minimum khứ hồi.
 
 ## Yêu cầu
 

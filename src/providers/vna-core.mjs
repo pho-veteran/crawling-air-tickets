@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {trackingMode} from '../shared/tracking.mjs';
 import {fetchOneWay,ENDPOINT as ONEWAY_ENDPOINT} from './vna-oneway.mjs';
 
 export const SOURCE='vna-fare-matrix-v1';
@@ -15,10 +16,12 @@ export function queryFrom(config) {
   for(const key of ['origin','destination']) if(!/^[A-Z]{3}$/.test(config[key]||'')) throw new Error(`config.${key}: cần mã sân bay 3 chữ hoa.`);
   if(config.origin===config.destination) throw new Error('Điểm đi và điểm đến phải khác nhau.');
   if(!Number.isInteger(config.adults)||config.adults<1||config.adults>9) throw new Error('adults phải từ 1 đến 9.');
+  const mode=trackingMode({trackingMode:config.monitoring?.trackingMode});
   return {origin:config.origin,destination:config.destination,departureDate:config.departureDate,
-    returnDate:config.returnDate,adults:config.adults,nearbyDays:0,countryCode:'vn',currency:'VND'};
+    returnDate:config.returnDate,adults:config.adults,nearbyDays:0,countryCode:'vn',currency:'VND',...(mode==='roundtrip'?{}:{trackingMode:mode})};
 }
-export const queryId=(query,source=SOURCE)=>createHash('sha256').update(source+JSON.stringify(query)).digest('hex').slice(0,16);
+// Tracking selects existing fare dimensions; retain their verified historical minima.
+export const queryId=(query,source=SOURCE)=>{const {trackingMode:mode,...itinerary}=query;return createHash('sha256').update(source+JSON.stringify(itinerary)).digest('hex').slice(0,16);};
 export function requestFrom(query) {
   return {departureDate:query.departureDate,returnDate:query.returnDate,
     originLocationCode:query.origin,destinationLocationCode:query.destination,

@@ -40,7 +40,7 @@ test('shared group accepts member commands, ignores conversation/other groups, a
   assert.equal(x.delivered.length,2);assert.ok(x.delivered.every(m=>String(m.chat_id)==='-789'));
   assert.match(x.delivered[0].text,/Đang kiểm tra/);assert.match(x.delivered[1].text,/Giá vé hiện tại/);
   await webhook(request(5,'/flights',-789,'supergroup'),x.env,x.store);await x.drain();
-  assert.match(x.delivered.at(-1).text,/VN1468/);
+  assert.match(x.delivered.at(-1).text,/VN1469/);
   await webhook(request(6,'/stop',-789,'group'),x.env,x.store);await x.drain();
   assert.equal((await x.store.statement('SELECT active FROM subscribers WHERE chat_id=?','-789').first()).active,1);
   assert.match(x.delivered.at(-1).text,/không tắt bản tin/);
@@ -96,10 +96,10 @@ test('real orchestration persists selected-date observations, replies /price and
   await webhook(request(2,'/flights'),x.env,x.store);await x.drain();
   assert.equal(x.source.requests.length,4);assert.equal(x.delivered.length,4);
   assert.match(x.delivered[2].text,/Đang kiểm tra giờ bay và giá hai hãng/);
-  assert.match(x.delivered[3].text,/VN1468/);assert.match(x.delivered[3].text,/VJ370/);
+  assert.match(x.delivered[3].text,/VN1469/);assert.match(x.delivered[3].text,/VJ371/);
   assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM observations').first()).n,2);
   assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM price_quotes').first()).n,0);
-  assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM price_minima').first()).n,6);
+  assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM price_minima').first()).n,2);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM jobs WHERE status='done' AND body_json<>'{}'").first()).n,0);
   for(const p of providers)assert.equal((await x.store.history(p.source,(await x.store.statement('SELECT query_id FROM observations WHERE source=?',p.source).first()).query_id)).length,1);
 });
@@ -161,7 +161,7 @@ test('cron slot dedupe persists across redeploys; daily has its own fresh crawl 
 });
 
 test('current price replaces prior prices, minima only decrease, and errors preserve a clearly stale last good price',async t=>{
-  const x=await setup(t),source='fixture',qid='q';
+  const x=await setup(t),source='fixture',qid='q',query={...(await import('../src/worker/jobs.mjs')).query,trackingMode:'roundtrip'};
   const record=(total,at)=>({schema:1,source,query_id:qid,query,status:'ok',observed_at:at,main_price:total,cells:[],
     legs:{outbound:[{date:query.departureDate,price:total/2}],inbound:[{date:query.returnDate,price:total/2}]}});
   for(const [price,time] of [[100,'2026-10-12T00:00:00Z'],[120,'2026-10-12T00:10:00Z'],[80,'2026-10-12T00:20:00Z'],[110,'2026-10-12T00:30:00Z']])
@@ -181,6 +181,7 @@ test('current price replaces prior prices, minima only decrease, and errors pres
 });
 
 test('minimum-only mode never claims rolling-window lows without a retained price timeline',()=>{
+  const query={origin:'SGN',destination:'VCL',departureDate:'2027-02-04',returnDate:'2027-02-13',adults:1};
   const rec=(price,at,comparison_only=false)=>({status:'ok',source:'fixture',query,main_price:price,legs:{},observed_at:at,comparison_only});
   const history=[rec(100,'2026-09-01T00:00:00Z',true),rec(150,'2026-10-12T00:00:00Z')];
   const events=evaluateAlerts({id:'vna'},rec(140,'2026-10-13T00:00:00Z'),history,{initialized:true},{...defaults,historyMode:'current-and-minimum'});

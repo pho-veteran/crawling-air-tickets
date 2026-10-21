@@ -27,7 +27,7 @@ test('simultaneous group price/flights commands share one crawl and duplicate co
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM interactive").first()).n,2);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM jobs WHERE kind='refresh'").first()).n,1);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM interactive WHERE completed_ms IS NULL").first()).n,0);
-  assert.match(x.sent.map(m=>m.text).join('\n'),/VN1468/);
+  assert.match(x.sent.map(m=>m.text).join('\n'),/VN1469/);
   await x.input(1,'/price');await x.drain();assert.equal(x.sent.length,4);
 });
 

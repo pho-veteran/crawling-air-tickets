@@ -1,4 +1,6 @@
 import {bookingText,flightHint,isSeparateTickets,priceNote} from './booking-links.mjs';
+import {trackingMode,trackedLegs,trackingLabel} from '../shared/tracking.mjs';
+import {formatCurrentPrices} from './current-prices.mjs';
 export const money=n=>Number.isSafeInteger(n)&&n>0?new Intl.NumberFormat('vi-VN').format(n)+'đ':'chưa có giá';
 const offsetMs=(offset='+07:00')=>(offset[0]==='-'?-1:1)*(Number(offset.slice(1,3))*60+Number(offset.slice(4)))*60000;
 export const localDay=(t,offset='+07:00')=>new Date(Number(t)+offsetMs(offset)).toISOString().slice(0,10);
@@ -7,8 +9,9 @@ export const nextMorning=(t,s={})=>{const at=morningAt(t,s);return at>t?at:at+86
 export const when=t=>{const d=new Date(t),f=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d),v=Object.fromEntries(f.map(x=>[x.type,x.value]));return v.hour+':'+v.minute+' ngày '+v.day+'/'+v.month+'/'+v.year;};
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7),priced=n=>Number.isSafeInteger(n)&&n>0;
 export const change=(current,previous)=>!priced(current)||!priced(previous)?'chưa có mốc so sánh':current===previous?'↔ Không đổi':(current<previous?'🟢 ↓ ':'🔺 ↑ ')+money(Math.abs(current-previous))+' ('+(Math.abs(current-previous)/previous*100).toFixed(1)+'%)';
-export function routeLine(q){return q.origin+' ⇄ '+q.destination+' · '+day(q.departureDate)+'–'+day(q.returnDate)+'/'+q.returnDate.slice(0,4)+' · '+q.adults+' người lớn';}
+export function routeLine(q){if(trackingMode(q)!=='roundtrip'){const l=trackedLegs(q)[0];return trackingLabel(q)+' · '+l.from+' → '+l.to+' · '+l.date.split('-').reverse().join('/')+' · '+q.adults+' người lớn';}return q.origin+' ⇄ '+q.destination+' · '+day(q.departureDate)+'–'+day(q.returnDate)+'/'+q.returnDate.slice(0,4)+' · '+q.adults+' người lớn';}
 export function formatDaily({providers,query,now=Date.now(),pollMinutes=10,settings={},onDemand=false}){
+  if(trackingMode(query)!=='roundtrip')return formatCurrentPrices({providers,query,now,pollMinutes,onDemand});
   const offset=settings.dailyUtcOffset||'+07:00',clock=settings.dailyTime||'07:00';
   const sections=[onDemand?'✈️ Giá vé bạn vừa hỏi đây!' :'☀️ Chào buổi sáng! Cùng xem giá vé hôm nay · '+clock,routeLine(query),'📅 '+localDay(now,offset).split('-').reverse().join('/')+' · UTC'+offset];
   for(const p of providers){

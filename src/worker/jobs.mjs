@@ -12,6 +12,7 @@ import {messageParts} from '../telegram/text.mjs';
 import {sendMessage} from './telegram.mjs';
 import {digest} from '../storage/d1.mjs';
 import {fastLoading,attachRefresh,completeRefresh} from './interactive.mjs';
+import {trackedRecord} from '../shared/tracking.mjs';
 
 export const query=queryFrom(config);
 export const settings={...settingsFrom(config.monitoring,{}),historyMode:'current-and-minimum'};
@@ -44,7 +45,7 @@ export async function context(store){
   ]);
   const result=[];
   for(const p of providers){
-    const raw=records.results.find(r=>r.source===p.source),record=raw?JSON.parse(raw.record_json):null,minimums={};
+    const raw=records.results.find(r=>r.source===p.source),record=raw?trackedRecord(JSON.parse(raw.record_json),query):null,minimums={};
     const minimumRecords=minima.results.filter(m=>m.basis_source===p.source);
     for(const [kind,key,date,back] of [['roundtrip','main',query.departureDate,query.returnDate],['outbound','outbound',query.departureDate,''],['inbound','inbound',query.returnDate,'']])
       minimums[key]=minimumRecords.find(m=>m.kind===kind&&m.departure_date===date&&m.return_date===back)?.price??null;
@@ -97,7 +98,7 @@ async function fanout(store,env,job,kind){
 }
 async function alertRecipient(store,env,job){
   const data=job.body.record?job.body:JSON.parse((await store.statement('SELECT body_json FROM jobs WHERE id=?',job.body.parentId).first()).body_json);
-  const {providerId,record,history}=data,p=providers.find(p=>p.id===providerId);
+  const {providerId,history}=data,record=trackedRecord(data.record,query),p=providers.find(p=>p.id===providerId);
   const key=alertKey(env,job.body.chatId,p),state=await store.state(key,{initialized:false,incidentOpen:false,sent:{}});
   state.sent=Object.fromEntries(Object.entries(state.sent||{}).filter(([,at])=>store.now()-at<settings.repeatCooldownHours*3600000));
   if(settings.priceOnly)state.initialized=true;
@@ -196,7 +197,7 @@ async function sendJobLocked(store,env,job,fetchImpl){
   }
   const guards=JSON.parse(o.guards_json);
   if(o.kind==='alert'){
-    const p=providers.find(p=>p.id===guards[0]?.providerId),latest=await store.latest(p.source,queryId(query,p.source));
+    const p=providers.find(p=>p.id===guards[0]?.providerId),raw=await store.latest(p.source,queryId(query,p.source)),latest=raw?trackedRecord(raw,query):null;
     if(!latest||latest.last_attempt_failed||guards.some(e=>!stillRelevant(e,latest))){await store.mutate("UPDATE outbox SET status='discarded' WHERE id=?",o.id);return;}
   }
   await store.assertOwner();

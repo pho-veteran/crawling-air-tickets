@@ -21,7 +21,7 @@ await db.batch([
 ]);
 const commands=[
   {command:'price',description:'Kiểm tra giá mới và giá thấp nhất hai hãng'},
-  {command:'flights',description:'Xem giờ bay và giá trong hai ngày chính'},
+  {command:'flights',description:'Xem giờ bay và giá ngày đang theo dõi'},
   {command:'status',description:'Kiểm tra bot và lần cập nhật gần nhất'},
   {command:'help',description:'Hướng dẫn dùng nhóm theo dõi vé'},
 ];
