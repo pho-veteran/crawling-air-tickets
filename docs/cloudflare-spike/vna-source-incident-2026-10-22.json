@@ -1,0 +1,174 @@
+{
+  "checked_at": "2026-10-22T03:00:08.445Z",
+  "result": "blocked-for-automated-vna-refresh",
+  "query": {
+    "from": "VCL",
+    "to": "SGN",
+    "date": "2027-02-13",
+    "adults": 1,
+    "direct_only": true
+  },
+  "official": {
+    "method": "Visible official booking UI in Edge; selected one-way flight and expanded cart price breakdown; no passenger data, reservation or payment",
+    "entry_url": "https://www.vietnamairlines.com/vn/vi?from=VCL&to=SGN&departureDate=2027-02-13",
+    "cart_url": "https://booking.vietnamairlines.com/booking/shopping-cart",
+    "observed_at": "2026-10-22T02:47:46.669Z",
+    "currency": "VND",
+    "flight_number": "VN1469",
+    "departure": "2027-02-13T17:50:00",
+    "arrival": "2027-02-13T19:10:00",
+    "time_zone": "Asia/Ho_Chi_Minh",
+    "fare_family": "Business Flex",
+    "booking_class": "J",
+    "price": 5082181,
+    "base_fare": 4199000,
+    "airline_surcharge": 450000,
+    "passenger_service": 79000,
+    "security_screening": 18181,
+    "vat": 336000,
+    "baggage": "1 x 32 kg",
+    "hand_baggage": "18 kg",
+    "screenshots": [
+      "docs/cloudflare-spike/vna-web/official-inbound-2026-10-22.png",
+      "docs/cloudflare-spike/vna-web/official-inbound-cart-2026-10-22.png"
+    ]
+  },
+  "flynow": {
+    "public_api": "https://www.flynow.vn/Handler/FlightHandler.ashx/ProcessRequest",
+    "public_frontend_contract": "https://www.flynow.vn/Scripts/ApiService.js",
+    "initial_failure": {
+      "http": 200,
+      "status": false,
+      "error_code": "0001",
+      "message": null,
+      "fares": null,
+      "system": "EVN"
+    },
+    "later_controls": {
+      "queries": [
+        "one-way inbound on target date",
+        "original roundtrip dates",
+        "near-date one-way"
+      ],
+      "message": "Response is null or empty",
+      "fare_list_absent": true
+    },
+    "worker_revalidation": {
+      "observed_at": "2026-10-22T02:49:49.393Z",
+      "http": 530,
+      "providers": [
+        "EVN",
+        "EVJ"
+      ]
+    },
+    "local_search_navigation": {
+      "final_path": "/BlackListPage.aspx",
+      "http": 200
+    },
+    "conclusion": "The original 0001 is an upstream search failure, not evidence of sold out. Its undocumented internal cause is not proven. Later access failures are separate observations; no proxy or challenge bypass attempted."
+  },
+  "alternatives": [
+    {
+      "name": "BestPrice",
+      "url": "https://www.bestprice.vn/ve-may-bay",
+      "flight_number": "VN1469",
+      "booking_class": "J",
+      "base_fare": 4199000,
+      "taxes": 884000,
+      "agency_fee": 100000,
+      "airline_price": 5083000,
+      "difference_from_official": 819,
+      "decision": "Rejected: removing explicit agency fee still does not match official taxes. Read-only verification endpoint returned Not verify; no exact revalidated quote obtained."
+    },
+    {
+      "name": "ABAY",
+      "url": "https://www.abay.vn/",
+      "flight_number": "VN1469",
+      "booking_class": "J",
+      "base_fare": 4199000,
+      "taxes": 883000,
+      "price": 5082000,
+      "difference_from_official": -181,
+      "decision": "Rejected: public search and fare-detail page omit the 181 VND precision in official taxes. Source quote age is not established."
+    },
+    {
+      "name": "VietnamBooking",
+      "url": "https://www.vietnambooking.com/",
+      "public_search_endpoint": "https://flightapi-k8s.yeumassage.com/api/v1/public/flight/search",
+      "http": 200,
+      "search_status": "success",
+      "vna_error_code": "300",
+      "vna_upstream_http": 503,
+      "vna_fares": 0,
+      "vietjet_fares": 4,
+      "decision": "Rejected: target VNA search failed. Upstream 503 is evidence of supplier trouble, but does not prove this agency and Flynow use the same backend."
+    },
+    {
+      "name": "TripWise",
+      "url": "https://tripwise.vn/",
+      "public_search_http": 403,
+      "browser_result": "Failed to load search results",
+      "decision": "Rejected: no VNA quote returned by actual search UI or public endpoint."
+    },
+    {
+      "name": "Goyolo",
+      "url": "https://goyolo.com/flight",
+      "public_search_http": 200,
+      "vna_fares": 0,
+      "vna_status": "running after bounded polling",
+      "vietjet_status": "success",
+      "decision": "Rejected: no VNA quote returned; did not accept stale airline cache as fresh."
+    },
+    {
+      "name": "Gotadi",
+      "url": "https://www.gotadi.com/du-lich/ve-may-bay",
+      "public_search_http": 200,
+      "filter_http": 200,
+      "vna_fares": 0,
+      "vietjet_fares": 4,
+      "decision": "Rejected: no target VNA itinerary returned."
+    },
+    {
+      "name": "iVIVU",
+      "url": "https://www.ivivu.com/ve-may-bay/",
+      "public_search_http": 400,
+      "error_code": "TOKEN_IVV_MISSING",
+      "decision": "Rejected for unattended Worker: source requires verification token; no challenge bypass attempted."
+    }
+  ],
+  "direct_vna": {
+    "worker_http": [
+      403,
+      403,
+      403
+    ],
+    "node_booking_http": 403,
+    "node_booking_page_title": "VNA security verification",
+    "decision": "Blocked; no challenge bypass attempted. Calendar prices alone would also be insufficient for validating flight/fare identity."
+  },
+  "production": {
+    "runtime_changed": false,
+    "prices_or_minima_written": false,
+    "cron_changed": false,
+    "deployment": "b46dcc71-f2c3-479e-9541-067a2df12148",
+    "providers": [
+      {
+        "id": "vna",
+        "current_price": 5082181,
+        "last_good_at": "2026-10-22T01:50:30.111Z",
+        "last_attempt_at": "2026-10-22T02:50:15.436Z",
+        "last_attempt_failed": true,
+        "last_attempt_error": "Flynow: HTTP 403; đã dừng, không retry."
+      },
+      {
+        "id": "vietjet",
+        "current_price": 4870781,
+        "last_good_at": "2026-10-22T02:30:19.450Z",
+        "last_attempt_at": "2026-10-22T02:50:15.436Z",
+        "last_attempt_failed": true,
+        "last_attempt_error": "Flynow: HTTP 403; đã dừng, không retry."
+      }
+    ]
+  },
+  "next_requirement": "A working source returning exact airline fare and taxes, verified against official flight/class/date and accessible from Workers, or authorized documented agency API access. Do not apply a fixed 181/819 VND correction, synthesize prices from rounded totals, relabel manual/browser checks as automated fetches, or overwrite last-good timestamps."
+}

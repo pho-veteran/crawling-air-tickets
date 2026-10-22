@@ -11,6 +11,16 @@ Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không n�
 
 Ngày 22/10 đã sửa race giữa cron 10 phút và cron 07:00: job gửi bản tin `daily:<ngày Việt Nam>` được lưu độc lập, chờ refresh hoàn thành rồi mới format/gửi. Nếu cron sáng đến khi poll cùng slot đã xong (kể cả cache đã hết hạn), bản tin vẫn được tạo, không crawl trùng hoặc gửi lại bản tin đã ACK. Nếu nguồn lỗi, giữ giá thành công gần nhất, đánh dấu GIÁ CŨ và không hạ minimum bằng dữ liệu lỗi. Thêm mã lỗi nguồn có allowlist vào log, không ghi session/message thô của nhà cung cấp. **128 tests qua**. [Bằng chứng sự cố và khôi phục](cloudflare-spike/daily-recovery-2026-10-22.json).
 
+## Sự cố nguồn VNA ngày 22/10/2026
+
+Đã kiểm tra lại bằng trình duyệt trên web VNA chính thức: **VN1469, VCL → SGN ngày 13/02/2027, 17:50–19:10, Thương Gia Linh Hoạt, 1 người lớn, 5.082.181đ**. Giá bằng mức đã lưu; việc giá không đổi không chứng minh crawler đã cập nhật thành công. Chi tiết gồm vé 4.199.000đ, phụ thu hãng 450.000đ, phí hành khách 79.000đ, soi chiếu 18.181đ và VAT 336.000đ.
+
+`0001` là phản hồi thất bại của kênh Flynow EVN (HTTP 200, `Status:false`, không có danh sách giá), **chưa xác định được nguyên nhân nội bộ của mã này**. Truy vấn đối chứng một chiều, khứ hồi và ngày gần cũng gặp phản hồi rỗng. VietnamBooking báo lỗi VNA nhận HTTP 503, trong khi trả được Vietjet; đây là dấu hiệu lỗi nguồn cung cấp nhưng chưa chứng minh dùng chung backend với Flynow. Kiểm tra sau đó từ Worker còn gặp HTTP 530 và production gặp HTTP 403 ở cả hai hãng; truy cập trang tìm kiếm Flynow tại máy local chuyển tới `/BlackListPage.aspx`. Đây là các lỗi truy cập xuất hiện sau lỗi `0001`, không đánh đồng nguyên nhân. API VNA trực tiếp vẫn trả 403; trang booking qua HTTP yêu cầu xác minh bảo mật.
+
+Đã thử các đại lý khác: BestPrice có đúng chuyến/hạng nhưng giá sau bỏ phí đại lý là 5.083.000đ (**+819đ**); ABAY là 5.082.000đ (**−181đ**). Không dùng hai nguồn này làm giá chính thức. VietnamBooking, Gotadi, Goyolo và TripWise chưa trả được báo giá VNA phù hợp; iVIVU yêu cầu token xác minh. Không có adapter thay thế đạt tiêu chí để deploy trong phiên điều tra này. Không sửa giá bằng hằng số, không đổi timestamp dữ liệu cũ thành mới, không ghi báo giá kiểm tra thủ công vào D1 như một lượt crawl thành công. Production tiếp tục giữ last-good và cảnh báo GIÁ CŨ; cron vẫn hoạt động. Cần nguồn trả giá/thuế chính xác truy cập được từ Worker hoặc quyền dùng API đại lý được cấp chính thức để khôi phục tự động.
+
+[Bằng chứng điều tra và giá chính thức](cloudflare-spike/vna-source-incident-2026-10-22.json), [chi tiết giá VNA](cloudflare-spike/vna-web/official-inbound-2026-10-22.png), [chuyến VN1469 và tổng tiền](cloudflare-spike/vna-web/official-inbound-cart-2026-10-22.png). Không tạo booking hay gửi thông tin hành khách. Chỉ cập nhật tài liệu; bản runtime vẫn là `b46dcc71-f2c3-479e-9541-067a2df12148`.
+
 ## Group dùng chung
 
 Group **Theo dõi giá vé SGN–VCL** được tạo ngày 13/10/2026. Mọi thành viên có thể dùng `/price`, `/flights`, `/status`, `/help`; bot bỏ qua hội thoại thường và lệnh gửi cho bot khác. Chỉ group trong `runtime_state['shared-chat'].chatId` được xử lý. `/start` và `/stop` không đổi đăng ký của cả nhóm; mỗi người tự mute hoặc rời nhóm trong Telegram. Private chat vẫn tra cứu được nhưng không đăng ký nhận bản tin riêng khi shared mode bật.
