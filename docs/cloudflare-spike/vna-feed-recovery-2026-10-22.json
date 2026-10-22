@@ -5,73 +5,75 @@
   "tests_passed": 141,
   "versions": [
     {
-      "version_id": "e3387ffc-5305-4c98-9da8-441aa8b53a3b",
+      "version_id": "71ea0b34-75c0-4673-b330-443989030dce",
       "percentage": 100
     }
   ],
   "worker_cron": [
     {
-      "id": "poll:2987759",
+      "id": "poll:2987764",
       "status": "done",
       "attempts": 1,
-      "created_ms": 1792655411317,
-      "done_ms": 1792655419319
+      "created_ms": 1792658411573,
+      "done_ms": 1792658419389
     },
     {
-      "id": "poll:2987758",
+      "id": "poll:2987763",
       "status": "done",
       "attempts": 1,
-      "created_ms": 1792654811376,
-      "done_ms": 1792654818280
+      "created_ms": 1792657811609,
+      "done_ms": 1792657818301
     },
     {
-      "id": "poll:2987757",
+      "id": "poll:2987762",
       "status": "done",
       "attempts": 1,
-      "created_ms": 1792654211360,
-      "done_ms": 1792654218802
+      "created_ms": 1792657211469,
+      "done_ms": 1792657219489
     },
     {
-      "id": "poll:2987756",
+      "id": "poll:2987760",
       "status": "done",
       "attempts": 1,
-      "created_ms": 1792653611417,
-      "done_ms": 1792653618647
+      "created_ms": 1792656012936,
+      "done_ms": 1792656019571
     }
   ],
   "current": [
     {
       "id": "vna",
-      "observed_at": "2026-10-22T08:11:44.284Z",
+      "observed_at": "2026-10-22T08:40:34.485Z",
       "status": "ok",
       "last_attempt_failed": false,
       "price": 5082181,
+      "job_id": "feed:2987764",
       "agencies": [
         {
           "agency": "BestPrice",
           "status": "ok",
-          "observed_at": "2026-10-22T08:11:43.678Z",
+          "observed_at": "2026-10-22T08:40:27.326Z",
           "price": 5082181
         },
         {
           "agency": "ABAY",
           "status": "ok",
-          "observed_at": "2026-10-22T08:11:44.284Z",
+          "observed_at": "2026-10-22T08:40:34.485Z",
           "price": 5082181
         }
       ]
     },
     {
       "id": "vietjet",
-      "observed_at": "2026-10-22T08:12:26.114Z",
+      "observed_at": "2026-10-22T08:40:42.384Z",
       "status": "ok",
       "last_attempt_failed": false,
-      "price": 4870781
+      "price": 4870781,
+      "job_id": "feed:2987764"
     }
   ],
   "status_preview": [
-    "Vietnam Airlines: 15:11 ngày 22/10/2026 · ok",
-    "Vietjet: 15:12 ngày 22/10/2026 · ok"
+    "Vietnam Airlines: 15:40 ngày 22/10/2026 · ok",
+    "Vietjet: 15:40 ngày 22/10/2026 · ok"
   ],
   "schedule_repair": {
     "cron": "5,15,25,35,45,55 * * * *",
@@ -81,14 +83,40 @@
   },
   "worker_dispatch": {
     "implemented": true,
-    "enabled": false,
+    "enabled": true,
     "required_secret": "GITHUB_ACTIONS_TOKEN",
     "token_permissions": "Actions: write for pho-veteran/crawling-air-tickets only",
     "max_attempts_per_day": 144,
-    "pending": "GitHub Confirm access (pho-veteran), then creation of repository-scoped token."
+    "pending": null,
+    "token_binding_type": "secret_text",
+    "token_expires_at": "2027-02-13T17:00:00Z",
+    "token_metadata_permission": "Read-only",
+    "natural_worker_cron_verified": true,
+    "dispatch": {
+      "requested_at": 1792658415519,
+      "next_attempt_at": 1792659015519,
+      "state": "accepted",
+      "http": 200
+    },
+    "run_url": "https://github.com/pho-veteran/crawling-air-tickets/actions/runs/39749476520",
+    "run_created_at": "2026-10-22T08:40:17Z",
+    "run_conclusion": "success",
+    "crawl_requests": 8,
+    "crawl_duration_ms": 10316,
+    "feed_response_http": 202,
+    "feed_job": {
+      "id": "feed:2987764",
+      "status": "done",
+      "attempts": 1,
+      "created_ms": 1792658435069,
+      "done_ms": 1792658443660
+    },
+    "cron_to_current_ms": 32087,
+    "no_manual_dispatch_during_verification": true
   },
-  "final_checked_at": "2026-10-22T08:15:38.379Z",
+  "final_checked_at": "2026-10-22T08:40:52.582Z",
   "latest_manual_run": "https://github.com/pho-veteran/crawling-air-tickets/actions/runs/39745665446",
   "latest_manual_attempt": 2,
-  "latest_manual_run_status": "success"
+  "latest_manual_run_status": "success",
+  "local_watcher_running": false
 }
