@@ -42,34 +42,36 @@
   "current": [
     {
       "id": "vna",
-      "observed_at": "2026-10-22T07:51:16.999Z",
+      "observed_at": "2026-10-22T08:11:44.284Z",
+      "status": "ok",
       "last_attempt_failed": false,
       "price": 5082181,
       "agencies": [
         {
           "agency": "BestPrice",
           "status": "ok",
-          "observed_at": "2026-10-22T07:51:12.429Z",
+          "observed_at": "2026-10-22T08:11:43.678Z",
           "price": 5082181
         },
         {
           "agency": "ABAY",
           "status": "ok",
-          "observed_at": "2026-10-22T07:51:16.999Z",
+          "observed_at": "2026-10-22T08:11:44.284Z",
           "price": 5082181
         }
       ]
     },
     {
       "id": "vietjet",
-      "observed_at": "2026-10-22T07:55:02.781Z",
+      "observed_at": "2026-10-22T08:12:26.114Z",
+      "status": "ok",
       "last_attempt_failed": false,
       "price": 4870781
     }
   ],
   "status_preview": [
-    "Vietnam Airlines: 14:51 ngày 22/10/2026 · ok",
-    "Vietjet: 14:55 ngày 22/10/2026 · ok"
+    "Vietnam Airlines: 15:11 ngày 22/10/2026 · ok",
+    "Vietjet: 15:12 ngày 22/10/2026 · ok"
   ],
   "schedule_repair": {
     "cron": "5,15,25,35,45,55 * * * *",
@@ -82,7 +84,11 @@
     "enabled": false,
     "required_secret": "GITHUB_ACTIONS_TOKEN",
     "token_permissions": "Actions: write for pho-veteran/crawling-air-tickets only",
-    "max_attempts_per_day": 144
+    "max_attempts_per_day": 144,
+    "pending": "GitHub Confirm access (pho-veteran), then creation of repository-scoped token."
   },
-  "final_checked_at": "2026-10-22T08:03:09.281Z"
+  "final_checked_at": "2026-10-22T08:15:38.379Z",
+  "latest_manual_run": "https://github.com/pho-veteran/crawling-air-tickets/actions/runs/39745665446",
+  "latest_manual_attempt": 2,
+  "latest_manual_run_status": "success"
 }
