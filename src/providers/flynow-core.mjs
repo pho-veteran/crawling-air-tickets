@@ -15,7 +15,10 @@ function amount(value,label){
   return value;
 }
 export function normalizeSearch(payload,query,departureDate,returnDate,observedAt=new Date().toISOString(),{airline='VJ',system='EVJ'}={}){
-  if(payload.Status!==true||!Array.isArray(payload.ListFareData))throw new Error('Flynow: tìm kiếm chưa thành công; không suy diễn là hết vé.');
+  if(payload.Status!==true||!Array.isArray(payload.ListFareData)){
+    const code=/^[a-zA-Z0-9_-]{1,24}$/.test(String(payload.ErrorCode||''))?String(payload.ErrorCode):'unknown';
+    throw Object.assign(new Error('Flynow '+system+': tìm kiếm chưa thành công (mã '+code+'); không suy diễn là hết vé.'),{sourceCode:code});
+  }
   const quotes={outbound:[],inbound:[]};
   for(const fare of payload.ListFareData){
     if(fare.Airline!==airline)continue;

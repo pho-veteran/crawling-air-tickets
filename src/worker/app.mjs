@@ -160,7 +160,13 @@ export default {
   async scheduled(controller,env){
     const store=new RuntimeStore(env.DB),active=await store.state('control',{active:false});if(!active.active)return;
     const stamp=controller.scheduledTime,day=localDay(stamp);
-    if(env.OPTIMIZED==='1')await requestRefresh(store,'poll:'+Math.floor(stamp/600000),{force:true,day:controller.cron==='0 0 * * *'&&config.monitoring.dailyReport?day:null});
+    if(env.OPTIMIZED==='1'){
+      const id='poll:'+Math.floor(stamp/600000),refresh=await requestRefresh(store,id,{force:true});
+      // Both cron triggers share a slot. Persist daily delivery independently:
+      // the refresh can already be done when the 07:00 trigger arrives.
+      if(controller.cron==='0 0 * * *'&&config.monitoring.dailyReport)
+        await store.createJob('daily:'+day,'daily',{day,refreshId:refresh?.id||id});
+    }
     else if(controller.cron==='0 0 * * *'&&config.monitoring.dailyReport)await store.createJob('daily-crawl:'+day,'crawl',{day});
     else await store.createJob('poll:'+Math.floor(stamp/600000),'crawl',{});
     await store.createJob('retention:'+day,'retention',{});

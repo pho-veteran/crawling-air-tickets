@@ -72,7 +72,7 @@ async function crawlJob(store,env,job,fetchImpl){
     if(existing[i]){const r=JSON.parse(existing[i].record_json);return r.last_attempt_failed?{...r,status:'error',main_price:null,legs:{},cells:[],observed_at:r.last_attempt_at,error:r.last_attempt_error}:r;}
     try{return await p.crawl(query,{fetchImpl:portableFetch(fetchImpl)});}
     catch(error){return {schema:1,source:p.source,query_id:queryId(query,p.source),query,observed_at:new Date(store.now()).toISOString(),
-      status:'error',main_price:null,minimum_price:null,cells:[],error:String(error.message).slice(0,250)};}
+      status:'error',main_price:null,minimum_price:null,cells:[],error:String(error.message).slice(0,250),source_error_code:error.sourceCode||null};}
   }));
   for(const [i,p] of providers.entries()){
     const record={...results[i],job_id:job.id,history_mode:'current-and-minimum'};
@@ -88,7 +88,7 @@ async function crawlJob(store,env,job,fetchImpl){
     await completeRefresh(store,job.id,results.every(r=>r.status==='ok'));
   }
   console.log(JSON.stringify({event:'crawl_complete',job_id:job.id,wall_ms:store.now()-began,
-    results:results.map(r=>({source:r.source,status:r.status,requests:r.requests||1}))}));
+    results:results.map(r=>({source:r.source,status:r.status,requests:r.requests||1,...(r.source_error_code?{source_error_code:r.source_error_code}:{})}))}));
 }
 async function fanout(store,env,job,kind){
   const shared=await store.state('shared-chat',{});
@@ -258,7 +258,16 @@ export async function executeJob(store,env,job,fetchImpl=fetch){
   if(job.kind==='reply')return reply(store,job,env,fetchImpl);
   if(job.kind==='notify')return fanout(store,env,job,'alert-recipient');
   if(job.kind==='alert-recipient')return alertRecipient(store,env,job);
-  if(job.kind==='daily')return fanout(store,env,job,'daily-recipient');
+  if(job.kind==='daily'){
+    if(job.body.refreshId){
+      const refresh=await store.statement('SELECT status FROM jobs WHERE id=?',job.body.refreshId).first();
+      if(!refresh||!['done','failed'].includes(refresh.status))
+        throw Object.assign(new Error('Daily awaiting fresh prices'),{delaySeconds:15,noAttempt:true});
+      const shared=await store.state('shared-chat',{});
+      if(shared.chatId)return dailyRecipient(store,env,{...job,body:{...job.body,chatId:shared.chatId}});
+    }
+    return fanout(store,env,job,'daily-recipient');
+  }
   if(job.kind==='daily-recipient')return dailyRecipient(store,env,job);
   if(job.kind==='send')return sendJob(store,env,job,fetchImpl);
   if(job.kind==='retention'){

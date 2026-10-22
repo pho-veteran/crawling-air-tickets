@@ -57,6 +57,46 @@ test('admission atomically caps accepted requests at 200/day; rejects create no 
   x.advance(86400000);assert.ok(await admit(x.store,'123',1000,{chatId:'1000',command:'price'}));
 });
 
+test('delayed 07:00 cron sends once even after the shared poll completed and its cache expired',async t=>{
+  const x=await fixture(t),slot=x.now();
+  await app.scheduled({scheduledTime:slot,cron:'*/10 * * * *'},x.env);await x.drain();
+  assert.equal(x.source.requests.length,2);assert.equal(x.sent.length,0);
+  x.advance(60000);
+  await app.scheduled({scheduledTime:slot,cron:'0 0 * * *'},x.env);await x.drain();
+  assert.equal(x.source.requests.length,2);assert.equal(x.sent.length,1);
+  assert.match(x.sent[0].text,/Giá vé hôm nay/);assert.match(x.sent[0].text,/VIETNAM AIRLINES/);
+  await app.scheduled({scheduledTime:slot,cron:'0 0 * * *'},x.env);await x.drain();
+  assert.equal(x.sent.length,1);
+});
+
+test('daily delivery waits for its refresh, then sends a fresh quote even if delivery lane runs first',async t=>{
+  const x=await fixture(t);x.env.DELIVERY=x.env.JOBS;
+  await app.scheduled({scheduledTime:x.now(),cron:'0 0 * * *'},x.env);
+  const daily=await x.store.statement("SELECT id FROM jobs WHERE kind='daily'").first();
+  await x.run(daily.id);assert.equal(x.sent.length,0);
+  const pending=await x.store.statement('SELECT status,attempts FROM jobs WHERE id=?',daily.id).first();
+  assert.equal(pending.status,'pending');assert.equal(pending.attempts,0);
+  await x.drain();assert.equal(x.sent.length,1);assert.equal(x.source.requests.length,2);
+  assert.doesNotMatch(x.sent[0].text,/Chưa cập nhật được giá hiện tại|GIÁ CŨ/);
+});
+
+test('daily report marks VNA stale when the agency rejects a search, while sending the successful provider',async t=>{
+  const x=await fixture(t);
+  await requestRefresh(x.store,'last-good',{force:true});await dispatch(x.store,x.env);await x.drain();
+  x.advance(60000);
+  await app.scheduled({scheduledTime:x.now(),cron:'0 0 * * *'},x.env);
+  const refresh=await x.store.statement("SELECT id FROM jobs WHERE kind='refresh' AND status='pending'").first();
+  await consume({body:{jobId:refresh.id},ack(){},retry(){assert.fail('source errors should complete with stale data');}},x.env,{now:x.now,
+    fetchImpl:async(url,opts)=>url.includes('flynow')&&opts.body.get('system')==='EVN'?
+      Response.json({Status:false,ErrorCode:'0001',Message:'PRIVATE_SUPPLIER_TEXT',Session:'PRIVATE_SESSION'}):x.fetchImpl(url,opts)});
+  await x.drain();assert.equal(x.sent.length,1);
+  const [vna,vietjet]=x.sent[0].text.split('🟥 VIETJET');
+  assert.match(vna,/VIETNAM AIRLINES[\s\S]*GIÁ CŨ/);assert.doesNotMatch(vietjet,/GIÁ CŨ/);
+  const stale=await x.store.statement("SELECT record_json FROM observations WHERE source LIKE 'vna-%'").first();
+  assert.match(JSON.parse(stale.record_json).last_attempt_error,/0001/);
+  assert.doesNotMatch(stale.record_json,/PRIVATE_SUPPLIER_TEXT|PRIVATE_SESSION/);
+});
+
 test('completion racing with join still queues a response, errors never become valid cache',async t=>{
   const x=await fixture(t);const req=await admit(x.store,'123',1,{chatId:'-123',command:'price'});
   await requestRefresh(x.store,'race',{force:true});await completeRefresh(x.store,'race',false);

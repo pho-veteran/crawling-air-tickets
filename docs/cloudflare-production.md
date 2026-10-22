@@ -3,11 +3,13 @@
 Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không nâng gói trả phí. Người dùng chọn bot chính, bỏ bot staging riêng/24 giờ và thay timeline bằng giá hiện tại + giá thấp nhất.
 
 - [Worker health](https://crawling-air-tickets.thanhvinhlqt2016.workers.dev/health); [bot Telegram](https://t.me/synapse_vinh_notify_test_bot).
-- Phiên bản `de16e45e-2ceb-4fd5-956a-3ed1585c91d5` (21/10/2026).
+- Phiên bản `b46dcc71-f2c3-479e-9541-067a2df12148` (22/10/2026).
 - D1 `crawling-air-tickets-state`: `aa8be7a3-77e5-4de3-a124-d28b2a056f9d`.
 - Hai Queue `crawling-air-tickets-jobs` (crawl) và `crawling-air-tickets-delivery` (Telegram): batch 1, concurrency 2, tối đa 5 retries; lease riêng cho mỗi lane.
 - Cron `*/10 * * * *` và `0 0 * * *` (07:00 Việt Nam).
 - Webhook `/telegram`, secret header; nhận lệnh trong private chat và group được cấu hình. Một group nhận bản tin tự động, các subscriber private cũ đã ngừng nhận tự động.
+
+Ngày 22/10 đã sửa race giữa cron 10 phút và cron 07:00: job gửi bản tin `daily:<ngày Việt Nam>` được lưu độc lập, chờ refresh hoàn thành rồi mới format/gửi. Nếu cron sáng đến khi poll cùng slot đã xong (kể cả cache đã hết hạn), bản tin vẫn được tạo, không crawl trùng hoặc gửi lại bản tin đã ACK. Nếu nguồn lỗi, giữ giá thành công gần nhất, đánh dấu GIÁ CŨ và không hạ minimum bằng dữ liệu lỗi. Thêm mã lỗi nguồn có allowlist vào log, không ghi session/message thô của nhà cung cấp. **128 tests qua**. [Bằng chứng sự cố và khôi phục](cloudflare-spike/daily-recovery-2026-10-22.json).
 
 ## Group dùng chung
 
