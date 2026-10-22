@@ -1,0 +1,161 @@
+{
+  "checked_at": "2026-10-22T03:50:17.954Z",
+  "deployment": "46bf4101-e4a6-467e-b22e-7042707c3ad7",
+  "tests_passed": 137,
+  "feed_run": "https://github.com/pho-veteran/crawling-air-tickets/actions/runs/39718672579",
+  "feed_run_status": "success",
+  "feed_crawl_ms": 6428,
+  "feed_http": 202,
+  "commands": [
+    {
+      "command": "flights",
+      "created_ms": 1792640992112,
+      "loading_ms": 1792641000817,
+      "completed_ms": 1792641025673,
+      "loading_latency_ms": 8705,
+      "completion_latency_ms": 33561
+    },
+    {
+      "command": "price",
+      "created_ms": 1792640850832,
+      "loading_ms": 1792640855113,
+      "completed_ms": 1792640860189,
+      "loading_latency_ms": 4281,
+      "completion_latency_ms": 9357
+    }
+  ],
+  "current": [
+    {
+      "id": "vna",
+      "source": "vna-agency-estimates-v1",
+      "status": "ok",
+      "observed_at": "2026-10-22T03:46:33.541Z",
+      "last_attempt_failed": false,
+      "price": 5082181,
+      "agency_quotes": [
+        {
+          "agency": "BestPrice",
+          "status": "ok",
+          "price": 5082181,
+          "raw_price": 5083000,
+          "adjustment_vnd": -819,
+          "agency_fee": 100000,
+          "observed_at": "2026-10-22T03:46:29.564Z"
+        },
+        {
+          "agency": "ABAY",
+          "status": "ok",
+          "price": 5082181,
+          "raw_price": 5082000,
+          "adjustment_vnd": 181,
+          "agency_fee": null,
+          "observed_at": "2026-10-22T03:46:33.541Z"
+        }
+      ]
+    },
+    {
+      "id": "vietjet",
+      "source": "vietjet-flynow-selected-flight-fares-v2",
+      "status": "ok",
+      "observed_at": "2026-10-22T03:47:04.507Z",
+      "last_attempt_failed": false,
+      "price": 4870781
+    }
+  ],
+  "counts": {
+    "current_records": 3,
+    "history_quotes": 0,
+    "minima": 7,
+    "feed_records": 1
+  },
+  "metrics": [
+    {
+      "outcome": "ok",
+      "cpu_ms": 6,
+      "wall_ms": 980,
+      "event": null
+    },
+    {
+      "outcome": "ok",
+      "cpu_ms": 28,
+      "wall_ms": 8578,
+      "event": null
+    },
+    {
+      "outcome": "ok",
+      "cpu_ms": 9,
+      "wall_ms": 70,
+      "event": null
+    },
+    {
+      "outcome": "ok",
+      "cpu_ms": 7,
+      "wall_ms": 2331,
+      "event": null
+    },
+    {
+      "outcome": "ok",
+      "cpu_ms": 26,
+      "wall_ms": 8362,
+      "event": null
+    },
+    {
+      "outcome": "ok",
+      "cpu_ms": 11,
+      "wall_ms": 1434,
+      "event": null
+    }
+  ],
+  "resources": [
+    {
+      "kind": "command",
+      "d1": {
+        "statements": 50,
+        "rows_read": 92,
+        "rows_written": 54,
+        "duration_ms": 12.9277
+      }
+    },
+    {
+      "kind": "broadcast",
+      "d1": {
+        "statements": 16,
+        "rows_read": 28,
+        "rows_written": 15,
+        "duration_ms": 3.4476999999999993
+      }
+    },
+    {
+      "kind": "refresh",
+      "d1": {
+        "statements": 33,
+        "rows_read": 57,
+        "rows_written": 36,
+        "duration_ms": 10.4916
+      }
+    }
+  ],
+  "limitations": [
+    "Prices are user-approved temporary estimates, not guaranteed official VNA totals.",
+    "GitHub schedules may be delayed; feed older than 15 minutes is rejected.",
+    "A public repository schedule can be disabled after 60 days without repository activity."
+  ],
+  "local_watcher_running": false,
+  "feed_schedule": "2-59/10 * * * *",
+  "quota_estimates": {
+    "queue_operations_per_day": 8500,
+    "d1_rows_written_per_day": 90000,
+    "accepted_commands_per_day": 200,
+    "alert_parts_per_day": 60,
+    "feed_refreshes_per_day_max": 144,
+    "browser_run_ms_per_day": 0,
+    "github_runner": "standard ubuntu-latest in a public repository"
+  },
+  "screenshots": [
+    "vna-web/agency-price-live-2026-10-22.png",
+    "vna-web/agency-flights-live-2026-10-22.png"
+  ],
+  "final_checked_at": "2026-10-22T03:58:33.995Z",
+  "natural_scheduled_run_observed": false,
+  "spike_browser_binding_removed": true
+}

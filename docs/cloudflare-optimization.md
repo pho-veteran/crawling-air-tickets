@@ -1,11 +1,21 @@
 # Tối ưu Worker Free — 13/10/2026
 
+## Cập nhật nguồn đại lý ngày 22/10/2026
+
+BestPrice và ABAY được crawl bằng GitHub Actions trên runner Ubuntu tiêu chuẩn của repo public, mỗi 10 phút. Worker chỉ xác thực/kiểm tra feed và dùng báo giá hiện tại; không tiêu thụ Browser Run, không có watcher local. Mỗi slot có tối đa một refresh do feed ngoài cron, tức tối đa 144 refresh nền bổ sung/ngày; refresh trùng đang chạy vẫn được gộp.
+
+Với cùng giới hạn 200 commands và 60 alert parts/ngày, dự toán cập nhật làm tròn lên **8.500 Queue operations/ngày** và **90.000 D1 rows written/ngày**, dưới mức Free 10.000/100.000. Phần tăng so với bảng gốc bên dưới dành cho 144 lượt nhận feed và refresh/broadcast: mẫu đo 36 writes/refresh + 15/broadcast, cùng intake. Queue bổ sung khoảng 864 operations cơ sở/ngày, cộng dự phòng. Đây là ngân sách có giả định tải/retry như bản gốc, không phải giới hạn cứng cho mọi lỗi kéo dài hay ứng dụng khác trong account.
+
+**137 tests qua**. Lượt runner thực lấy cả hai nguồn bằng 8 requests trong 6,428 giây, feed nhận HTTP 202. Đo từ webhook nhận lệnh tới ACK: `/price` loading **4,281 giây**, hoàn tất **9,357 giây**; `/flights` loading **8,705 giây**, hoàn tất **33,561 giây**. Queue và nguồn Vietjet vẫn gây dao động; đây không phải SLA. [Bằng chứng](cloudflare-spike/vna-agency-deployment-2026-10-22.json).
+
+GitHub miễn phí standard hosted runners cho repo public theo [chính sách Actions](https://docs.github.com/en/billing/concepts/product-billing/github-actions). [Schedule](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) có thể bị trễ và tự tắt sau 60 ngày repo public không hoạt động. Feed quá 15 phút bị từ chối và bot ghi GIÁ CŨ; kiểm tra tab Actions khi gặp tình trạng này. Không bật gói trả phí.
+
 ## Cách chạy
 
 - Cache kết quả thành công 30 giây. /price và /flights dùng cùng bản giá; chỉ một refresh pending/running trên toàn bot. Cron có thể nhập vào refresh đó.
 - Gộp cùng command/chat khi đang chờ hoặc trong 30 giây. Một lượt nhóm chỉ có một loading và một kết quả; không crawl lại theo từng người.
 - Hai Queue, hai lease riêng cho crawl và delivery. Gửi kết quả ngay khi có thể, với outbox/ACK bền vững; Queue phục hồi khi gửi bị trì hoãn. Thả crawl lease trước khi gửi Telegram.
-- Cron vẫn 10 phút, 144 lượt/ngày; daily 07:00 Việt Nam. Chỉ giữ 2 bản giá hiện tại và 6 minima.
+- Cron vẫn 10 phút, 144 lượt/ngày; daily 07:00 Việt Nam. Chỉ giữ bản giá hiện tại và minima; số bản sau đổi nguồn được ghi trong tài liệu production.
 - Webhook có secret, giới hạn body 64KB và enqueue sau khi lưu D1. Loading chạy ở consumer để tránh tăng CPU HTTP. Loading chưa tức thì: Queue và Telegram vẫn có độ trễ.
 
 ## Ngân sách mỗi ngày
