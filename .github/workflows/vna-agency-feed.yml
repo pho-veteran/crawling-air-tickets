@@ -1,5 +1,8 @@
 name: Refresh VNA agency prices
 on:
+  push:
+    branches: [main, codex/cloudflare-workers]
+    paths: [.github/workflows/vna-agency-feed.yml, src/providers/vna-agencies.mjs, scripts/vna-agency-feed.mjs]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -27,7 +30,7 @@ jobs:
       - name: Retrieve both agency quotes and deliver normalized prices
         env:
           VNA_FEED_SECRET: ${{ secrets.VNA_FEED_SECRET }}
-          VNA_DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          VNA_DRY_RUN: ${{ (github.event_name == 'push' || inputs.dry_run) && '1' || '0' }}
         run: |
           if [ "$VNA_DRY_RUN" = "1" ]; then
             node --dns-result-order=ipv4first scripts/vna-agency-feed.mjs --dry-run
