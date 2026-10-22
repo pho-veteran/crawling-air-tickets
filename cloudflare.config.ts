@@ -22,7 +22,7 @@ export default defineConfig(({mode})=>mode==='production'?{
   worker:{name:'crawling-air-tickets',entrypoint:'./src/worker/app.mjs',
     compatibilityDate:'2026-10-06',compatibilityFlags:['nodejs_compat'],workersDev:true,
     observability:{enabled:true},
-    env:{OPTIMIZED:bindings.text('1'),DB:bindings.d1({name:'crawling-air-tickets-state'}),JOBS:bindings.queue({name:'crawling-air-tickets-jobs'}),DELIVERY:bindings.queue({name:'crawling-air-tickets-delivery'})},
+    env:{OPTIMIZED:bindings.text('1'),VNA_FEED:bindings.text('1'),DB:bindings.d1({name:'crawling-air-tickets-state'}),JOBS:bindings.queue({name:'crawling-air-tickets-jobs'}),DELIVERY:bindings.queue({name:'crawling-air-tickets-delivery'})},
     triggers:[triggers.queue({name:'crawling-air-tickets-jobs',maxBatchSize:1,maxBatchTimeout:1,maxConcurrency:2,maxRetries:5}),
       triggers.queue({name:'crawling-air-tickets-delivery',maxBatchSize:1,maxBatchTimeout:1,maxConcurrency:2,maxRetries:5}),
       triggers.scheduled({schedule:'*/10 * * * *'}),triggers.scheduled({schedule:'0 0 * * *'})],

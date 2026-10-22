@@ -5,14 +5,14 @@ import {RuntimeStore} from '../src/worker/runtime-store.mjs';
 import app,{consume,webhook,dispatch} from '../src/worker/app.mjs';
 import {query} from '../src/worker/jobs.mjs';
 import {admit,requestRefresh,attachRefresh,completeRefresh,fastLoading} from '../src/worker/interactive.mjs';
-import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
+import {simulatedSources as simulatedFlynow} from '../scripts/fixtures/agencies.mjs';
 
 async function fixture(t){
   const DB=new LocalD1();await DB.migrate();t.after(()=>DB.close());let clock=Date.now();
   const store=new RuntimeStore(DB,{now:()=>clock}),queue=[],sent=[],source=simulatedFlynow(query);
   await store.putState('control',{active:true});await store.putState('shared-chat',{chatId:'-123'});await store.subscriber('123','-123','start');
   const env={DB,OPTIMIZED:'1',TELEGRAM_BOT_TOKEN:'123:fake',BOT_USERNAME:'test',WEBHOOK_SECRET:'secret',JOBS:{async send(b){queue.push(b);},async sendBatch(bs){queue.push(...bs.map(b=>b.body));}}};
-  const fetchImpl=async(url,opts)=>{if(url.includes('flynow'))return source.fetch(url,opts);sent.push(JSON.parse(opts.body));return Response.json({ok:true,result:{message_id:sent.length}});};
+  const fetchImpl=async(url,opts)=>{if(/flynow|bestprice|abay/.test(url))return source.fetch(url,opts);sent.push(JSON.parse(opts.body));return Response.json({ok:true,result:{message_id:sent.length}});};
   const run=async id=>{let retried;await consume({body:{jobId:id},ack(){},retry(r){retried=r;}},env,{fetchImpl,now:()=>clock});clock+=2500;if(retried){clock+=retried.delaySeconds*1000;queue.push({jobId:id});}};
   const drain=async()=>{for(let n=0;queue.length&&n<100;n++)await run(queue.shift().jobId);assert.equal(queue.length,0);};
   const input=async(id,text)=>webhook(new Request('https://test/telegram',{method:'POST',headers:{'x-telegram-bot-api-secret-token':'secret'},body:JSON.stringify({update_id:id,message:{text,chat:{type:'group',id:-123},from:{id:100+id}}})}),env,store);
@@ -23,7 +23,7 @@ test('simultaneous group price/flights commands share one crawl and duplicate co
   const x=await fixture(t);
   await x.input(1,'/price');await x.input(2,'/price');await x.input(3,'/flights');
   await x.drain();
-  assert.equal(x.source.requests.length,2);assert.equal(x.sent.length,4);
+  assert.equal(x.source.requests.length,9);assert.equal(x.sent.length,4);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM interactive").first()).n,2);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM jobs WHERE kind='refresh'").first()).n,1);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM interactive WHERE completed_ms IS NULL").first()).n,0);
@@ -33,15 +33,15 @@ test('simultaneous group price/flights commands share one crawl and duplicate co
 
 test('fresh cache avoids source fetches; expired cache requests a new refresh',async t=>{
   const x=await fixture(t);await requestRefresh(x.store,'initial',{force:true});await dispatch(x.store,x.env);await x.drain();
-  assert.equal(x.source.requests.length,2);
-  await x.input(1,'/price');await x.drain();assert.equal(x.source.requests.length,2);
-  x.advance(31000);await x.input(2,'/price');await x.drain();assert.equal(x.source.requests.length,4);
+  assert.equal(x.source.requests.length,9);
+  await x.input(1,'/price');await x.drain();assert.equal(x.source.requests.length,9);
+  x.advance(31000);await x.input(2,'/price');await x.drain();assert.equal(x.source.requests.length,18);
 });
 
 test('cron and a user join the same active refresh; daily cron survives joining',async t=>{
   const x=await fixture(t);await x.input(1,'/price');await x.run(x.queue.shift().jobId);
   await app.scheduled({scheduledTime:x.now(),cron:'0 0 * * *'},x.env);await x.drain();
-  assert.equal(x.source.requests.length,2);
+  assert.equal(x.source.requests.length,9);
   assert.equal((await x.store.statement("SELECT COUNT(*) AS n FROM jobs WHERE kind='refresh'").first()).n,1);
   assert.ok(x.sent.some(m=>m.text.includes('Giá vé hôm nay')));
 });
@@ -60,10 +60,10 @@ test('admission atomically caps accepted requests at 200/day; rejects create no 
 test('delayed 07:00 cron sends once even after the shared poll completed and its cache expired',async t=>{
   const x=await fixture(t),slot=x.now();
   await app.scheduled({scheduledTime:slot,cron:'*/10 * * * *'},x.env);await x.drain();
-  assert.equal(x.source.requests.length,2);assert.equal(x.sent.length,0);
+  assert.equal(x.source.requests.length,9);assert.equal(x.sent.length,0);
   x.advance(60000);
   await app.scheduled({scheduledTime:slot,cron:'0 0 * * *'},x.env);await x.drain();
-  assert.equal(x.source.requests.length,2);assert.equal(x.sent.length,1);
+  assert.equal(x.source.requests.length,9);assert.equal(x.sent.length,1);
   assert.match(x.sent[0].text,/Giá vé hôm nay/);assert.match(x.sent[0].text,/VIETNAM AIRLINES/);
   await app.scheduled({scheduledTime:slot,cron:'0 0 * * *'},x.env);await x.drain();
   assert.equal(x.sent.length,1);
@@ -76,7 +76,7 @@ test('daily delivery waits for its refresh, then sends a fresh quote even if del
   await x.run(daily.id);assert.equal(x.sent.length,0);
   const pending=await x.store.statement('SELECT status,attempts FROM jobs WHERE id=?',daily.id).first();
   assert.equal(pending.status,'pending');assert.equal(pending.attempts,0);
-  await x.drain();assert.equal(x.sent.length,1);assert.equal(x.source.requests.length,2);
+  await x.drain();assert.equal(x.sent.length,1);assert.equal(x.source.requests.length,9);
   assert.doesNotMatch(x.sent[0].text,/Chưa cập nhật được giá hiện tại|GIÁ CŨ/);
 });
 
@@ -87,13 +87,13 @@ test('daily report marks VNA stale when the agency rejects a search, while sendi
   await app.scheduled({scheduledTime:x.now(),cron:'0 0 * * *'},x.env);
   const refresh=await x.store.statement("SELECT id FROM jobs WHERE kind='refresh' AND status='pending'").first();
   await consume({body:{jobId:refresh.id},ack(){},retry(){assert.fail('source errors should complete with stale data');}},x.env,{now:x.now,
-    fetchImpl:async(url,opts)=>url.includes('flynow')&&opts.body.get('system')==='EVN'?
-      Response.json({Status:false,ErrorCode:'0001',Message:'PRIVATE_SUPPLIER_TEXT',Session:'PRIVATE_SESSION'}):x.fetchImpl(url,opts)});
+    fetchImpl:async(url,opts)=>/bestprice|abay/.test(url)?
+      Response.json({Message:'PRIVATE_SUPPLIER_TEXT',Session:'PRIVATE_SESSION'},{status:503}):x.fetchImpl(url,opts)});
   await x.drain();assert.equal(x.sent.length,1);
   const [vna,vietjet]=x.sent[0].text.split('🟥 VIETJET');
   assert.match(vna,/VIETNAM AIRLINES[\s\S]*GIÁ CŨ/);assert.doesNotMatch(vietjet,/GIÁ CŨ/);
   const stale=await x.store.statement("SELECT record_json FROM observations WHERE source LIKE 'vna-%'").first();
-  assert.match(JSON.parse(stale.record_json).last_attempt_error,/0001/);
+  assert.match(JSON.parse(stale.record_json).last_attempt_error,/BestPrice and ABAY/);
   assert.doesNotMatch(stale.record_json,/PRIVATE_SUPPLIER_TEXT|PRIVATE_SESSION/);
 });
 
@@ -118,7 +118,7 @@ test('fast loading is ACKed once before command consumption, replay does not res
   assert.equal(await fastLoading(x.store,x.env,req.id,x.fetchImpl),true);
   assert.equal(await fastLoading(x.store,x.env,req.id,x.fetchImpl),true);
   assert.equal(x.sent.length,1);assert.equal(x.source.requests.length,0);
-  await dispatch(x.store,x.env);await x.drain();assert.equal(x.sent.length,2);assert.equal(x.source.requests.length,2);
+  await dispatch(x.store,x.env);await x.drain();assert.equal(x.sent.length,2);assert.equal(x.source.requests.length,9);
 });
 
 test('Telegram 429 or held delivery lane cannot block the scheduled crawl lane',async t=>{
@@ -128,7 +128,7 @@ test('Telegram 429 or held delivery lane cannot block the scheduled crawl lane',
   const held=await x.store.acquireLease('delivery-runtime','test',{now:x.now(),ttlMs:300000});assert.ok(held);
   await app.scheduled({scheduledTime:x.now(),cron:'*/10 * * * *'},x.env);
   const job=await x.store.statement("SELECT id FROM jobs WHERE kind='refresh'").first();await x.run(job.id);
-  assert.equal(x.source.requests.length,2);assert.equal(x.sent.length,0);
+  assert.equal(x.source.requests.length,9);assert.equal(x.sent.length,0);
   assert.equal((await x.store.statement('SELECT status FROM jobs WHERE id=?',job.id).first()).status,'done');
 });
 

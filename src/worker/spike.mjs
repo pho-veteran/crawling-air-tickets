@@ -5,6 +5,7 @@ import {crawl as vna} from '../providers/vna-flynow.mjs';
 import {crawl as vietjet} from '../providers/vietjet-flynow.mjs';
 import {storageCheck} from './storage-check.mjs';
 import {diagnose} from './vna-diagnostic.mjs';
+import {crawl as agencies} from '../providers/vna-agencies.mjs';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
 function authorized(request,env) {
@@ -56,8 +57,12 @@ export default {
   async fetch(request,env) {
     const pathname=new URL(request.url).pathname;
     if(pathname==='/health'&&request.method==='GET')return json({ok:true,service:'air-ticket-feasibility-probe'});
-    if(!['/probe','/probe-queue','/storage-check','/vna-diagnostic'].includes(pathname)||request.method!=='POST')return json({error:'Not found'},404);
+    if(!['/probe','/probe-queue','/storage-check','/vna-diagnostic','/agency-probe'].includes(pathname)||request.method!=='POST')return json({error:'Not found'},404);
     if(!authorized(request,env))return json({error:'Unauthorized'},401);
+    if(pathname==='/agency-probe'){
+      try{return json(await agencies(queryFrom(config)));}
+      catch(e){return json({status:'error',error:e.message,requests:e.requests||0,agency_quotes:e.agency_quotes},502);}
+    }
     if(pathname==='/vna-diagnostic')return json(await diagnose());
     if(pathname==='/probe-queue'||pathname==='/storage-check') {
       const run_id=crypto.randomUUID();

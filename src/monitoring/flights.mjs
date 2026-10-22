@@ -1,5 +1,5 @@
 import {money,routeLine,when} from './messages.mjs';
-import {bookingText,priceNote} from './booking-links.mjs';
+import {bookingText,priceNote,agencyPrices} from './booking-links.mjs';
 import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 
 function choices(quote,date,airline){
@@ -31,9 +31,11 @@ export function formatFlights({providers,query,now=Date.now(),pollMinutes=10}){
         const arrivalDay=f.arrival?.slice(0,10);
         const dayNote=arrivalDay&&arrivalDay!==date?' ('+arrivalDay.split('-').reverse().join('/')+')':'';
         lines.push('• '+f.flight_number+' · '+f.departure.slice(11,16)+' → '+arrival+dayNote+' · '+(f.fare_family||'hạng chưa rõ')+' · '+money(f.price));
-        if(Number.isSafeInteger(f.agency_fee)&&f.agency_fee>=0&&Number.isSafeInteger(f.ota_price)&&f.ota_price===f.price+f.agency_fee)
+        if(f.price_is_estimate)lines.push('  Qua '+f.agency+' · giá ước tính sau điều chỉnh tạm.');
+        else if(Number.isSafeInteger(f.agency_fee)&&f.agency_fee>=0&&Number.isSafeInteger(f.ota_price)&&f.ota_price===f.price+f.agency_fee)
           lines.push('  Qua Flynow: '+money(f.ota_price)+' (phí đại lý '+(f.agency_fee===0?'0đ':money(f.agency_fee))+').');
       }
+      lines.push(...agencyPrices(r,leg,date));
     }
     lines.push('🕒 Cập nhật '+when(r.observed_at),priceNote(p.id,r),bookingText(p.id,query,r));
     sections.push(lines.join('\n'));

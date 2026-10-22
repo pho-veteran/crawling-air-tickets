@@ -4,7 +4,7 @@ import {LocalD1} from '../scripts/lib/local-d1.mjs';
 import {RuntimeStore} from '../src/worker/runtime-store.mjs';
 import app,{consume,webhook} from '../src/worker/app.mjs';
 import {query,providers,sendJob} from '../src/worker/jobs.mjs';
-import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
+import {simulatedSources as simulatedFlynow} from '../scripts/fixtures/agencies.mjs';
 import {formatCurrentPrices} from '../src/monitoring/current-prices.mjs';
 import {evaluateAlerts,defaults} from '../src/monitoring/alerts.mjs';
 
@@ -16,7 +16,7 @@ async function setup(t){
     TELEGRAM_BOT_TOKEN:'123:FAKE',BOT_USERNAME:'test',WEBHOOK_SECRET:'expected',ADMIN_SECRET:'admin'};
   const source=simulatedFlynow(query);
   const fetchImpl=async(url,opts)=>{
-    if(url.includes('flynow'))return source.fetch(url,opts);
+    if(/flynow|bestprice|abay/.test(url))return source.fetch(url,opts);
     delivered.push(JSON.parse(opts.body));return Response.json({ok:true,result:{message_id:delivered.length}});
   };
   const execute=async id=>{
@@ -90,11 +90,11 @@ test('real orchestration persists selected-date observations, replies /price and
   await x.execute(loading.id);assert.equal(x.source.requests.length,0);
   assert.match(x.delivered[0].text,/Đang kiểm tra giá mới hai hãng/);
   await x.drain();
-  assert.equal(x.source.requests.length,2);assert.equal(x.delivered.length,2);
+  assert.equal(x.source.requests.length,9);assert.equal(x.delivered.length,2);
   assert.match(x.delivered[1].text,/\/flights/);
   await x.execute('update:123:1');assert.equal(x.delivered.length,2);
   await webhook(request(2,'/flights'),x.env,x.store);await x.drain();
-  assert.equal(x.source.requests.length,4);assert.equal(x.delivered.length,4);
+  assert.equal(x.source.requests.length,18);assert.equal(x.delivered.length,4);
   assert.match(x.delivered[2].text,/Đang kiểm tra giờ bay và giá hai hãng/);
   assert.match(x.delivered[3].text,/VN1469/);assert.match(x.delivered[3].text,/VJ371/);
   assert.equal((await x.store.statement('SELECT COUNT(*) AS n FROM observations').first()).n,2);

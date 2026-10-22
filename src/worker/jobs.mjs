@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import config from '../../config.json' with {type:'json'};
 import {queryFrom,queryId} from '../providers/vna-core.mjs';
-import * as vna from '../providers/vna-flynow.mjs';
+import * as vna from './vna-agencies.mjs';
 import * as vietjet from '../providers/vietjet-flynow.mjs';
 import {settingsFrom,evaluateAlerts,stillRelevant,formatAlert,alertGroups} from '../monitoring/alerts.mjs';
 import {localDay,when,routeLine} from '../monitoring/messages.mjs';
@@ -24,6 +24,7 @@ const dailyKey=(env,chat)=>'daily:'+hash(botId(env)+'|'+chat+'|'+JSON.stringify(
 const alertKey=(env,chat,p)=>'alerts:'+hash(botId(env)+'|'+chat,16)+':'+p.source+':'+queryId(query,p.source);
 const portableFetch=fetchImpl=>(url,options)=>fetchImpl(url,{...options,redirect:options.redirect==='error'?'manual':options.redirect});
 const compact=record=>({...record,request_diagnostics:undefined,cells:undefined,
+  agency_quotes:record.agency_quotes?.map(q=>({...q,flights:undefined})),
   legs:Object.fromEntries(Object.entries(record.legs||{}).map(([leg,dates])=>[leg,dates.map(q=>({...q,flights:undefined}))]))});
 
 function baseline(p){
@@ -70,9 +71,10 @@ async function crawlJob(store,env,job,fetchImpl){
   for(const p of current.providers){const record=p.history.at(-1);existing.push(record?.job_id===job.id?{record_json:JSON.stringify(record)}:null);}
   const results=await Promise.all(providers.map(async(p,i)=>{
     if(existing[i]){const r=JSON.parse(existing[i].record_json);return r.last_attempt_failed?{...r,status:'error',main_price:null,legs:{},cells:[],observed_at:r.last_attempt_at,error:r.last_attempt_error}:r;}
-    try{return await p.crawl(query,{fetchImpl:portableFetch(fetchImpl)});}
+    try{return await p.crawl(query,{fetchImpl:portableFetch(fetchImpl),store,env});}
     catch(error){return {schema:1,source:p.source,query_id:queryId(query,p.source),query,observed_at:new Date(store.now()).toISOString(),
-      status:'error',main_price:null,minimum_price:null,cells:[],error:String(error.message).slice(0,250),source_error_code:error.sourceCode||null};}
+      status:'error',main_price:null,minimum_price:null,cells:[],error:String(error.message).slice(0,250),source_error_code:error.sourceCode||null,
+      requests:error.requests??1,agency_quotes:error.agency_quotes};}
   }));
   for(const [i,p] of providers.entries()){
     const record={...results[i],job_id:job.id,history_mode:'current-and-minimum'};
@@ -88,7 +90,7 @@ async function crawlJob(store,env,job,fetchImpl){
     await completeRefresh(store,job.id,results.every(r=>r.status==='ok'));
   }
   console.log(JSON.stringify({event:'crawl_complete',job_id:job.id,wall_ms:store.now()-began,
-    results:results.map(r=>({source:r.source,status:r.status,requests:r.requests||1,...(r.source_error_code?{source_error_code:r.source_error_code}:{})}))}));
+    results:results.map(r=>({source:r.source,status:r.status,requests:r.requests??1,...(r.source_error_code?{source_error_code:r.source_error_code}:{})}))}));
 }
 async function fanout(store,env,job,kind){
   const shared=await store.state('shared-chat',{});

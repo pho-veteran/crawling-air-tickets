@@ -70,13 +70,13 @@ test('CLI counts failed requests and persists diagnostics even when all fetches 
   let output;
   try{await execute(process.execPath,['--import',pathToFileURL(fixture).href,cliPath('run.mjs',root),'--airline','vna','--no-notify'],{cwd,env:offlineEnv,windowsHide:true});}
   catch(e){assert.equal(e.code,1);output=JSON.parse(e.stdout);}
-  assert.ok(output);assert.equal(output.requests,1);assert.equal(output.batch.requests,1);
+  assert.ok(output);assert.equal(output.requests,2);assert.equal(output.batch.requests,2);
   const record=JSON.parse((await readFile(path.join(root,'data','history.jsonl'),'utf8')).trim());
-  assert.equal(record.requests,1);assert.equal(record.request_diagnostics.length,1);
+  assert.equal(record.requests,2);assert.equal(record.request_diagnostics.length,2);
   assert.ok(record.request_diagnostics.every(r=>r.errors[1].code==='ECONNRESET'));
   const logFile='crawl-'+record.observed_at.slice(0,10)+'.jsonl';
   const rows=(await readFile(path.join(root,'data',logFile),'utf8')).trim().split('\n').map(JSON.parse);
-  assert.equal(rows.filter(r=>r.event==='request_failed').length,1);
+  assert.equal(rows.filter(r=>r.event==='request_failed').length,2);
   assert.equal(rows.at(-1).event,'crawl_complete');assert.equal(rows.at(-1).exit_code,1);
 });
 
