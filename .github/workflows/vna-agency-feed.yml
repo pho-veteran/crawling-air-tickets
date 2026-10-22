@@ -1,0 +1,36 @@
+name: Refresh VNA agency prices
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Check both sources without writing to the Worker
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: vna-agency-feed
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.repository == 'pho-veteran/crawling-air-tickets'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/cloudflare-workers
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Retrieve both agency quotes and deliver normalized prices
+        env:
+          VNA_FEED_SECRET: ${{ secrets.VNA_FEED_SECRET }}
+          VNA_DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          if [ "$VNA_DRY_RUN" = "1" ]; then
+            node --dns-result-order=ipv4first scripts/vna-agency-feed.mjs --dry-run
+          else
+            node --dns-result-order=ipv4first scripts/vna-agency-feed.mjs
+          fi
