@@ -1,0 +1,88 @@
+{
+  "checked_at": "2026-10-22T07:56:26.179Z",
+  "cause": "No GitHub schedule event was created between deployment and 14:51 recovery; worker feed was stale. Internal GitHub scheduler cause remains unknown.",
+  "manual_recovery_run": "https://github.com/pho-veteran/crawling-air-tickets/actions/runs/39743403075",
+  "tests_passed": 141,
+  "versions": [
+    {
+      "version_id": "e3387ffc-5305-4c98-9da8-441aa8b53a3b",
+      "percentage": 100
+    }
+  ],
+  "worker_cron": [
+    {
+      "id": "poll:2987759",
+      "status": "done",
+      "attempts": 1,
+      "created_ms": 1792655411317,
+      "done_ms": 1792655419319
+    },
+    {
+      "id": "poll:2987758",
+      "status": "done",
+      "attempts": 1,
+      "created_ms": 1792654811376,
+      "done_ms": 1792654818280
+    },
+    {
+      "id": "poll:2987757",
+      "status": "done",
+      "attempts": 1,
+      "created_ms": 1792654211360,
+      "done_ms": 1792654218802
+    },
+    {
+      "id": "poll:2987756",
+      "status": "done",
+      "attempts": 1,
+      "created_ms": 1792653611417,
+      "done_ms": 1792653618647
+    }
+  ],
+  "current": [
+    {
+      "id": "vna",
+      "observed_at": "2026-10-22T07:51:16.999Z",
+      "last_attempt_failed": false,
+      "price": 5082181,
+      "agencies": [
+        {
+          "agency": "BestPrice",
+          "status": "ok",
+          "observed_at": "2026-10-22T07:51:12.429Z",
+          "price": 5082181
+        },
+        {
+          "agency": "ABAY",
+          "status": "ok",
+          "observed_at": "2026-10-22T07:51:16.999Z",
+          "price": 5082181
+        }
+      ]
+    },
+    {
+      "id": "vietjet",
+      "observed_at": "2026-10-22T07:55:02.781Z",
+      "last_attempt_failed": false,
+      "price": 4870781
+    }
+  ],
+  "status_preview": [
+    "Vietnam Airlines: 14:51 ngày 22/10/2026 · ok",
+    "Vietjet: 14:55 ngày 22/10/2026 · ok"
+  ],
+  "schedule_repair": {
+    "cron": "5,15,25,35,45,55 * * * *",
+    "main_commit": "3c97abe512aeeefa1045348f56126b19caf4986d",
+    "reenabled": true,
+    "natural_run_verified": false
+  },
+  "worker_dispatch": {
+    "implemented": true,
+    "enabled": false,
+    "required_secret": "GITHUB_ACTIONS_TOKEN",
+    "token_permissions": "Actions: write for pho-veteran/crawling-air-tickets only",
+    "max_attempts_per_day": 144
+  },
+  "final_checked_at": "2026-10-22T08:03:09.281Z"
+}

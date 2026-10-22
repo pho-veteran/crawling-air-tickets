@@ -3,6 +3,15 @@ import {bookingText,flightHint,priceNote,agencyPrices} from './booking-links.mjs
 import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 const priced=p=>Number.isSafeInteger(p)&&p>0;
 const lowest=values=>{const prices=values.filter(priced);return prices.length?Math.min(...prices):null;};
+export function formatProviderStatus(provider,{now=Date.now(),pollMinutes=10}={}){
+  const record=provider.history.at(-1);
+  if(!record)return provider.name+': chưa có dữ liệu';
+  const stamp=Date.parse(record.observed_at),failed=record.status==='error'||record.last_attempt_failed;
+  const stale=!Number.isFinite(stamp)||stamp>now||now-stamp>(pollMinutes+5)*60000;
+  const status=failed?'⚠️ GIÁ CŨ — lượt cập nhật gần nhất thất bại':
+    stale?'⚠️ GIÁ CŨ — chưa có cập nhật mới':record.status==='partial'?'⚠️ chưa đủ nguồn/giá':'ok';
+  return provider.name+': '+(Number.isFinite(stamp)?when(record.observed_at)+' · ':'')+status;
+}
 export function formatCurrentPrices({providers,query,now=Date.now(),pollMinutes=10,onDemand=false}){
   const sections=[onDemand?'✈️ Giá vé hiện tại':'☀️ Giá vé hôm nay · 07:00 giờ Việt Nam',routeLine(query)];
   for(const p of providers){

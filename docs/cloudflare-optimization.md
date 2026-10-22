@@ -10,6 +10,8 @@ Với cùng giới hạn 200 commands và 60 alert parts/ngày, dự toán cập
 
 GitHub miễn phí standard hosted runners cho repo public theo [chính sách Actions](https://docs.github.com/en/billing/concepts/product-billing/github-actions). [Schedule](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) có thể bị trễ và tự tắt sau 60 ngày repo public không hoạt động. Feed quá 15 phút bị từ chối và bot ghi GIÁ CŨ; kiểm tra tab Actions khi gặp tình trạng này. Không bật gói trả phí.
 
+Kiểm tra 14:51 cùng ngày phát hiện chưa có bất kỳ event `schedule` nào từ lúc triển khai, dù các lượt chạy tay hoạt động. Đã khôi phục feed bằng `workflow_dispatch` và chuẩn bị đường gọi từ refresh của Worker, cần secret repo-scoped `GITHUB_ACTIONS_TOKEN` để bật. Đường này có claim D1 dùng chung, tối đa 144 lần gọi API/ngày, không thêm Queue hoặc Browser Run. Khi bật, dự toán D1 làm tròn lên **92.000 writes/ngày**, gồm claim/kết quả dispatch và dư cho feed trùng từ hai lịch; Queue vẫn dự toán 8.500/ngày. **141 tests qua**; xem [hồ sơ khôi phục](cloudflare-spike/vna-feed-recovery-2026-10-22.json) để biết trạng thái kích hoạt, không coi code đã deploy là bằng chứng lịch đã chạy.
+
 ## Cách chạy
 
 - Cache kết quả thành công 30 giây. /price và /flights dùng cùng bản giá; chỉ một refresh pending/running trên toàn bot. Cron có thể nhập vào refresh đó.

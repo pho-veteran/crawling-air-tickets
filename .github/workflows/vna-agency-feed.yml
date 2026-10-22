@@ -1,7 +1,7 @@
 name: Refresh VNA agency prices
 on:
   schedule:
-    - cron: '2-59/10 * * * *'
+    - cron: '5,15,25,35,45,55 * * * *'
   push:
     branches: [main, codex/cloudflare-workers]
     paths: [.github/workflows/vna-agency-feed.yml, src/providers/vna-agencies.mjs, scripts/vna-agency-feed.mjs]

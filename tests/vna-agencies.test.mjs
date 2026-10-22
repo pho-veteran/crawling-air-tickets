@@ -9,11 +9,22 @@ import {RuntimeStore} from '../src/worker/runtime-store.mjs';
 import {LocalD1} from '../scripts/lib/local-d1.mjs';
 import config from '../config.json' with {type:'json'};
 import app from '../src/worker/app.mjs';
-import {formatCurrentPrices} from '../src/monitoring/current-prices.mjs';
+import {formatCurrentPrices,formatProviderStatus} from '../src/monitoring/current-prices.mjs';
 import {formatFlights} from '../src/monitoring/flights.mjs';
 
 const query=queryFrom(config),leg={leg:'inbound',from:'VCL',to:'SGN',date:'2027-02-13'};
 const snapshot=async(options={})=>{const source=simulatedSources(query,options);return {record:await crawl(query,{fetchImpl:source.fetch}),source};};
+test('status never reports an old last-good quote as healthy after a failure or feed expiry',()=>{
+  const now=Date.parse('2026-10-22T07:40:00Z');
+  const line=record=>formatProviderStatus({name:'Vietnam Airlines',history:record?[record]:[]},{now,pollMinutes:10});
+  const recent={status:'ok',observed_at:new Date(now-60000).toISOString()};
+  assert.match(line(recent),/ · ok$/);
+  assert.match(line({...recent,last_attempt_failed:true}),/GIÁ CŨ.*thất bại/);
+  assert.match(line({...recent,observed_at:'2026-10-22T03:46:00Z'}),/GIÁ CŨ.*chưa có cập nhật mới/);
+  assert.match(line({...recent,status:'partial'}),/chưa đủ nguồn/);
+  assert.match(line({...recent,status:'error'}),/GIÁ CŨ/);
+  assert.match(line(null),/chưa có dữ liệu/);
+});
 test('both agencies are crawled, explicit fee is removed, and signed temporary offsets reproduce the reference fare',async()=>{
   const source=simulatedSources(query,{inbound:5082181}),r=await crawl(query,{fetchImpl:source.fetch});
   assert.equal(r.status,'ok');assert.equal(r.main_price,5082181);assert.equal(r.requests,8);assert.equal(source.requests.length,8);

@@ -4,8 +4,8 @@ import {queryFrom,queryId} from '../providers/vna-core.mjs';
 import * as vna from './vna-agencies.mjs';
 import * as vietjet from '../providers/vietjet-flynow.mjs';
 import {settingsFrom,evaluateAlerts,stillRelevant,formatAlert,alertGroups} from '../monitoring/alerts.mjs';
-import {localDay,when,routeLine} from '../monitoring/messages.mjs';
-import {formatCurrentPrices} from '../monitoring/current-prices.mjs';
+import {localDay,routeLine} from '../monitoring/messages.mjs';
+import {formatCurrentPrices,formatProviderStatus} from '../monitoring/current-prices.mjs';
 import {formatFlights} from '../monitoring/flights.mjs';
 import {helpText,flightsReminder} from '../telegram/menu.mjs';
 import {messageParts} from '../telegram/text.mjs';
@@ -166,7 +166,7 @@ async function command(store,env,job,fetchImpl){
   if(job.body.shared&&['start','stop','help','hello'].includes(command))text=helpText+'\n\n👥 Thông báo tự động được gửi vào nhóm chung. Mọi thành viên dùng được /price và /flights. Bạn có thể tắt thông báo hoặc rời nhóm trong Telegram; /stop không tắt bản tin của cả nhóm.';
   if(['status','connection'].includes(command)){
     const c=await context(store),count=await store.statement('SELECT COUNT(*) AS n FROM subscribers WHERE bot_id=? AND active=1',botId(env)).first();
-    text='🟢 Bot đang hoạt động trên Cloudflare Workers.\n'+routeLine(query)+'\n🔄 Kiểm tra mỗi 10 phút.\n☀️ Bản tin 07:00 giờ Việt Nam.\n'+(job.body.shared?'👥 Thông báo tại nhóm chung.':'👥 Người đăng ký: '+count.n+'.')+'\n'+c.providers.map(p=>p.name+': '+(p.history.at(-1)?when(p.history.at(-1).observed_at)+' · '+p.history.at(-1).status:'chưa có dữ liệu')).join('\n')+'\n\n/price — Kiểm tra giá mới. /flights — Xem giờ bay.';
+    text='🟢 Bot đang hoạt động trên Cloudflare Workers.\n'+routeLine(query)+'\n🔄 Lịch kiểm tra mỗi 10 phút; nguồn giá có thể cập nhật trễ.\n☀️ Bản tin 07:00 giờ Việt Nam.\n'+(job.body.shared?'👥 Thông báo tại nhóm chung.':'👥 Người đăng ký: '+count.n+'.')+'\n'+c.providers.map(p=>formatProviderStatus(p,{now:store.now(),pollMinutes:settings.pollMinutes})).join('\n')+'\n\n/price — Kiểm tra giá mới. /flights — Xem giờ bay.';
   }
   await enqueueText(store,job.id,chatId,text,{requestId:job.body.optimized?job.id:null});
 }
