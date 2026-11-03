@@ -37,13 +37,14 @@ function session(fetchImpl){
 }
 const city={VCL:'Chu Lai (VCL)',SGN:'Ho Chi Minh (SGN)'};
 export function bestpriceUrl(leg){return 'https://www.bestprice.vn/ve-may-bay/tim-kiem-ve?'+new URLSearchParams({From:city[leg.from],To:city[leg.to],Depart:leg.date.split('-').reverse().join('/'),Return:'',ADT:'1',CHD:'0',INF:'0',is_search_cheapest:'0',Airline:'VN'});}
+const bestpriceDateTime=(value,date)=>dateTime(typeof value==='string'?value.replace(/^(\d{2})-(\d{2})-(\d{4}) /,'$3-$2-$1 '):value,date);
 export function parseBestprice(data,leg,observedAt){
   const d=data.search_data;if(!d||!Array.isArray(d.flight_data))throw new Error('BestPrice search schema changed');
   const flights=[];
   for(const f of d.flight_data){
     if(f.Airlines!=='VN'||f.Stop!==0)continue;
     if(f.From!==leg.from||f.To!==leg.to||!/^VN-?\d+$/.test(f.FlightNumber||''))throw new Error('BestPrice itinerary mismatch');
-    const departure=dateTime(f.DateFrom,leg.date),arrival=dateTime(f.DateTo,leg.date);
+    const departure=bestpriceDateTime(f.DateFrom,leg.date),arrival=bestpriceDateTime(f.DateTo,leg.date);
     if(arrival<=departure||!Array.isArray(f.PriceInfo))throw new Error('BestPrice flight schema changed');
     for(const p of f.PriceInfo){
       if(!Number.isInteger(p.Seat)||p.Seat<1)continue;

@@ -17,7 +17,7 @@ export function simulatedSources(query,{outbound=1800000,inbound=2400000,failAge
       if(u.pathname==='/get-vnisc-sid.html')return Response.json({vnisc_sid:'FAKE'});
       if(u.pathname==='/ajax-search-flight-bp'){
         const l=leg(p.get('From_Code'),p.get('To_Code'),formDate(p.get('Depart'))),price=amount(l)-offset(l,'bp');
-        return Response.json({search_status:'DONE',search_data:{flight_data:[{Airlines:'VN',From:l.from,To:l.to,Stop:0,FlightNumber:number(l),DateFrom:l.date+' 06:00:00',DateTo:l.date+' 07:20:00',
+        return Response.json({search_status:'DONE',search_data:{flight_data:[{Airlines:'VN',From:l.from,To:l.to,Stop:0,FlightNumber:number(l),DateFrom:l.date.split('-').reverse().join('-')+' 06:00:00',DateTo:l.date.split('-').reverse().join('-')+' 07:20:00',
           PriceInfo:[{Seat:8,Class:'J',ADT_Fare:price-600000,ADT_Tax:600000,BP_Fee:50000,BP_Discount:0,BP_Discount_Total:0}]}]}});
       }
       const from=p.get('From').match(/\(([A-Z]{3})\)/)[1],to=p.get('To').match(/\(([A-Z]{3})\)/)[1];

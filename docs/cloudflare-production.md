@@ -11,6 +11,14 @@ Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không n�
 
 Ngày 22/10 đã sửa race giữa cron 10 phút và cron 07:00: job gửi bản tin `daily:<ngày Việt Nam>` được lưu độc lập, chờ refresh hoàn thành rồi mới format/gửi. Nếu cron sáng đến khi poll cùng slot đã xong (kể cả cache đã hết hạn), bản tin vẫn được tạo, không crawl trùng hoặc gửi lại bản tin đã ACK. Nếu nguồn lỗi, giữ giá thành công gần nhất, đánh dấu GIÁ CŨ và không hạ minimum bằng dữ liệu lỗi. Thêm mã lỗi nguồn có allowlist vào log, không ghi session/message thô của nhà cung cấp. **128 tests qua**. [Bằng chứng sự cố và khôi phục](cloudflare-spike/daily-recovery-2026-10-22.json).
 
+## Lỗi ngày BestPrice ngày 03/11/2026
+
+[Run 41567543504](https://github.com/pho-veteran/crawling-air-tickets/actions/runs/41567543504) thất bại vì feed `partial`: ABAY thành công, BestPrice lỗi, Worker vẫn nhận HTTP 202. BestPrice trả `DateFrom: "13-02-2027 17:50:00"` và `DateTo: "13-02-2027 19:10:00"` cho VN1469, nhưng parser chỉ nhận ngày năm-tháng-ngày nên báo `Agency flight date mismatch`.
+
+Parser chuẩn hóa riêng định dạng ngày-tháng-năm của BestPrice trước khi kiểm tra ngày hành trình và thứ tự giờ bay; vẫn nhận năm-tháng-ngày, không nới kiểm tra tuyến/giá và không đổi feed `partial` thành CI thành công. Fixture dùng định dạng thực, regression bao phủ ngày dễ đảo tháng và ngày/giờ sai. Chạy `npm test` và `node --dns-result-order=ipv4first scripts/vna-agency-feed.mjs --dry-run` để kiểm chứng.
+
+Workflow hiện checkout `codex/cloudflare-workers` bất kể ref kích hoạt; bản sửa phải được merge vào nhánh đó để có hiệu lực. Sau merge, kiểm tra `agency_crawl_complete` có cả hai nguồn `ok`, `agency_feed_delivered` HTTP 202 và `/admin/context` có bản VNA mới với cả BestPrice/ABAY. Một lượt push chỉ chạy dry-run, chưa chứng minh dữ liệu production đã cập nhật; cần quan sát lượt `workflow_dispatch` hoặc `schedule` tiếp theo.
+
 ## Sự cố nguồn VNA ngày 22/10/2026
 
 Người dùng sau đó chấp nhận **điều chỉnh tạm** và yêu cầu crawl cả BestPrice lẫn ABAY. Nguồn mới `vna-agency-estimates-v1` giữ cả hai báo giá, lấy mức ước tính thấp nhất trong các nguồn thành công, ghi rõ từng nguồn/thời điểm trong `/price` và `/flights`. Với **VCL → SGN, 13/02/2027, 1 người lớn**, BestPrice bỏ phí dịch vụ đọc từ báo giá rồi **trừ 819đ**; ABAY giữ tổng đại lý rồi **cộng 181đ**. Ngoài tuyến/ngày này không áp dụng hai hằng số. Đây là ước tính được chấp nhận tạm, không bảo đảm giá thanh toán VNA về sau luôn khớp. Minimum ước tính dùng định danh nguồn riêng; minimum đã xác minh trước đó được giữ nguyên, không trộn vào.
