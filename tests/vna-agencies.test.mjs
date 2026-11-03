@@ -58,6 +58,23 @@ test('BestPrice rejects incompatible routes, discounts, bad amounts and sold-out
   for(const change of [f=>f.From='HAN',f=>f.PriceInfo[0].BP_Discount=1,f=>f.PriceInfo[0].BP_Fee=-1,f=>f.DateFrom='2027-02-14 17:50:00']){const f=structuredClone(fare);change(f);assert.throws(()=>parse(f));}
   const sold=structuredClone(fare);sold.PriceInfo[0].Seat=0;assert.deepEqual(parse(sold),[]);
 });
+test('BestPrice normalizes day-first dates without swapping months or accepting another itinerary day',()=>{
+  const fare={Airlines:'VN',From:'VCL',To:'SGN',Stop:0,FlightNumber:'VN-1469',
+    PriceInfo:[{Seat:8,Class:'J',ADT_Fare:4199000,ADT_Tax:884000,BP_Fee:100000,BP_Discount:0,BP_Discount_Total:0}]};
+  const parse=(date,departure,arrival)=>parseBestprice({search_data:{flight_data:[{...fare,DateFrom:departure,DateTo:arrival}]}},{...leg,date});
+  for(const date of ['2027-02-13','2027-05-06']){
+    for(const wire of [date,date.split('-').reverse().join('-')]){
+      const [quote]=parse(date,wire+' 17:50:00',wire+' 19:10:00');
+      assert.equal(quote.departure,date+'T17:50:00');assert.equal(quote.arrival,date+'T19:10:00');
+      assert.equal(quote.raw_price,5083000);
+    }
+  }
+  for(const [departure,arrival] of [
+    ['14-02-2027 17:50:00','14-02-2027 19:10:00'],
+    ['13-02-2027 17:50:00','14-02-2027 19:10:00'],
+    ['13-02-2027 17:50:00','13-02-2027 16:10:00'],
+  ])assert.throws(()=>parse(leg.date,departure,arrival));
+});
 test('price and flights replies show both raw agency prices, correction signs and estimate labels',async()=>{
   const {record}=await snapshot({inbound:5082181}),p={id:'vna',name:'Vietnam Airlines',history:[record]};
   for(const text of [formatCurrentPrices({providers:[p],query}),formatFlights({providers:[p],query})]){
