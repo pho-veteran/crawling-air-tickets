@@ -1,0 +1,154 @@
+{
+  "captured_at": "2026-10-13T01:52:20.760Z",
+  "health": {
+    "ok": true,
+    "service": "air-ticket-telegram-worker",
+    "active": true
+  },
+  "state": {
+    "control": {
+      "active": true,
+      "changed_at": "2026-10-13T01:41:56.635Z"
+    },
+    "jobs": [
+      {
+        "status": "done",
+        "count": 43
+      }
+    ],
+    "outbox": [
+      {
+        "status": "sent",
+        "count": 4
+      }
+    ],
+    "active_subscribers": 2
+  },
+  "pricing_counts": {
+    "observations": 2,
+    "price_quotes": 0,
+    "price_minima": 6
+  },
+  "database_size_bytes": 217088,
+  "prices": [
+    {
+      "id": "vna",
+      "status": "ok",
+      "current": 10184362,
+      "minimums": {
+        "main": 10184362,
+        "outbound": 5102181,
+        "inbound": 5082181
+      }
+    },
+    {
+      "id": "vietjet",
+      "status": "ok",
+      "current": 9761562,
+      "minimums": {
+        "main": 7255962,
+        "outbound": 2385181,
+        "inbound": 4870781
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "type": "fetch",
+      "samples": 28,
+      "max_cpu_ms": 7,
+      "max_wall_ms": 1248,
+      "outcomes": [
+        "ok"
+      ]
+    },
+    {
+      "type": "scheduled",
+      "samples": 6,
+      "max_cpu_ms": 5,
+      "max_wall_ms": 1340,
+      "outcomes": [
+        "ok"
+      ]
+    },
+    {
+      "type": "queue",
+      "samples": 42,
+      "max_cpu_ms": 45,
+      "max_wall_ms": 23099,
+      "outcomes": [
+        "ok"
+      ]
+    }
+  ],
+  "d1": [
+    {
+      "kind": "alert-recipient",
+      "samples": 12,
+      "max_statements": 13,
+      "max_rows_read": 25,
+      "max_rows_written": 10
+    },
+    {
+      "kind": "notify",
+      "samples": 6,
+      "max_statements": 16,
+      "max_rows_read": 36,
+      "max_rows_written": 19
+    },
+    {
+      "kind": "crawl",
+      "samples": 8,
+      "max_statements": 45,
+      "max_rows_read": 188,
+      "max_rows_written": 50
+    },
+    {
+      "kind": "daily-recipient",
+      "samples": 2,
+      "max_statements": 10,
+      "max_rows_read": 19,
+      "max_rows_written": 8
+    },
+    {
+      "kind": "daily",
+      "samples": 1,
+      "max_statements": 16,
+      "max_rows_read": 34,
+      "max_rows_written": 19
+    },
+    {
+      "kind": "send",
+      "samples": 4,
+      "max_statements": 18,
+      "max_rows_read": 32,
+      "max_rows_written": 16
+    },
+    {
+      "kind": "reply",
+      "samples": 4,
+      "max_statements": 23,
+      "max_rows_read": 39,
+      "max_rows_written": 18
+    },
+    {
+      "kind": "command",
+      "samples": 4,
+      "max_statements": 13,
+      "max_rows_read": 24,
+      "max_rows_written": 14
+    },
+    {
+      "kind": "retention",
+      "samples": 1,
+      "max_statements": 17,
+      "max_rows_read": 47,
+      "max_rows_written": 12
+    }
+  ],
+  "measured_heap_bytes": null,
+  "notes": [
+    "Short production smoke samples; separate staging bot and 24 hours waived by user.",
+    "Metrics include production versions in the last hour; not a sustained-load benchmark."
+  ]
+}

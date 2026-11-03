@@ -1,0 +1,224 @@
+{
+  "deployment_version": "037adeca-b01c-464c-8162-8a880b31dc9c",
+  "tests": {
+    "passed": 116,
+    "failed": 0
+  },
+  "measured_at": "2026-10-13T16:59:17.199Z",
+  "ui_samples": [
+    {
+      "command": "price",
+      "started_ms": 1791910676313,
+      "loading_ms": 7550,
+      "result_ms": 21328
+    },
+    {
+      "command": "flights",
+      "started_ms": 1791910701429,
+      "loading_ms": 8068,
+      "result_ms": 12309
+    }
+  ],
+  "worker_samples": [
+    {
+      "command": "price",
+      "created_ms": 1791910678370,
+      "loading_ms": 7090,
+      "completion_ms": 21569
+    },
+    {
+      "command": "flights",
+      "created_ms": 1791910703416,
+      "loading_ms": 7322,
+      "completion_ms": 12532
+    }
+  ],
+  "shared_refresh_verified": true,
+  "limits": {
+    "commands_per_utc_day": 200,
+    "admitted_updates_per_utc_day": 1000,
+    "alert_parts_per_utc_day": 60,
+    "cache_ms": 30000,
+    "cron_minutes": 10
+  },
+  "temporary_policy": {
+    "utc_day": "2026-10-13",
+    "command_limit": 60
+  },
+  "projected_daily_with_20_percent_reserve": {
+    "queue_operations": 7200,
+    "d1_rows_written": 78000
+  },
+  "account_usage_snapshot": {
+    "utc_day": "2026-10-13",
+    "rows_read": 213163,
+    "rows_written": 67288,
+    "worker_invocations": 942,
+    "worker_errors": 0
+  },
+  "local_watcher_running": false,
+  "notes": [
+    "UI times include composing/sending and DOM polling at 500 ms.",
+    "Worker completion includes persistence after Telegram has displayed the response.",
+    "Projection is bounded normal workload, not a worst-case guarantee for unlimited traffic or prolonged failures.",
+    "Final tail captured HTTP CPU 3/5 ms, cron 8 ms, queue max 87 ms; first /price HTTP event was absent from tail, so final cold-start CPU is not verified. Earlier deployment had an 11 ms HTTP sample with outcome ok."
+  ],
+  "cron_smoke": {
+    "scheduled_utc": "2026-10-13T17:00:00Z",
+    "refresh_created_ms": 1791910802972,
+    "refresh_done_ms": 1791910812701,
+    "status": "done",
+    "attempts": 1
+  },
+  "runtime_sample": [
+    {
+      "event_type": "queue",
+      "cpu_ms": 12,
+      "wall_ms": 4299,
+      "outcome": "ok",
+      "resources": [
+        {
+          "kind": "command",
+          "d1": {
+            "statements": 20,
+            "rows_read": 41,
+            "rows_written": 25,
+            "duration_ms": 4.8872
+          }
+        }
+      ]
+    },
+    {
+      "event_type": "queue",
+      "cpu_ms": 87,
+      "wall_ms": 11731,
+      "outcome": "ok",
+      "resources": [
+        {
+          "kind": "reply",
+          "d1": {
+            "statements": 34,
+            "rows_read": 68,
+            "rows_written": 39,
+            "duration_ms": 9.172600000000001
+          }
+        },
+        {
+          "kind": "refresh",
+          "d1": {
+            "statements": 36,
+            "rows_read": 69,
+            "rows_written": 35,
+            "duration_ms": 6.6808
+          }
+        }
+      ]
+    },
+    {
+      "event_type": "fetch",
+      "cpu_ms": 3,
+      "wall_ms": 661,
+      "outcome": "ok",
+      "resources": []
+    },
+    {
+      "event_type": "queue",
+      "cpu_ms": 13,
+      "wall_ms": 2267,
+      "outcome": "ok",
+      "resources": [
+        {
+          "kind": "broadcast",
+          "d1": {
+            "statements": 16,
+            "rows_read": 30,
+            "rows_written": 14,
+            "duration_ms": 3.2619999999999996
+          }
+        }
+      ]
+    },
+    {
+      "event_type": "queue",
+      "cpu_ms": 31,
+      "wall_ms": 8157,
+      "outcome": "ok",
+      "resources": [
+        {
+          "kind": "command",
+          "d1": {
+            "statements": 50,
+            "rows_read": 93,
+            "rows_written": 54,
+            "duration_ms": 10.795399999999997
+          }
+        }
+      ]
+    },
+    {
+      "event_type": "fetch",
+      "cpu_ms": 5,
+      "wall_ms": 302,
+      "outcome": "ok",
+      "resources": []
+    },
+    {
+      "event_type": "cron",
+      "cpu_ms": 8,
+      "wall_ms": 1108,
+      "outcome": "ok",
+      "resources": []
+    },
+    {
+      "event_type": "queue",
+      "cpu_ms": 27,
+      "wall_ms": 6588,
+      "outcome": "ok",
+      "resources": [
+        {
+          "kind": "refresh",
+          "d1": {
+            "statements": 36,
+            "rows_read": 68,
+            "rows_written": 33,
+            "duration_ms": 6.853100000000001
+          }
+        }
+      ]
+    },
+    {
+      "event_type": "queue",
+      "cpu_ms": 11,
+      "wall_ms": 2385,
+      "outcome": "ok",
+      "resources": [
+        {
+          "kind": "retention",
+          "d1": {
+            "statements": 19,
+            "rows_read": 871,
+            "rows_written": 18,
+            "duration_ms": 4.5979
+          }
+        }
+      ]
+    },
+    {
+      "event_type": "queue",
+      "cpu_ms": 14,
+      "wall_ms": 2607,
+      "outcome": "ok",
+      "resources": [
+        {
+          "kind": "broadcast",
+          "d1": {
+            "statements": 16,
+            "rows_read": 30,
+            "rows_written": 14,
+            "duration_ms": 3.3238999999999996
+          }
+        }
+      ]
+    }
+  ]
+}

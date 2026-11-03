@@ -1,0 +1,33 @@
+{
+  "verified_at": "2026-10-13T02:57:11.691Z",
+  "version": "ae445954-2e27-429f-bbdf-29b92760204a",
+  "commands": [
+    "price",
+    "flights"
+  ],
+  "checks": [
+    {
+      "loading_acknowledged": true,
+      "result_acknowledged": true,
+      "loading_before_result": true,
+      "crawl_completed": true
+    },
+    {
+      "loading_acknowledged": true,
+      "result_acknowledged": true,
+      "loading_before_result": true,
+      "crawl_completed": true
+    }
+  ],
+  "pricing_counts": {
+    "observations": 2,
+    "price_quotes": 0,
+    "price_minima": 6
+  },
+  "health": {
+    "ok": true,
+    "service": "air-ticket-telegram-worker",
+    "active": true
+  },
+  "tests_passed": 102
+}

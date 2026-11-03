@@ -1,0 +1,231 @@
+{
+  "generated_at": "2026-10-12T14:46:28.361Z",
+  "worker_url": "https://crawling-air-tickets-spike.thanhvinhlqt2016.workers.dev",
+  "http_probe": {
+    "run_id": "5d971769-9071-41b1-9b32-727d3f46229f",
+    "observed_at": "2026-10-12T13:57:52.719Z",
+    "http_status": 200,
+    "metrics": {
+      "outcome": "ok",
+      "cpu_ms": 33,
+      "wall_ms": 4416
+    },
+    "subrequests": 10,
+    "results": [
+      {
+        "source": "vna",
+        "status": "error",
+        "error": "HTTP 403. Đã dừng; không thử lại tự động.",
+        "main_price": null,
+        "priced_cells": 0,
+        "response_bytes": null
+      },
+      {
+        "source": "vietjet",
+        "status": "ok",
+        "error": null,
+        "main_price": 9761562,
+        "priced_cells": 49,
+        "response_bytes": 492419
+      }
+    ],
+    "endpoints": [
+      {
+        "source": "vna",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vna:3",
+        "http_status": 403,
+        "duration_ms": 129
+      },
+      {
+        "source": "vna",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vna:1",
+        "http_status": 403,
+        "duration_ms": 129
+      },
+      {
+        "source": "vna",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vna:2",
+        "http_status": 403,
+        "duration_ms": 129
+      },
+      {
+        "source": "vietjet",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vietjet:2",
+        "http_status": 200,
+        "duration_ms": 1657
+      },
+      {
+        "source": "vietjet",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vietjet:1",
+        "http_status": 200,
+        "duration_ms": 1658
+      },
+      {
+        "source": "vietjet",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vietjet:4",
+        "http_status": 200,
+        "duration_ms": 816
+      },
+      {
+        "source": "vietjet",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vietjet:3",
+        "http_status": 200,
+        "duration_ms": 1047
+      },
+      {
+        "source": "vietjet",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vietjet:5",
+        "http_status": 200,
+        "duration_ms": 980
+      },
+      {
+        "source": "vietjet",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vietjet:6",
+        "http_status": 200,
+        "duration_ms": 992
+      },
+      {
+        "source": "vietjet",
+        "request_id": "5d971769-9071-41b1-9b32-727d3f46229f:vietjet:7",
+        "http_status": 200,
+        "duration_ms": 870
+      }
+    ]
+  },
+  "queue_probe": {
+    "run_id": "fcc19f4c-9b69-4864-bf18-5c0b9994c583",
+    "http_status": 202,
+    "consumer_metrics": {
+      "outcome": "ok",
+      "cpu_ms": 21,
+      "wall_ms": 6845
+    },
+    "producer_metrics": [
+      {
+        "outcome": "ok",
+        "cpu_ms": 0,
+        "wall_ms": 1
+      },
+      {
+        "outcome": "ok",
+        "cpu_ms": 1,
+        "wall_ms": 2
+      },
+      {
+        "outcome": "ok",
+        "cpu_ms": 1,
+        "wall_ms": 351
+      }
+    ],
+    "result": {
+      "event": "probe_complete",
+      "run_id": "fcc19f4c-9b69-4864-bf18-5c0b9994c583",
+      "wall_ms": 6837,
+      "requests": 7,
+      "results": [
+        {
+          "source": "vietjet",
+          "status": "ok",
+          "main_price": 9761562,
+          "priced_cells": 49,
+          "response_bytes": 492270,
+          "error": null
+        }
+      ]
+    }
+  },
+  "local_vna_comparison": {
+    "observed_at": "2026-10-12T13:59:04.659Z",
+    "status": "ok",
+    "main_price": 10184362,
+    "legs_status": "ok",
+    "response_bytes": 12179,
+    "requests": 3,
+    "http": [
+      {
+        "endpoint": "/api/v1/public/booking/air-best-price",
+        "status": 200,
+        "duration_ms": 738
+      },
+      {
+        "endpoint": "/api/v1/public/booking/air-best-price",
+        "status": 200,
+        "duration_ms": 769
+      },
+      {
+        "endpoint": "/api/v1/public/flight/fare-matrix",
+        "status": 200,
+        "duration_ms": 1076
+      }
+    ]
+  },
+  "d1_storage_probe": {
+    "run_id": "8bebaff0-b655-4610-97a2-9311c799c9d8",
+    "http_status": 202,
+    "consumer_metrics": {
+      "outcome": "ok",
+      "cpu_ms": 19,
+      "wall_ms": 6043
+    },
+    "result": {
+      "event": "storage_check_complete",
+      "run_id": "8bebaff0-b655-4610-97a2-9311c799c9d8",
+      "checks": {
+        "idempotent_snapshot": true,
+        "history": true,
+        "minimum": true,
+        "opt_out": true,
+        "lease_takeover": true,
+        "atomic_rollback": true,
+        "minimum_after_retention": true,
+        "foreign_keys": true
+      },
+      "wall_ms": 6033,
+      "input_bytes": 43953,
+      "quotes": 63,
+      "d1": {
+        "attempted_statements": 40,
+        "successful_statements": 38,
+        "failed_batches": 1,
+        "rows_read": 606,
+        "rows_written": 457,
+        "d1_duration_ms": 14.4389
+      },
+      "fixture": true,
+      "private_data_imported": false
+    }
+  },
+  "local_import_check": {
+    "observed_at": "2026-10-12T14:32:33.826Z",
+    "backend": "Node SQLite (not remote D1)",
+    "verified": true,
+    "summary": {
+      "observations": 118,
+      "quotes": 6237,
+      "minima": 189,
+      "subscribers": 2,
+      "activeSubscribers": 2,
+      "legacyDocuments": 3,
+      "sourceCounts": {
+        "vna-fare-matrix-v1": 60,
+        "vietjet-public-calendar-v1": 33,
+        "vietjet-flynow-airline-fare-v1": 25
+      }
+    },
+    "repeatedInserted": 0,
+    "rawStatePreserved": true,
+    "liveOutboxTranslation": "pending",
+    "remoteImport": "not_performed"
+  },
+  "gates": {
+    "vna_from_workers": "failed_http_403",
+    "flynow_from_workers": "passed_single_sample",
+    "free_http_full_crawl": "failed_cpu_budget",
+    "free_queue_flynow": "passed_single_sample",
+    "d1_storage_fixture": "passed_single_sample",
+    "local_import": "passed_offline_capture",
+    "sustained_load_d1_memory": "not_measured",
+    "staging_24_hours": "not_started",
+    "production_cutover": "not_started"
+  }
+}

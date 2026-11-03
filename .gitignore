@@ -1,6 +1,8 @@
 data/
 report/
 node_modules/
+.cloudflare/
+.wrangler/
 .env
 .env.*
 !.env.example

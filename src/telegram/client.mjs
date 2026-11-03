@@ -25,12 +25,8 @@ export async function telegramCall(token,method,body={},fetchImpl=fetch) {
     error.retryAfter=Math.max(0,Math.min(86400,Number(data.parameters?.retry_after)||0));error.httpStatus=response.status;error.apiCode=Number(data.error_code)||0;throw error;}
   return data.result;
 }
-export function messageParts(text){
-  const parts=[];let rest=text;
-  while(rest.length>3500){let cut=rest.lastIndexOf('\n',3500);if(cut<1750)cut=3500;else cut++;
-    if(/[\uD800-\uDBFF]/.test(rest[cut-1]))cut--;parts.push(rest.slice(0,cut));rest=rest.slice(cut);}
-  if(rest)parts.push(rest);return parts;
-}
+export {messageParts} from './text.mjs';
+import {messageParts} from './text.mjs';
 export async function sendTelegram(creds,text,fetchImpl=fetch) {
   if(!creds.configured||!creds.enabled||!creds.chatId)throw new Error('Telegram chưa được cấu hình/bật hoặc chưa có người nhận.');
   let messageId;

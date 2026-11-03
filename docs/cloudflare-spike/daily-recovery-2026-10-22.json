@@ -1,0 +1,46 @@
+{
+  "date_vietnam": "2026-10-22",
+  "worker_version": "b46dcc71-f2c3-479e-9541-067a2df12148",
+  "tests": {
+    "passed": 128,
+    "failed": 0
+  },
+  "diagnosis": {
+    "scheduled_refresh_utc": "2026-10-22T00:00:11.524Z",
+    "refresh_completed_utc": "2026-10-22T00:00:19.259Z",
+    "vna_at_0700": "ok",
+    "vietjet_at_0700": "ok",
+    "daily_trigger_logged_utc": "2026-10-22T00:00:34.670Z",
+    "daily_delivery_created_at_0700": false,
+    "previous_daily_ack_date_vietnam": "2026-10-21",
+    "cause": "The 07:00 trigger arrived after the shared poll completed; the daily flag was only attached to active refresh jobs."
+  },
+  "separate_upstream_issue": {
+    "source": "Flynow EVN",
+    "observed_since_utc": "2026-10-22T02:00:00Z",
+    "http_status": 200,
+    "payload_status": false,
+    "error_code": "0001",
+    "last_success_seen_utc": "2026-10-22T01:50:30.111Z",
+    "meaning_of_0001": "Not documented in the observed response; no assumption of sold-out inventory."
+  },
+  "fix": "Persist one daily job independently, wait for its refresh and retain existing outbox ACK deduplication.",
+  "recovery": {
+    "daily_job_status": "done",
+    "telegram_ack": true,
+    "daily_message_count": 1,
+    "created_utc": "2026-10-22T02:11:55.748Z",
+    "vna_stale_label": true,
+    "vietjet_updated_utc": "2026-10-22T02:11:37.939Z",
+    "vna_last_success_utc": "2026-10-22T01:50:30.111Z",
+    "waited_for_refresh": true
+  },
+  "smoke": {
+    "outcomes": [
+      "ok"
+    ],
+    "max_http_cpu_ms": 6,
+    "max_queue_cpu_ms": 21,
+    "source_error_code_logged": true
+  }
+}

@@ -1,25 +1,49 @@
 # Air Ticket Price Tracker
 
-Theo dõi giá vé Vietnam Airlines và Vietjet, lưu lịch sử và gửi cảnh báo qua Telegram. Project dùng JavaScript ESM, chỉ phụ thuộc các module có sẵn của Node.js; **không cần `npm install`**.
+Theo dõi giá vé Vietnam Airlines và Vietjet qua Flynow, gửi cảnh báo và trả lời slash command qua Telegram. **Bot chính đã chạy trên Cloudflare Workers Free**, dùng D1 và Queues; watcher local đã dừng.
 
-Cấu hình đang có: **SGN ⇄ VCL**, đi **04/02/2027**, về **13/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Có thể đổi tuyến và ngày trong [`config.json`](config.json).
+- `/price`: giá hiện tại và mức thấp nhất của chiều đang theo dõi, kèm nhắc `/flights`.
+- `/flights`: các chuyến có báo giá trong ngày và chiều đang theo dõi của cả hai hãng.
+- Cache chung 30 giây, gộp lệnh trùng và tách queue crawl/Telegram. Giới hạn chung 200 yêu cầu/ngày, 60 phần tin cảnh báo/ngày để dự trù Free; [số đo và quota](docs/cloudflare-optimization.md).
+- Cron mỗi 10 phút; bản tin 07:00 Việt Nam. Không cần máy local chạy liên tục.
+- Group **Theo dõi giá vé SGN–VCL** nhận thông báo chung; mọi thành viên dùng được `/price` và `/flights` ngay trong nhóm. Chat riêng chỉ tra cứu, không nhận bản tin tự động riêng.
+- D1 chỉ giữ hai bản giá hiện tại và sáu giá thấp nhất, không lưu timeline. Lượt lỗi giữ giá gần nhất và đánh dấu giá cũ. Backup lịch sử cũ nằm trong ignored `data/`.
+
+[Vận hành, deploy và backup](docs/cloudflare-production.md), [đối chiếu giá web VNA](docs/cloudflare-selected-dates.md), [audit nghiệm thu](docs/cloudflare-gates.md). Người dùng đã bỏ yêu cầu bot staging riêng và 24 giờ, chọn triển khai bằng bot chính.
+
+Cấu hình đang bật: **chỉ vé về VCL → SGN ngày 13/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Vé đi SGN → VCL ngày 04/02/2027 đã mua; ngày đi vẫn được giữ trong cấu hình để có thể bật lại.
+
+Đổi `monitoring.trackingMode` trong [`config.json`](config.json) thành `outbound` (vé đi), `inbound` (vé về), hoặc `roundtrip` (hai chiều), rồi deploy lại. Cờ áp dụng cho truy vấn nguồn, cảnh báo, bản tin sáng, `/price`, `/flights` và link tìm vé. Mức thấp nhất đã ghi nhận của từng chiều được giữ nguyên; giá một chiều không ghi vào minimum khứ hồi.
 
 ## Yêu cầu
 
 - Node.js **24 trở lên** (có npm).
 - Kết nối mạng để lấy giá và sử dụng Telegram.
-- Máy cần tiếp tục chạy và có mạng nếu muốn theo dõi thường xuyên. `watch` không tự cài service Windows.
+- Khi dùng CLI local để rollback, máy cần tiếp tục chạy và có mạng. `watch` không tự cài service Windows.
 
 Chạy các lệnh bên dưới tại thư mục project. Trên PowerShell, nếu `npm.ps1` bị chặn, dùng `npm.cmd` thay cho `npm`.
 
-## Bắt đầu nhanh
+## Kiểm tra và deploy Worker
 
 ```sh
 node --version
 npm test
 ```
 
-Chỉ còn 3 lệnh:
+Cài công cụ phát triển bằng `npm ci`. OAuth Cloudflare đã được cấu hình; đăng nhập lại khi cần bằng `cf auth login`.
+
+Nhánh phát hành duy nhất là `main`; workflow lấy giá cũng checkout `main`. File text dùng LF theo `.gitattributes` để tránh diff chỉ do CRLF/LF giữa các máy.
+
+```sh
+npm run cf:status
+npm run cf:deploy
+```
+
+Secrets ở `.env.worker.json` đã được Git ignore. Không gửi token vào chat hoặc commit vào Git.
+
+## CLI local để chẩn đoán hoặc rollback
+
+Các lệnh local:
 
 | Lệnh | Chức năng |
 | --- | --- |
@@ -27,7 +51,9 @@ Chỉ còn 3 lệnh:
 | `npm stop` | Dừng ngay tiến trình bot |
 | `npm run telegram` | Kiểm tra kết nối Telegram (cấu hình, bot, webhook, người đăng ký) |
 
-### Bật Telegram và theo dõi liên tục
+### Bật chế độ local sau khi rollback
+
+Watcher từ chối khởi động khi Telegram vẫn có webhook. Phải pause Worker và gỡ webhook thuộc app theo runbook trước khi chạy local.
 
 1. Copy [`.env.example`](.env.example) thành `.env` nếu chưa có. Giữ nguyên `.env` đã điền trước đó.
 2. Tạo bot qua [BotFather](https://t.me/BotFather), điền token vào `.env`. Không cần cấu hình `TELEGRAM_CHAT_ID`.
@@ -57,6 +83,7 @@ Mỗi người mở bot và gửi `/start` để đăng ký nhận bản tin/c�
 │   ├── providers/        # Lấy và chuẩn hóa giá VNA, VNA một chiều, Vietjet
 │   ├── monitoring/       # Quy tắc cảnh báo, outbox, bản tin và định dạng tin
 │   ├── telegram/         # Telegram API client và xử lý slash command
+│   ├── worker/           # Webhook, cron, Queues, D1, outbox và lease fencing
 │   ├── reporting/        # Đọc lịch sử và tạo context
 │   └── shared/           # Đường dẫn project, HTTP fetch song song và TLS
 ├── scripts/              # Preflight và các công cụ smoke
@@ -66,7 +93,7 @@ Mỗi người mở bot và gửi `/start` để đăng ký nhận bản tin/c�
 │   └── alerts.md         # Chi tiết quy tắc cảnh báo và chống lặp
 ├── config.json           # Tuyến, ngày, hành khách và thiết lập theo dõi
 ├── .env.example          # Mẫu cấu hình Telegram và giờ bản tin
-├── package.json          # Các lệnh npm; không có dependency ngoài
+├── package.json          # Các lệnh npm; công cụ cf/wrangler cho phát triển
 ├── Dockerfile
 └── data/                 # Sinh khi chạy: lịch sử, trạng thái, preview, lock
 ```
@@ -105,7 +132,7 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | `monitoring.errorAfterConsecutive` | `3` | Số lượt lỗi liên tiếp trước cảnh báo nguồn khi tắt `priceOnly` |
 | `monitoring.targetVnd.vna` / `.vietjet` | `null` / `null` | Ngân sách khứ hồi từng hãng; `null` nghĩa là chưa đặt |
 
-VNA một chiều hiện chỉ được xác minh cho **1 người lớn**. Nếu `adults` khác 1, phần VNA một chiều được ghi rõ là thiếu dữ liệu. Adapter Vietjet dùng **Flynow làm nguồn duy nhất**, hiện chỉ xác minh **SGN ⇄ VCL, 1 người lớn**; tuyến khác hoặc số người lớn khác sẽ trả lỗi nguồn. Khoảng ngày lân cận cố định ±3 ngày, dùng cho history.
+Cả hai adapter đang dùng **Flynow**, chỉ xác minh **SGN ⇄ VCL, 1 người lớn**. Tuyến hoặc hành khách khác trả lỗi nguồn. Chỉ lấy giá thấp nhất ngày đi/ngày về chính; không lấy lịch ±3 ngày.
 
 ## Cấu hình Telegram
 
@@ -129,6 +156,7 @@ Token là thông tin bí mật duy nhất cần cho Telegram. Chat ID được b
 | `/start` | Đăng ký hoặc nhận lại cảnh báo và bản tin tự động |
 | `/stop` | Ngừng nhận tin tự động; vẫn dùng được `/price` |
 | `/price` | Kiểm tra giá hai hãng, gửi giá, chuyến được chọn và link đặt vé |
+| `/flights` | Kiểm tra mới các chuyến có giá trong hai ngày chính của VNA/Vietjet, giờ đi/đến Việt Nam, giá và phí đại lý |
 | `/status` | Kiểm tra kết nối, bản tin tiếp theo, vòng poll tiếp theo, watcher, subscriber, cấu hình và trạng thái nguồn đã lưu |
 | `/help` | Hướng dẫn sử dụng |
 | `/connection` | Tương đương `/status` |
@@ -141,17 +169,19 @@ Tin `/price`, bản tin sáng và cảnh báo giá có link đặt vé. Vietjet 
 
 `/price` luôn lấy giá mới: gọi tất cả nguồn cùng lúc để có kết quả nhanh nhất, không giãn cách, không ngân sách chờ, không retry. Nếu lượt nền đang chạy, bot chờ nhả lock (tối đa ~100 giây) rồi kiểm tra mới thay vì trả cache; chỉ khi lượt nền kẹt quá lâu mới gửi dữ liệu đã lưu kèm lý do và thời điểm. Thời gian gửi Telegram còn tùy mạng.
 
+`/price` giữ bản giá ngắn và có một dòng nhắc `/flights` ở cuối. `/flights` lấy mới bằng cùng lượt tìm kiếm hai ngày, không gọi thêm ngày lân cận; hiển thị mỗi số chuyến/giờ bay một lần với giá thấp nhất có báo giá, giữ rõ thời điểm, dữ liệu cũ/thiếu và phí đại lý. Không cam kết đủ toàn bộ lịch bay hoặc giữ chỗ. Menu `/flights` được đăng ký khi listener khởi động, nên listener đã chạy từ trước cần khởi động lại để nhận mã lệnh mới.
+
 Lệnh quá 5 phút không được thực hiện, nhưng private chat vẫn được ghi nhận và yêu cầu hủy nhận tin vẫn có hiệu lực. Cursor lưu trước khi xử lý; nếu tiến trình chết giữa chừng, gửi lại lệnh cần thực hiện. Bot chỉ có thể ghi nhận người từ update còn trên Telegram hoặc danh sách đã lưu; người dùng cũ chưa có trong danh sách cần nhắn lại `/start`.
 
 ## Bản tin và cảnh báo
 
 - Mặc định gửi bản tin chung lúc **07:00 UTC+7**, độc lập vòng lấy giá.
 - Bản tin và cảnh báo được broadcast cho danh sách đang đăng ký; chống lặp, ACK và retry tách riêng từng người. Một người lỗi mạng không khiến người đã nhận bị gửi lại. `Retry-After` khi bị giới hạn Telegram tạm dừng toàn bộ broadcast.
-- Bản tin gồm khứ hồi, đi, về của ngày chính, thay đổi so với mốc cuối trước hôm nay và giá thấp nhất từng quan sát kèm thời điểm. Không có mốc thì không tính phần trăm.
+- Bản tin gồm tổng giá đi/về của hai ngày chính và từng chiều, thay đổi so với mốc trước hôm nay và giá thấp nhất từng quan sát. Không có mốc thì không tính phần trăm.
 - `watch` hẹn từ giờ gửi kế tiếp, không gửi bù bản tin sáng khi khởi động vào buổi tối. Máy ngủ qua giờ hẹn thì khi tỉnh chỉ xét bản tin hôm nay.
 - Bản tin dùng snapshot gần nhất, không đợi batch lấy giá. Lượt lỗi hoặc dữ liệu quá `pollMinutes + 5` phút được ghi rõ là giá cũ.
 - Với `priceOnly=true`, chỉ báo sự kiện giá ngày chính: giảm giá, đáy mới, đạt ngân sách hoặc có giá trở lại. Giá tăng đơn thuần và giá không đổi không phát tin; lịch sử vẫn được lưu. Khi một lượt kiểm tra phát hiện giá giảm, bot gửi ngay trong lượt đó; độ trễ phát hiện có thể tới khoảng 10 phút cộng thời gian lấy giá/gửi tin.
-- Giá ngày lân cận chỉ xuất hiện trong history, không gửi cảnh báo Telegram.
+- Không lấy thêm ngày lân cận. Lịch sử cũ được giữ nguyên; nguồn và query mới tách mốc so sánh.
 
 Chi tiết gộp sự kiện, chống lặp và retry: [`docs/alerts.md`](docs/alerts.md).
 
@@ -159,12 +189,12 @@ Chi tiết gộp sự kiện, chống lặp và retry: [`docs/alerts.md`](docs/a
 
 | Nguồn | Cách hiểu giá |
 | --- | --- |
-| Vietnam Airlines | Khứ hồi từ fare matrix; vé riêng từng chiều từ `air-best-price` không có `tripDuration`. Gồm thuế theo nguồn; cộng hai vé riêng có thể khác giá khứ hồi. |
+| Vietnam Airlines | Flynow EVN: giá chuyến bay từng chiều đúng ngày, gồm thuế/phí hãng; tổng cộng hai chiều, loại phí đại lý theo báo giá. Không dùng giá fare matrix VNA làm cùng mốc so sánh. |
 | Vietjet | API tìm vé Flynow (`EVJ`): giá gồm thuế/phí hãng = `TotalFare + TotalTax`, đối chiếu `TotalPrice - TotalServiceFee`. Không trừ phí cố định. Hành lý tùy hạng vé. |
 
 Hai nguồn có cơ sở giá khác nhau nên không xếp hạng trực tiếp như cùng một loại giá. Project không tự đặt vé/giữ chỗ và không đảm bảo bắt kịp sale ngắn hạn.
 
-Mọi lượt lấy giá gọi tối đa 5 request cùng lúc, không giãn cách, không chờ đủ khung giờ, không cho nguồn nghỉ (cooldown). HTTP 403/429/503 được ghi lại như lỗi nguồn trong snapshot, lượt sau thử lại ngay; giá ngày lân cận lấy từ cùng lượt.
+Mỗi lượt gọi hai request song song: một tìm kiếm Flynow EVN cho VNA và một EVJ cho Vietjet, cùng hai ngày chính. Không retry trong lượt; HTTP 403/429/503 là lỗi nguồn, không là giá 0.
 
 ## Dữ liệu và trạng thái
 
@@ -222,10 +252,20 @@ Chỉ còn 3 lệnh npm: `start` (bật bot), `stop` (dừng ngay), `telegram` (
 
 Tham khảo API: [Telegram Bot API](https://core.telegram.org/bots/api).
 
-### Nguồn Vietjet qua Flynow
+### Nguồn chuyến bay qua Flynow
 
-Mỗi lượt dùng 7 request POST tìm vé thông thường, tối đa 2 request đồng thời, lấy 7 ngày đi và 7 ngày về. Bảng 7×7 cộng hai vé một chiều độc lập; không phải báo giá đặt chỗ khứ hồi được xác nhận cho từng ô. Không dùng lịch quảng cáo hoặc fallback về nguồn cũ.
+Mỗi hãng tìm một lần cho hai ngày chính, lấy giá thấp nhất từng chiều và tổng hai chiều. `/flights` hiển thị nhiều giờ bay trong commit riêng, dùng cùng dữ liệu nguồn; `/price` và daily vẫn ngắn. Đây không phải cam kết toàn bộ lịch bay hoặc giữ chỗ.
 
-Giá đã chuẩn hóa bỏ phí đại lý; khi đặt tại Flynow, số phải trả còn có phí này. Lưu cả `price`, `ota_price`, `agency_fee`, hạng vé và hành lý để kiểm tra. Chiết khấu chưa xác minh, tổng tiền không khớp, sai ngày/tuyến/tiền tệ hoặc lỗi nguồn được ghi thiếu dữ liệu thay vì suy diễn giá rẻ. HTTP 403/429 dừng lên lịch request còn lại.
+Giá so sánh là `TotalFare + TotalTax`; lưu riêng `ota_price` và `agency_fee`. Số phải trả tại Flynow còn có phí đại lý. Chiết khấu chưa xác minh, tổng tiền không khớp, sai tuyến/ngày/giờ/hành khách hoặc lỗi nguồn không được suy diễn thành giá rẻ.
 
-Source mới `vietjet-flynow-airline-fare-v1` tách lịch sử lịch giá chưa rõ thuế trước đây. Chi tiết kiểm chứng: [đối chiếu OTA](docs/vietjet-ota-comparison.md). `npm test` chỉ chạy thư mục `tests/`, không chạy lại các thí nghiệm đã lưu trữ trong `data/`.
+Nguồn đang dùng: `vna-flynow-selected-flight-fares-v1`, `vietjet-flynow-selected-flight-fares-v2`; query `nearbyDays: 0`. Lịch sử cũ vẫn giữ nguyên và import được, nhưng không tự trộn vào minimum/alert nguồn mới. Snapshot còn một `cells` cho cặp ngày chính để tương thích storage; không còn 49 ô.
+
+Chạy lại kiểm chứng từ Worker (không gửi Telegram):
+
+```sh
+cf auth whoami
+node --dns-result-order=ipv4first scripts/cloudflare-source-check.mjs
+# Thêm --official khi cần chẩn đoán riêng ba endpoint VNA chính thức.
+```
+
+Xem [bằng chứng và mục tiêu triển khai cập nhật](docs/cloudflare-selected-dates.md). `npm test` chỉ chạy test offline.

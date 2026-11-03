@@ -1,0 +1,47 @@
+{
+  "observed_at": "2026-10-12T23:52:33.390Z",
+  "method": "visible official booking UI in Edge; selected flights then viewed shopping-cart price breakdown; no passenger details or purchase",
+  "entry_url": "https://www.vietnamairlines.com/vn/vi?from=SGN&to=VCL&departureDate=2027-02-04&returnDate=2027-02-13",
+  "official_url": "https://booking.vietnamairlines.com/booking/shopping-cart",
+  "query": {
+    "origin": "SGN",
+    "destination": "VCL",
+    "departureDate": "2027-02-04",
+    "returnDate": "2027-02-13",
+    "adults": 1
+  },
+  "currency": "VND",
+  "outbound": {
+    "flight": "VN1468",
+    "departure": "2027-02-04T15:50:00",
+    "arrival": "2027-02-04T17:15:00",
+    "fare_family": "Thương Gia Linh Hoạt",
+    "price": 5102181,
+    "baggage": "1 x 32 kg",
+    "hand_baggage": "18kg"
+  },
+  "inbound": {
+    "flight": "VN1469",
+    "departure": "2027-02-13T17:50:00",
+    "arrival": "2027-02-13T19:10:00",
+    "fare_family": "Thương Gia Linh Hoạt",
+    "price": 5082181,
+    "baggage": "1 x 32 kg",
+    "hand_baggage": "18kg"
+  },
+  "total": 10184362,
+  "base_fare": 8398000,
+  "airline_surcharge": 900000,
+  "airport_and_government_taxes": 886362,
+  "airport_and_government_breakdown": {
+    "passenger_service": 178000,
+    "security_screening": 36362,
+    "vat": 672000
+  },
+  "screenshots": [
+    "outbound.jpg",
+    "inbound.jpg",
+    "cart-total.jpg",
+    "tax-breakdown.jpg"
+  ]
+}

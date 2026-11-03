@@ -1,5 +1,6 @@
 import {when} from './messages.mjs';
-import {bookingText,flightHint} from './booking-links.mjs';
+import {bookingText,flightHint,isSeparateTickets,priceNote} from './booking-links.mjs';
+import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';
 const hasPrice=n=>Number.isSafeInteger(n)&&n>0;
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7);
@@ -23,7 +24,7 @@ export function settingsFrom(config,env=process.env) {
 }
 export function evaluateAlerts(provider,record,history,state={},settings=defaults) {
   const events=[],add=(key,text,guard)=>events.push({key,text,guard});
-  const earlier=history.filter(s=>s.observed_at<record.observed_at),good=earlier.filter(valid),prev=good.at(-1);
+  const earlier=history.filter(s=>s.observed_at<record.observed_at),good=earlier.filter(valid),prev=good.filter(s=>!s.comparison_only).at(-1)||good.at(-1);
   const mainPast=good.filter(s=>hasPrice(s.main_price));
   if(record.status==='error') {
     let errors=1;for(const s of [...earlier].reverse()){if(s.status!=='error')break;errors++;}
@@ -32,20 +33,21 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
   }
   if(!valid(record))return events;
   if(state.incidentOpen)add('recovery','Lấy được giá trở lại rồi! Mình tiếp tục canh vé cho bạn nhé.',{kind:'recovery'});
-  if(!state.initialized&&hasPrice(record.main_price))add('baseline','Bắt đầu canh vé cho bạn rồi nhé! Giá khởi điểm là '+money(record.main_price)+'.',{kind:'main',price:record.main_price});
+  if(trackingMode(record.query)==='roundtrip'&&!state.initialized&&hasPrice(record.main_price))add('baseline','Bắt đầu canh vé cho bạn rồi nhé! Giá khởi điểm là '+money(record.main_price)+'.',{kind:'main',price:record.main_price});
   const reasons=[];
-  if(hasPrice(record.main_price)) {
+  if(trackingMode(record.query)==='roundtrip'&&hasPrice(record.main_price)) {
     if(hasPrice(prev?.main_price)&&prev.main_price-record.main_price>=settings.mainDropMinVnd)
       reasons.push('Giảm '+money(prev.main_price-record.main_price)+' ('+((prev.main_price-record.main_price)/prev.main_price*100).toFixed(1)+'%) so với lần có dữ liệu trước: '+money(prev.main_price));
     if(mainPast.length&&record.main_price<Math.min(...mainPast.map(s=>s.main_price)))reasons.push('Đây là giá thấp nhất mình từng thấy từ khi bắt đầu theo dõi! ');
     const window=mainPast.filter(s=>Date.parse(record.observed_at)-Date.parse(s.observed_at)<=settings.rollingWindowDays*86400000);
-    if(window.length&&record.main_price<Math.min(...window.map(s=>s.main_price))&&!reasons.some(x=>x.includes('từng thấy')))reasons.push('Thấp nhất trong '+settings.rollingWindowDays+' ngày quan sát gần đây');
+    if(settings.historyMode!=='current-and-minimum'&&window.length&&record.main_price<Math.min(...window.map(s=>s.main_price))&&!reasons.some(x=>x.includes('từng thấy')))reasons.push('Thấp nhất trong '+settings.rollingWindowDays+' ngày quan sát gần đây');
     if(prev&&prev.main_price===null)reasons.push('Ngày bạn muốn bay đã có giá trở lại rồi! ');
     const target=settings.targetVnd[provider.id];
     if(target!==null&&record.main_price<=target&&(!state.initialized||!hasPrice(prev?.main_price)||prev.main_price>target||record.main_price<prev.main_price))reasons.push('Vừa chạm ngân sách bạn đặt: '+money(target));
     if(reasons.length)add('main:'+record.main_price,reasons.join(' · '),{kind:'main',price:record.main_price});
   }
   for(const [leg,mainDate,from,to,label] of [['outbound',record.query.departureDate,record.query.origin,record.query.destination,'Vé đi'],['inbound',record.query.returnDate,record.query.destination,record.query.origin,'Vé về']]){
+    if(!trackedLegs(record.query).some(l=>l.leg===leg))continue;
     for(const quote of record.legs?.[leg]||[]){
       if(quote.date!==mainDate||!hasPrice(quote.price))continue;
       const past=good.filter(s=>legSource(s)===legSource(record)).map(s=>{
@@ -53,14 +55,15 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
         return value?{...value,observed_at:value.observed_at||s.observed_at}:null;
       }).filter(x=>x&&hasPrice(x.price));
       if(!past.length)continue; // The first quote is a baseline, never a historical low alert.
-      const previous=past.at(-1),main=quote.date===mainDate,why=[];
+      const previousRecord=good.filter(s=>!s.comparison_only&&legSource(s)===legSource(record)).at(-1);
+      const previous=previousRecord?.legs?.[leg]?.find(x=>x.date===quote.date)||past.at(-1),main=quote.date===mainDate,why=[];
       if(previous.price-quote.price>=settings.legDropMinVnd)
         why.push('giảm '+money(previous.price-quote.price)+' ('+((previous.price-quote.price)/previous.price*100).toFixed(1)+'%), trước '+money(previous.price));
       const lowest=values=>values.reduce((min,x)=>Math.min(min,x.price),Infinity);
       const allLow=quote.price<lowest(past);
       const window=past.filter(x=>Date.parse(quote.observed_at||record.observed_at)-Date.parse(x.observed_at)<=settings.rollingWindowDays*86400000);
       if(allLow)why.push('chưa từng thấy vé chiều này, ngày này rẻ hơn kể từ khi theo dõi! ');
-      else if(window.length&&quote.price<lowest(window))why.push('giá tốt nhất của chiều bay này trong '+settings.rollingWindowDays+' ngày vừa qua');
+      else if(settings.historyMode!=='current-and-minimum'&&window.length&&quote.price<lowest(window))why.push('giá tốt nhất của chiều bay này trong '+settings.rollingWindowDays+' ngày vừa qua');
       if(why.length)add('leg:'+legSource(record)+':'+leg+':'+quote.date+':'+quote.price,
         label+' '+from+' → '+to+' '+day(quote.date)+'/'+quote.date.slice(0,4)+': '+money(quote.price)+' · '+why.join(' · '),
         {kind:'leg',source:legSource(record),leg,date:quote.date,price:quote.price});
@@ -68,6 +71,7 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
   }
   if(prev) {
     for(const [leg,date] of [['outbound',record.query.departureDate],['inbound',record.query.returnDate]]) {
+      if(!trackedLegs(record.query).some(l=>l.leg===leg))continue;
       const current=record.legs?.[leg]?.find(x=>x.date===date),previous=prev.legs?.[leg]?.find(x=>x.date===date);
       if(current?.fare_family==='Eco'&&previous&&previous.fare_family!=='Eco')add('eco:'+leg+':'+date,'Nguồn Vietjet xuất hiện vé Eco ở chiều '+(leg==='outbound'?'đi':'về')+' '+day(date)+'. Giá qua Flynow, chưa giữ chỗ.',{kind:'fare',leg,date,fare:'Eco'});
     }
@@ -76,6 +80,7 @@ export function evaluateAlerts(provider,record,history,state={},settings=default
 }
 export function stillRelevant(event,record) {
   const g=event.guard;
+  if(g.kind==='main'&&trackingMode(record.query)!=='roundtrip'||['leg','fare'].includes(g.kind)&&!trackedLegs(record.query).some(l=>l.leg===g.leg))return false;
   if(['minimum','flex','cell'].includes(g.kind)||g.kind==='leg'&&g.date!==(g.leg==='outbound'?record.query.departureDate:record.query.returnDate))return false;
   if(g.kind==='error')return record.status==='error';
   if(!valid(record))return false;
@@ -95,18 +100,18 @@ export function formatAlert(provider,record,events,history=[]) {
   const leg=g?.kind==='leg'||g?.kind==='fare';
   const heading=provider.name+' · '+(leg?(g.leg==='outbound'?'Vé đi '+q.origin+' → '+q.destination:'Vé về '+q.destination+' → '+q.origin)+' · '+day(g.date)+'/'+g.date.slice(0,4):q.origin+' ⇄ '+q.destination+' · '+pair({depart:q.departureDate,return:q.returnDate})+'/'+q.returnDate.slice(0,4));
   const rows=[title,heading+' · '+q.adults+' người lớn'];
-  if(!leg&&hasPrice(record.main_price))rows.push('🎟 '+(provider.id==='vietjet'?'Tổng hai chiều':'Khứ hồi')+' hiện là '+money(record.main_price)+'.');
+  if(!leg&&hasPrice(record.main_price))rows.push('🎟 '+(provider.id==='vietjet'||isSeparateTickets(record)?'Tổng hai chiều':'Khứ hồi')+' hiện là '+money(record.main_price)+'.');
   rows.push(...events.filter(e=>e.key!=='baseline'&&e.key!=='recovery').map(e=>e.text.split(' · ').filter(t=>!t.includes('thấp nhất mình từng thấy')&&!t.includes('chưa từng thấy vé chiều')).join('\n').trim()));
   const past=history.filter(r=>r.observed_at<=record.observed_at&&valid(r));if(valid(record))past.push(record);
   const quotes=past.filter(r=>!leg||legSource(r)===legSource(record)).map(r=>({price:leg?r.legs?.[g.leg]?.find(x=>x.date===g.date)?.price:r.main_price,at:r.observed_at})).filter(x=>hasPrice(x.price));
-  if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+' ('+when(low.at)+').');}
+  if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+(record.history_mode==='current-and-minimum'?'.':' ('+when(low.at)+').'));}
   rows.push('🕒 '+when(record.observed_at)+' · giờ Việt Nam');
-  rows.push(provider.id==='vietjet'?'ℹ️ Vietjet qua Flynow: gồm thuế/phí hãng; đã loại phí dịch vụ đại lý theo báo giá, chưa giữ chỗ.':'ℹ️ Gồm thuế theo nguồn; vé từng chiều là giá mua riêng.');
-  for(const [direction,date,label] of [['outbound',q.departureDate,'Đi'],['inbound',q.returnDate,'Về']]){
+  rows.push(priceNote(provider.id,record));
+  for(const {leg:direction,date,label} of trackedLegs(q)){
     if(leg&&direction!==g.leg)continue;
     const quote=record.legs?.[direction]?.find(x=>x.date===(leg?g.date:date));
     if(valid(record)&&hasPrice(quote?.price)&&flightHint(quote))rows.push('✈️ '+label+': '+flightHint(quote));
   }
-  rows.push(bookingText(provider.id,q));
+  rows.push(bookingText(provider.id,q,record));
   return rows.filter(Boolean).join('\n');
 }

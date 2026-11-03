@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {once} from 'node:events';
 import {createCrawlLog,errorInfo} from '../src/shared/crawl-log.mjs';
-import {crawl as crawlVna} from '../src/providers/vna.mjs';
+import {crawl as crawlVna} from '../src/providers/vna-core.mjs';
 
 test('real fetch tracing identifies waiting headers, body errors and HTTP rejection without leaking secrets',async t=>{
   let arrived;

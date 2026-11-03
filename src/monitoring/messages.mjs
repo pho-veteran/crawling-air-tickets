@@ -1,4 +1,6 @@
-import {bookingText,flightHint} from './booking-links.mjs';
+import {bookingText,flightHint,isSeparateTickets,priceNote} from './booking-links.mjs';
+import {trackingMode,trackedLegs,trackingLabel} from '../shared/tracking.mjs';
+import {formatCurrentPrices} from './current-prices.mjs';
 export const money=n=>Number.isSafeInteger(n)&&n>0?new Intl.NumberFormat('vi-VN').format(n)+'đ':'chưa có giá';
 const offsetMs=(offset='+07:00')=>(offset[0]==='-'?-1:1)*(Number(offset.slice(1,3))*60+Number(offset.slice(4)))*60000;
 export const localDay=(t,offset='+07:00')=>new Date(Number(t)+offsetMs(offset)).toISOString().slice(0,10);
@@ -7,8 +9,9 @@ export const nextMorning=(t,s={})=>{const at=morningAt(t,s);return at>t?at:at+86
 export const when=t=>{const d=new Date(t),f=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d),v=Object.fromEntries(f.map(x=>[x.type,x.value]));return v.hour+':'+v.minute+' ngày '+v.day+'/'+v.month+'/'+v.year;};
 const day=d=>d.slice(8,10)+'/'+d.slice(5,7),priced=n=>Number.isSafeInteger(n)&&n>0;
 export const change=(current,previous)=>!priced(current)||!priced(previous)?'chưa có mốc so sánh':current===previous?'↔ Không đổi':(current<previous?'🟢 ↓ ':'🔺 ↑ ')+money(Math.abs(current-previous))+' ('+(Math.abs(current-previous)/previous*100).toFixed(1)+'%)';
-export function routeLine(q){return q.origin+' ⇄ '+q.destination+' · '+day(q.departureDate)+'–'+day(q.returnDate)+'/'+q.returnDate.slice(0,4)+' · '+q.adults+' người lớn';}
+export function routeLine(q){if(trackingMode(q)!=='roundtrip'){const l=trackedLegs(q)[0];return trackingLabel(q)+' · '+l.from+' → '+l.to+' · '+l.date.split('-').reverse().join('/')+' · '+q.adults+' người lớn';}return q.origin+' ⇄ '+q.destination+' · '+day(q.departureDate)+'–'+day(q.returnDate)+'/'+q.returnDate.slice(0,4)+' · '+q.adults+' người lớn';}
 export function formatDaily({providers,query,now=Date.now(),pollMinutes=10,settings={},onDemand=false}){
+  if(trackingMode(query)!=='roundtrip')return formatCurrentPrices({providers,query,now,pollMinutes,onDemand});
   const offset=settings.dailyUtcOffset||'+07:00',clock=settings.dailyTime||'07:00';
   const sections=[onDemand?'✈️ Giá vé bạn vừa hỏi đây!' :'☀️ Chào buổi sáng! Cùng xem giá vé hôm nay · '+clock,routeLine(query),'📅 '+localDay(now,offset).split('-').reverse().join('/')+' · UTC'+offset];
   for(const p of providers){
@@ -19,7 +22,7 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=10,setti
     const stale=now-Date.parse(r.observed_at)>(pollMinutes+5)*60000;
     if(last?.status==='error'||stale)lines.push('⚠️ GIÁ CŨ — mình chưa cập nhật được, lần gần nhất là '+when(r.observed_at));
     else if(r.status==='partial')lines.push('⚠️ Lần này chưa lấy đủ giá; những mục còn thiếu sẽ được ghi rõ bên dưới.');
-    lines.push((p.id==='vna'?'🎟 Vé khứ hồi hiện là ':'🎟 Cộng vé đi và về hiện là ')+money(r.main_price)+' · '+change(r.main_price,previous?.main_price));
+    lines.push((p.id==='vna'&&!isSeparateTickets(r)?'🎟 Vé khứ hồi hiện là ':'🎟 Cộng vé đi và về hiện là ')+money(r.main_price)+' · '+change(r.main_price,previous?.main_price));
     for(const [leg,date,label,from,to] of [['outbound',query.departureDate,'🛫 Vé đi',query.origin,query.destination],['inbound',query.returnDate,'🛬 Vé về',query.destination,query.origin]]){
       const quote=r.legs?.[leg]?.find(x=>x.date===date),before=previous?.legs?.[leg]?.find(x=>x.date===date);
       lines.push(label+' '+from+' → '+to+' · '+day(date)+'/'+date.slice(0,4)+': '+money(quote?.price)+' · '+change(quote?.price,before?.price));
@@ -29,7 +32,8 @@ export function formatDaily({providers,query,now=Date.now(),pollMinutes=10,setti
     const priorPrices=good.filter(x=>priced(x.main_price));
     if(priorPrices.length){const low=priorPrices.reduce((a,b)=>a.main_price<=b.main_price?a:b);lines.push('🏷 Từ khi theo dõi, giá thấp nhất là '+money(low.main_price)+', ghi nhận lúc '+when(low.observed_at)+'.');}
     lines.push('🕒 Cập nhật lúc '+when(r.observed_at)+' (UTC+7)'+(previous?' · So với mốc '+when(previous.observed_at)+(onDemand?' trước đó.':' trước hôm nay.'):' · Chưa có mốc so sánh.'));
-    lines.push(bookingText(p.id,query));
+    lines.push(priceNote(p.id,r));
+    lines.push(bookingText(p.id,query,r));
     sections.push(lines.join('\n'));
   }
   return sections.join('\n\n');

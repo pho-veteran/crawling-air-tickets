@@ -1,0 +1,81 @@
+{
+  "observed_at": "2026-10-12T14:52:11.354Z",
+  "run_id": "d8790058-b922-46d4-8794-2864bd4e587a",
+  "worker_url": "https://crawling-air-tickets-spike.thanhvinhlqt2016.workers.dev",
+  "source_http": [
+    {
+      "source": "vna",
+      "http_status": 403,
+      "duration_ms": 392
+    },
+    {
+      "source": "vna",
+      "http_status": 403,
+      "duration_ms": 392
+    },
+    {
+      "source": "vna",
+      "http_status": 403,
+      "duration_ms": 401
+    },
+    {
+      "source": "vietjet",
+      "http_status": 200,
+      "duration_ms": 1104
+    },
+    {
+      "source": "vietjet",
+      "http_status": 200,
+      "duration_ms": 1176
+    },
+    {
+      "source": "vietjet",
+      "http_status": 200,
+      "duration_ms": 931
+    },
+    {
+      "source": "vietjet",
+      "http_status": 200,
+      "duration_ms": 1050
+    },
+    {
+      "source": "vietjet",
+      "http_status": 200,
+      "duration_ms": 910
+    },
+    {
+      "source": "vietjet",
+      "http_status": 200,
+      "duration_ms": 945
+    },
+    {
+      "source": "vietjet",
+      "http_status": 200,
+      "duration_ms": 991
+    }
+  ],
+  "providers": [
+    {
+      "source": "vna",
+      "status": "error",
+      "error": "HTTP 403. Đã dừng; không thử lại tự động.",
+      "priced_cells": 0
+    },
+    {
+      "source": "vietjet",
+      "status": "ok",
+      "error": null,
+      "priced_cells": 49
+    }
+  ],
+  "source_subrequests": 10,
+  "wall_ms": 4061,
+  "telemetry": {
+    "correlated": true,
+    "request_id": "f2148be6ddad921bafc832a2ea2b9f3a",
+    "outcome": "ok",
+    "cpu_ms": 30,
+    "wall_ms": 4070
+  },
+  "gate": "VNA access from Workers still fails with HTTP 403; production migration not approved"
+}
