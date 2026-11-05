@@ -24,9 +24,13 @@ Từ bản sửa ngày 05/11/2026, mỗi nguồn đại lý có ba kết quả: 
 - Actions thành công khi mọi nguồn đều `ok` hoặc `empty`, kể cả không nguồn nào có giá. Có bất kỳ nguồn `error` nào thì vẫn gửi phần kết quả dùng được tới Worker rồi exit 1. Lỗi gửi feed cũng exit 1; dry-run áp dụng cùng quy tắc crawl nhưng không gửi feed.
 - Worker nhận cả feed không có giá với thời điểm tìm kiếm thực, dùng giá `null`, không ghi giá 0 và không xóa minimum đã lưu. `/price`, `/flights`, `/status` phân biệt “không có báo giá phù hợp” với “chưa cập nhật được”. Khi tất cả nguồn lỗi, giữ cơ chế giá cũ; không biến lỗi nguồn thành kết quả rỗng.
 
-**Thứ tự phát hành:** deploy Worker hỗ trợ `empty` trước khi phát hành runner mới lên `main`; validator cũ từ chối feed có trạng thái mới. Chưa deploy hoặc gửi feed production trong lần kiểm chứng này.
+**Thứ tự phát hành:** deploy Worker hỗ trợ `empty` trước khi phát hành runner mới lên `main`; validator cũ từ chối feed có trạng thái mới.
 
 Kiểm chứng local: `npm test` qua **166 tests**, gồm ba regression chứng minh dữ liệu chuyến/ghế sai schema không được biến thành kết quả rỗng thành công. Smoke cô lập chạy nguồn giả lập → endpoint feed HTTP 202 → current price `null`, giữ minimum, và format kết quả rỗng cho cả hai hãng. Dry-run với nguồn thật `node --dns-result-order=ipv4first scripts/vna-agency-feed.mjs --dry-run` vẫn exit 1 (`ABAY: ok`, `BestPrice: error`); đây không phải bằng chứng BestPrice đã phục hồi.
+
+Đã phát hành commit [`531f17e`](https://github.com/pho-veteran/crawling-air-tickets/commit/531f17eec71b1b3b8bfd8b870b24c93ff0babf83) ngày 05/11/2026: Worker version `8d1ba4e7-2a17-470c-bbea-115b5247b3ad` nhận 100% traffic từ 03:54:07 UTC, sau đó mới push runner lên `main`. Build production qua; `/health` trả `ok: true`, bot active.
+
+Hai lượt kiểm chứng trên GitHub: [push dry-run 41964555256](https://github.com/pho-veteran/crawling-air-tickets/actions/runs/41964555256) và [feed thật 41964576192](https://github.com/pho-veteran/crawling-air-tickets/actions/runs/41964576192) đều exit 1 do `ABAY: ok`, `BestPrice: error`; feed thật vẫn gửi HTTP 202. Lúc 03:56:05 UTC, `/admin/context` xác nhận VNA `partial`, báo giá ABAY mới lúc 03:55:42 UTC trong job `feed:2989751`; Vietjet vẫn lỗi Flynow `0001` ở lần thử 03:55:53 UTC và giữ giá cũ. Không có job pending/failed. Đây là xác nhận phát hành và nhập feed thành công, **không phải xác nhận BestPrice/Flynow đã phục hồi**; không đưa dữ liệu rỗng giả lập vào production để làm xanh Actions.
 
 ## Lỗi ngày BestPrice ngày 03/11/2026
 
