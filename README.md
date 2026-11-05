@@ -194,7 +194,7 @@ Chi tiết gộp sự kiện, chống lặp và retry: [`docs/alerts.md`](docs/a
 
 Hai nguồn có cơ sở giá khác nhau nên không xếp hạng trực tiếp như cùng một loại giá. Project không tự đặt vé/giữ chỗ và không đảm bảo bắt kịp sale ngắn hạn.
 
-Vietjet tìm vé qua Flynow; VNA nhận feed BestPrice/ABAY từ Actions. Tìm kiếm hoàn tất nhưng không có báo giá phù hợp là kết quả hợp lệ, không phải lỗi crawl và không tự khẳng định hết vé. Actions chỉ thất bại khi có nguồn crawl lỗi hoặc gửi feed thất bại; kết quả rỗng dùng giá `null`, không ghi giá 0 hay hạ minimum. HTTP 403/429/503, timeout, sai schema và Flynow `Status: false` (kể cả `0001`) vẫn là lỗi nguồn. [Quy tắc xử lý chi tiết](docs/cloudflare-production.md#phân-biệt-không-có-báo-giá-và-lỗi-crawl).
+Vietjet tìm vé qua Flynow; VNA nhận feed BestPrice/ABAY từ Actions. Tìm kiếm hoàn tất nhưng không có báo giá phù hợp là kết quả hợp lệ, không phải lỗi crawl và không tự khẳng định hết vé. Actions thành công khi ít nhất một đại lý crawl hoàn tất và gửi feed được; nguồn còn lỗi phát warning, feed/bot vẫn báo `partial`. Run chỉ thất bại khi tất cả đại lý crawl lỗi hoặc gửi feed thất bại. Kết quả rỗng dùng giá `null`, không ghi giá 0 hay hạ minimum. HTTP 403/429/503, timeout, sai schema và Flynow `Status: false` (kể cả `0001`) vẫn là lỗi nguồn. [Quy tắc xử lý chi tiết](docs/cloudflare-production.md#phân-biệt-không-có-báo-giá-và-lỗi-crawl).
 
 ## Dữ liệu và trạng thái
 

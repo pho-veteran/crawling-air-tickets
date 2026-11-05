@@ -29,10 +29,15 @@ globalThis.fetch=async(url,options={})=>{
     if(process.argv.includes('--dry-run'))throw new Error('Dry-run must not deliver a feed');
     return new Response(null,{status:mode==='delivery-error'?503:202});
   }
-  if(mode==='both-errors'||mode==='crawl-error'&&u.hostname==='www.bestprice.vn')
+  if(mode==='both-errors'||['crawl-error','empty-and-error'].includes(mode)&&u.hostname==='www.bestprice.vn')
     return new Response(null,{status:503});
+  if(mode==='abay-error'&&u.pathname.endsWith('/GetFlights'))return Response.json({d:'{}'});
+  if(mode==='schema-errors'){
+    if(u.pathname==='/ajax-search-flight-bp')return Response.json({search_status:'DONE',search_data:{}});
+    if(u.pathname.endsWith('/GetFlights'))return Response.json({d:'{}'});
+  }
   const response=await source.fetch(url,options);
-  if(mode==='both-empty'||mode==='delivery-error'||mode==='bestprice-empty'){
+  if(['both-empty','delivery-error','bestprice-empty','empty-and-error'].includes(mode)){
     if(u.pathname==='/ajax-search-flight-bp')return Response.json({search_status:'DONE',search_data:{flight_data:[]}});
     if(mode!=='bestprice-empty'&&u.pathname.endsWith('/GetFlights'))return Response.json({d:JSON.stringify({D:[]})});
   }
@@ -43,11 +48,15 @@ globalThis.fetch=async(url,options={})=>{
     {mode:'bestprice-empty',exit:0,status:'ok',agencies:{ABAY:'ok',BestPrice:'empty'},delivered:true},
     {mode:'both-empty',exit:0,status:'partial',agencies:{ABAY:'empty',BestPrice:'empty'},delivered:true},
     {mode:'both-empty',dry:true,exit:0,status:'partial',agencies:{ABAY:'empty',BestPrice:'empty'},delivered:false},
-    {mode:'crawl-error',exit:1,status:'partial',agencies:{ABAY:'ok',BestPrice:'error'},delivered:true},
+    {mode:'crawl-error',exit:0,status:'partial',agencies:{ABAY:'ok',BestPrice:'error'},delivered:true},
+    {mode:'abay-error',exit:0,status:'partial',agencies:{ABAY:'error',BestPrice:'ok'},delivered:true},
+    {mode:'crawl-error',dry:true,exit:0,status:'partial',agencies:{ABAY:'ok',BestPrice:'error'},delivered:false},
+    {mode:'empty-and-error',exit:0,status:'partial',agencies:{ABAY:'empty',BestPrice:'error'},delivered:true},
     {mode:'both-errors',exit:1,delivered:false},
+    {mode:'schema-errors',exit:1,delivered:false},
     {mode:'delivery-error',exit:1,status:'partial',agencies:{ABAY:'empty',BestPrice:'empty'},delivered:false},
   ])await t.test(mode+(dry?' dry-run':''),async()=>{
-    const env={...process.env,TEST_AGENCY_OUTCOME:mode,VNA_FEED_SECRET:'test-feed-secret'};
+    const env={...process.env,GITHUB_ACTIONS:'true',TEST_AGENCY_OUTCOME:mode,VNA_FEED_SECRET:'test-feed-secret'};
     if(dry)delete env.VNA_FEED_SECRET;
     let result,code=0;
     try{result=await execute(process.execPath,['--import',pathToFileURL(preload).href,runner,...(dry?['--dry-run']:[])],{env,timeout:15000,windowsHide:true});}
@@ -59,8 +68,9 @@ globalThis.fetch=async(url,options={})=>{
       const complete=events.find(e=>e.event==='agency_crawl_complete');
       assert.equal(complete.status,status);
       assert.deepEqual(Object.fromEntries(complete.agencies.map(q=>[q.agency,q.status])),agencies);
+      if(Object.values(agencies).includes('error'))assert.match(result.stderr,/::warning/);
     }
     if(mode==='delivery-error')assert.match(result.stderr,/Agency feed delivery HTTP 503/);
-    if(mode==='both-errors')assert.match(result.stderr,/BestPrice and ABAY searches unavailable/);
+    if(['both-errors','schema-errors'].includes(mode))assert.match(result.stderr,/BestPrice and ABAY searches unavailable/);
   });
 });
