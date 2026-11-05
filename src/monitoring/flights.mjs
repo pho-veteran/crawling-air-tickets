@@ -21,11 +21,16 @@ export function formatFlights({providers,query,now=Date.now(),pollMinutes=10}){
     if(!r){lines.push('⚠️ Chưa lấy được danh sách chuyến có giá của hãng này.');sections.push(lines.join('\n'));continue;}
     if(last?.status==='error'||r.last_attempt_failed||now-Date.parse(r.observed_at)>(pollMinutes+5)*60000)
       lines.push('⚠️ GIÁ CŨ — lần cập nhật gần nhất '+when(r.observed_at));
-    else if(r.status==='partial')lines.push('⚠️ Nguồn còn thiếu một phần; không suy diễn là hết vé.');
+    else if(r.status==='partial')lines.push(r.agency_quotes?.some(q=>q.status==='error')||Object.keys(r.leg_errors||{}).length?'⚠️ Nguồn còn thiếu một phần.':'ℹ️ Kết quả từng nguồn được ghi rõ bên dưới.');
     for(const {leg,date,label,from,to} of trackedLegs(query)){
       lines.push(label+' '+from+' → '+to+' · '+date.split('-').reverse().join('/'));
       const quote=r.legs?.[leg]?.find(q=>q.date===date),flights=choices(quote,date,p.id==='vna'?'VN':'VJ');
-      if(!flights.length){lines.push('Chưa có danh sách chuyến có giá cho chiều này.');continue;}
+      if(!flights.length){
+        lines.push('Chưa có danh sách chuyến có giá cho chiều này.');
+        if(r.agency==='Flynow'&&quote?.price===null&&Array.isArray(quote.flights)&&!quote.flights.length&&!r.leg_errors?.[leg])lines.push('• Flynow: không có báo giá phù hợp.');
+        else if(r.agency==='Flynow'&&r.leg_errors?.[leg])lines.push('• Flynow: chưa cập nhật được.');
+        lines.push(...agencyPrices(r,leg,date));continue;
+      }
       for(const f of flights){
         const arrival=f.arrival?.slice(11,16)||'?';
         const arrivalDay=f.arrival?.slice(0,10);

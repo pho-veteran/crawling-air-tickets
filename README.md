@@ -132,7 +132,7 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | `monitoring.errorAfterConsecutive` | `3` | Số lượt lỗi liên tiếp trước cảnh báo nguồn khi tắt `priceOnly` |
 | `monitoring.targetVnd.vna` / `.vietjet` | `null` / `null` | Ngân sách khứ hồi từng hãng; `null` nghĩa là chưa đặt |
 
-Cả hai adapter đang dùng **Flynow**, chỉ xác minh **SGN ⇄ VCL, 1 người lớn**. Tuyến hoặc hành khách khác trả lỗi nguồn. Chỉ lấy giá thấp nhất ngày đi/ngày về chính; không lấy lịch ±3 ngày.
+Vietjet dùng **Flynow**; VNA production lấy báo giá ước tính từ **BestPrice và ABAY** qua Actions ([cơ sở điều chỉnh và giới hạn](docs/cloudflare-production.md)). Chỉ xác minh **SGN ⇄ VCL, 1 người lớn**. Tuyến hoặc hành khách khác trả lỗi nguồn. Chỉ lấy giá ngày và chiều đang theo dõi; không lấy lịch ±3 ngày.
 
 ## Cấu hình Telegram
 
@@ -189,12 +189,12 @@ Chi tiết gộp sự kiện, chống lặp và retry: [`docs/alerts.md`](docs/a
 
 | Nguồn | Cách hiểu giá |
 | --- | --- |
-| Vietnam Airlines | Flynow EVN: giá chuyến bay từng chiều đúng ngày, gồm thuế/phí hãng; tổng cộng hai chiều, loại phí đại lý theo báo giá. Không dùng giá fare matrix VNA làm cùng mốc so sánh. |
+| Vietnam Airlines | Ước tính tạm từ BestPrice/ABAY theo điều chỉnh đã chấp nhận cho vé về ngày 13/02/2027; không cam kết bằng giá thanh toán chính thức. Minimum tách riêng nguồn VNA đã xác minh trước đây. |
 | Vietjet | API tìm vé Flynow (`EVJ`): giá gồm thuế/phí hãng = `TotalFare + TotalTax`, đối chiếu `TotalPrice - TotalServiceFee`. Không trừ phí cố định. Hành lý tùy hạng vé. |
 
 Hai nguồn có cơ sở giá khác nhau nên không xếp hạng trực tiếp như cùng một loại giá. Project không tự đặt vé/giữ chỗ và không đảm bảo bắt kịp sale ngắn hạn.
 
-Mỗi lượt gọi hai request song song: một tìm kiếm Flynow EVN cho VNA và một EVJ cho Vietjet, cùng hai ngày chính. Không retry trong lượt; HTTP 403/429/503 là lỗi nguồn, không là giá 0.
+Vietjet tìm vé qua Flynow; VNA nhận feed BestPrice/ABAY từ Actions. Tìm kiếm hoàn tất nhưng không có báo giá phù hợp là kết quả hợp lệ, không phải lỗi crawl và không tự khẳng định hết vé. Actions chỉ thất bại khi có nguồn crawl lỗi hoặc gửi feed thất bại; kết quả rỗng dùng giá `null`, không ghi giá 0 hay hạ minimum. HTTP 403/429/503, timeout, sai schema và Flynow `Status: false` (kể cả `0001`) vẫn là lỗi nguồn. [Quy tắc xử lý chi tiết](docs/cloudflare-production.md#phân-biệt-không-có-báo-giá-và-lỗi-crawl).
 
 ## Dữ liệu và trạng thái
 

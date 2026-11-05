@@ -8,7 +8,7 @@ const integer=n=>Number.isSafeInteger(n)&&n>=0;
 const cleanText=s=>typeof s==='string'?s.replace(/[\r\n\x00-\x1f]/g,' ').slice(0,120):null;
 export function validateFeed(input,query,now=Date.now()){
   if(input?.source!==SOURCE||input.query_id!==queryId(query,SOURCE)||canonicalJson(input.query)!==canonicalJson(query)||input.currency!=='VND'||!Array.isArray(input.agency_quotes))throw new Error('Feed itinerary/source mismatch');
-  const selected=trackedLegs(query),agencyQuotes=[],legs={},legErrors={};
+  const selected=trackedLegs(query),agencyQuotes=[],legs={},legErrors={},observations=[];
   const timestamp=value=>{const t=Date.parse(value);if(!Number.isFinite(t)||t>now+60000||now-t>FEED_MAX_AGE_MS)throw new Error('Feed timestamp outside freshness window');return new Date(t).toISOString();};
   timestamp(input.observed_at);
   if(input.agency_quotes.length!==selected.length*2)throw new Error('Feed must report both agencies for every tracked leg');
@@ -19,6 +19,11 @@ export function validateFeed(input,query,now=Date.now()){
       if(matches.length!==1)throw new Error('Feed duplicate/missing agency');
       const r=matches[0];
       if(r.status==='error'){agencyQuotes.push({agency,leg:leg.leg,date:leg.date,status:'error',error:'Agency search unavailable'});legErrors[leg.leg]='One or more agency searches failed';continue;}
+      if(r.status==='empty'){
+        if(!Array.isArray(r.flights)||r.flights.length!==0||['price','raw_price','base_fare','airline_taxes','agency_fee','ota_price','adjustment_vnd','minimum_price','fare_basis','fare_family','booking_class','flight_number','departure','arrival'].some(k=>Object.hasOwn(r,k)))throw new Error('Feed empty quote invalid');
+        const observed_at=timestamp(r.observed_at);
+        observations.push(observed_at);agencyQuotes.push({agency,leg:leg.leg,date:leg.date,status:'empty',flights:[],observed_at});continue;
+      }
       if(r.status!=='ok'||!Array.isArray(r.flights)||r.flights.length<1||r.flights.length>8)throw new Error('Feed flight list invalid');
       const flights=r.flights.map(f=>{
         if(f.agency!==agency||f.date!==leg.date||!/^VN\d+$/.test(f.flight_number||'')||
@@ -33,14 +38,14 @@ export function validateFeed(input,query,now=Date.now()){
         if(f.price!==quote.price||f.adjustment_vnd!==quote.adjustment_vnd)throw new Error('Feed adjustment mismatch');
         return quote;
       }).sort((a,b)=>a.price-b.price||a.departure.localeCompare(b.departure));
-      all.push(...flights);agencyQuotes.push({agency,leg:leg.leg,date:leg.date,status:'ok',...flights[0],flights});
+      all.push(...flights);agencyQuotes.push({agency,leg:leg.leg,date:leg.date,status:'ok',...flights[0],flights});observations.push(flights[0].observed_at);
     }
     all.sort((a,b)=>a.price-b.price||a.departure.localeCompare(b.departure)||a.agency.localeCompare(b.agency));
     legs[leg.leg]=[all.length?{...all[0],flights:all}:{date:leg.date,price:null,flights:[]}];
   }
-  if(!Object.values(legs).some(([q])=>q.price>0))throw new Error('Feed has no usable agency quote');
+  if(!observations.length)throw new Error('Feed has no successful agency search');
   const amounts=selected.map(l=>legs[l.leg][0].price),price=amounts.some(p=>p===null)?null:amounts.reduce((a,b)=>a+b,0);
-  return {schema:1,source:SOURCE,query_id:queryId(query,SOURCE),query,observed_at:selected.map(l=>legs[l.leg][0].observed_at).filter(Boolean).sort()[0],
+  return {schema:1,source:SOURCE,query_id:queryId(query,SOURCE),query,observed_at:observations.sort()[0],
     status:Object.keys(legErrors).length||price===null?'partial':'ok',currency:'VND',taxes_included:true,scope:'selected-dates',price_basis:BASIS,price_is_estimate:true,
     agency:'BestPrice + ABAY',adjustment_method:'User-approved temporary per-leg agency offsets; not a guaranteed official VNA quote',
     main_price:price,minimum_price:price,legs,leg_errors:legErrors,agency_quotes:agencyQuotes,source_pages:['https://www.bestprice.vn/ve-may-bay','https://www.abay.vn/'],

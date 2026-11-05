@@ -31,6 +31,7 @@ export function priceNote(id,record){
 export function agencyPrices(record,leg,date){
   const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';
   return (record?.agency_quotes||[]).filter(q=>q.leg===leg&&q.date===date).map(q=>{
+    if(q.status==='empty')return '• '+q.agency+': không có báo giá phù hợp.';
     if(q.status!=='ok')return '• '+q.agency+': chưa cập nhật được.';
     const offset=q.adjustment_vnd,adjustment=offset?' '+(offset<0?'−':'+')+money(Math.abs(offset)):'';
     const at=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(q.observed_at));

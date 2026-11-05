@@ -47,6 +47,38 @@ test('HTTP failures are errors and never schedule neighboring dates or retry',as
   for(const status of [403,429,503]){let attempts=0;await assert.rejects(crawl(q,{fetchImpl:async()=>{attempts++;return new Response('',{status});}}),new RegExp('HTTP '+status));assert.equal(attempts,1);}
 });
 
+test('completed searches without bookable fares return no price, not a crawl error',async()=>{
+  const sold=fare(0,q,q.departureDate,1800000);
+  sold.ListOption[0].ListFlight[0].ListSegment[0].SeatAvl=0;
+  for(const ListFareData of [[],[sold]]){
+    const r=await crawl(q,{fetchImpl:async()=>Response.json({Status:true,ListFareData})});
+    assert.equal(r.status,'partial');assert.equal(r.main_price,null);assert.equal(r.minimum_price,null);
+    assert.equal(r.legs.outbound[0].price,null);assert.equal(r.legs.inbound[0].price,null);
+    assert.deepEqual(r.legs.outbound[0].flights,[]);assert.deepEqual(r.legs.inbound[0].flights,[]);
+  }
+});
+
+test('failed or malformed Flynow searches are never classified as no-fare success',async()=>{
+  for(const payload of [{Status:false,ErrorCode:'0001',ListFareData:[]},{Status:true},{Status:true,ListFareData:null}]){
+    await assert.rejects(crawl(q,{fetchImpl:async()=>Response.json(payload)}),error=>{
+      assert.equal(error.requests,1);
+      if(payload.Status===false)assert.equal(error.sourceCode,'0001');
+      return true;
+    });
+  }
+});
+
+test('malformed fare or availability fields cannot turn a Flynow crawl failure into an empty result',async()=>{
+  const fares=[{}];
+  for(const change of [
+    f=>delete f.ListOption[0].ListFlight[0].StopNum,
+    f=>delete f.ListOption[0].ListFlight[0].ListSegment[0].Status,
+    f=>delete f.ListOption[0].ListFlight[0].ListSegment[0].SeatAvl,
+    f=>f.ListOption[0].ListFlight[0].ListSegment[0].SeatAvl=-1,
+  ]){const f=fare(0,q,q.departureDate);change(f);fares.push(f);}
+  for(const f of fares)await assert.rejects(crawl(q,{fetchImpl:async()=>Response.json({Status:true,ListFareData:[f]})}));
+});
+
 test('old untaxed calendar history is isolated by the new source identity',async t=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'flynow-history-'));t.after(()=>rm(dir,{recursive:true,force:true}));
   const source=simulatedFlynow(q),record=await crawl(q,{fetchImpl:source.fetch});

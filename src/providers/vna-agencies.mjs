@@ -42,12 +42,14 @@ export function parseBestprice(data,leg,observedAt){
   const d=data.search_data;if(!d||!Array.isArray(d.flight_data))throw new Error('BestPrice search schema changed');
   const flights=[];
   for(const f of d.flight_data){
+    if(!f||typeof f.Airlines!=='string'||!Number.isSafeInteger(f.Stop)||f.Stop<0)throw new Error('BestPrice flight schema changed');
     if(f.Airlines!=='VN'||f.Stop!==0)continue;
     if(f.From!==leg.from||f.To!==leg.to||!/^VN-?\d+$/.test(f.FlightNumber||''))throw new Error('BestPrice itinerary mismatch');
     const departure=bestpriceDateTime(f.DateFrom,leg.date),arrival=bestpriceDateTime(f.DateTo,leg.date);
     if(arrival<=departure||!Array.isArray(f.PriceInfo))throw new Error('BestPrice flight schema changed');
     for(const p of f.PriceInfo){
-      if(!Number.isInteger(p.Seat)||p.Seat<1)continue;
+      if(!p||!Number.isSafeInteger(p.Seat)||p.Seat<0)throw new Error('BestPrice seat schema changed');
+      if(p.Seat<1)continue;
       const base=number(p.ADT_Fare,'fare'),tax=number(p.ADT_Tax,'tax'),fee=number(p.BP_Fee,'fee');
       if(!Number.isSafeInteger(base+tax+fee))throw new Error('BestPrice total exceeds safe amount');
       if(number(p.BP_Discount,'discount')||number(p.BP_Discount_Total,'discount total')||!base)throw new Error('BestPrice discounted/empty fare unsupported');
@@ -71,13 +73,17 @@ export async function crawlBestprice(leg,{fetchImpl=fetch}={}){
     for(let i=0;i<3;i++){
       const params=new URLSearchParams(search);
       for(const [k,v] of Object.entries({sid,vnisc_sid:vnisc,previous_flights:previous,flight_type:'depart',previous_airline:'',time_first_call:time,airline_search:'VN'}))params.set(k,v);
-      const {body}=await s.read(base+'/ajax-search-flight-bp?'+params),data=JSON.parse(body),flights=parseBestprice(data,leg);
-      if(flights.length)return {flights,requests:s.requests,bytes:s.bytes};
-      if(data.search_status!=='CONTINUE')break;
-      previous=data.search_data?.previous_flights||'';time=data.search_data?.time_first_call||'';
+      const {body}=await s.read(base+'/ajax-search-flight-bp?'+params),data=JSON.parse(body);
+      if(data.exception_html)throw new Error('BestPrice search exception');
+      if(!['CONTINUE','DONE'].includes(data.search_status))throw new Error('BestPrice search status invalid');
+      const d=data.search_data;
+      const pending=data.search_status==='CONTINUE'&&d&&Array.isArray(d.flight_items)&&d.flight_items.length===0&&d.flight_data===undefined;
+      const flights=pending?[]:parseBestprice(data,leg);
+      if(flights.length||data.search_status==='DONE')return {flights,observed_at:new Date().toISOString(),requests:s.requests,bytes:s.bytes};
+      previous=d.previous_flights||'';time=d.time_first_call||'';
       if(i<2)await new Promise(resolve=>setTimeout(resolve,1000));
     }
-    throw new Error('BestPrice has no matching priced VNA flight');
+    throw new Error('BestPrice search did not complete');
   }catch(e){throw Object.assign(new Error('BestPrice: '+safeError(e)),{requests:s.requests});}
 }
 const abayBase='https://www.abay.vn/';
@@ -123,12 +129,13 @@ export async function crawlAbay(leg,{fetchImpl=fetch}={}){
     const {body}=await s.read(abayBase+'_WEB/ResultDom2024/ResultDomAjax.aspx/GetFlights?'+params,{method:'POST',headers:{'content-type':'application/json',referer:String(resultUrl)},body:'{}'});
     const payload=JSON.parse(body),data=typeof payload.d==='string'?JSON.parse(payload.d):payload.d;
     if(!Array.isArray(data?.D))throw new Error('ABAY search schema changed');
-    const candidates=data.D.filter(f=>f.E==='VN'&&f.T);if(candidates.length>4)throw new Error('ABAY flight detail budget exceeded');
+    if(data.D.some(f=>!f||typeof f.E!=='string'))throw new Error('ABAY flight schema changed');
+    const candidates=data.D.filter(f=>f.E==='VN');if(candidates.some(f=>!f.T))throw new Error('ABAY flight detail unavailable');
+    if(candidates.length>4)throw new Error('ABAY flight detail budget exceeded');
     const flights=[];
     for(const f of candidates){const u=safeAbay(f.T);if(u.pathname.toLowerCase()!=='/_web/resultdom2024/usrdesktop/flightdetail.aspx')throw new Error('ABAY detail path rejected');
       const {body:detail}=await s.read(u,{headers:{referer:String(resultUrl)}}),quote=parseAbayFlight(f,detail,leg);if(quote)flights.push(quote);}
-    if(!flights.length)throw new Error('ABAY has no matching priced VNA flight');
-    return {flights,requests:s.requests,bytes:s.bytes};
+    return {flights,observed_at:new Date().toISOString(),requests:s.requests,bytes:s.bytes};
   }catch(e){throw Object.assign(new Error('ABAY: '+safeError(e)),{requests:s.requests});}
 }
 // Provider error text/URLs can contain opaque sessions. Persist only our own messages.
@@ -139,17 +146,18 @@ export async function crawl(query,{fetchImpl=fetch,bestpriceImpl,abayFetchImpl}=
   for(const leg of trackedLegs(query)){
     const results=await Promise.all([['bestprice',bestpriceImpl||crawlBestprice],['abay',crawlAbay]].map(async([id,run])=>{
       try{const r=await run(leg,{fetchImpl:id==='abay'?(abayFetchImpl||fetchImpl):fetchImpl});requests+=r.requests;bytes+=r.bytes;const flights=r.flights.sort((a,b)=>a.price-b.price||a.departure.localeCompare(b.departure));
-        return {agency:names[id],leg:leg.leg,date:leg.date,status:'ok',...flights[0],flights};
+        return flights.length?{agency:names[id],leg:leg.leg,date:leg.date,status:'ok',...flights[0],flights}
+          :{agency:names[id],leg:leg.leg,date:leg.date,status:'empty',flights:[],observed_at:r.observed_at||new Date().toISOString()};
       }catch(e){requests+=e.requests||0;return {agency:names[id],leg:leg.leg,date:leg.date,status:'error',error:safeError(e)};}
     }));
     agencyQuotes.push(...results);const flights=results.flatMap(r=>r.flights||[]).sort((a,b)=>a.price-b.price||a.departure.localeCompare(b.departure)||a.agency.localeCompare(b.agency));
     legs[leg.leg]=[flights.length?{...flights[0],flights}:{date:leg.date,price:null,flights:[]}];
     if(results.some(r=>r.status==='error'))legErrors[leg.leg]='One or more agency searches failed';
   }
-  if(!Object.values(legs).some(([q])=>q.price>0))throw Object.assign(new Error('VNA: BestPrice and ABAY searches unavailable; no current estimate'),{requests,agency_quotes:agencyQuotes});
+  if(!agencyQuotes.some(q=>q.status!=='error'))throw Object.assign(new Error('VNA: BestPrice and ABAY searches unavailable; no current estimate'),{requests,agency_quotes:agencyQuotes});
   agencyQuotes.sort((a,b)=>a.leg.localeCompare(b.leg)||a.agency.localeCompare(b.agency));
   const prices=trackedLegs(query).map(l=>legs[l.leg][0].price),price=prices.some(p=>!p)?null:prices.reduce((a,b)=>a+b,0);
-  const observedAt=trackedLegs(query).map(l=>legs[l.leg][0].observed_at).filter(Boolean).sort()[0]||new Date().toISOString();
+  const observedAt=agencyQuotes.filter(q=>q.status!=='error').map(q=>q.observed_at).sort()[0];
   return {schema:1,source:SOURCE,query_id:queryId(query,SOURCE),query,observed_at:observedAt,status:Object.keys(legErrors).length||price===null?'partial':'ok',currency:'VND',
     taxes_included:true,scope:'selected-dates',price_basis:BASIS,price_is_estimate:true,agency:'BestPrice + ABAY',adjustment_method:'User-approved temporary per-leg agency offsets; not a guaranteed official VNA quote',
     main_price:price,minimum_price:price,legs,leg_errors:legErrors,agency_quotes:agencyQuotes,source_pages:['https://www.bestprice.vn/ve-may-bay','https://www.abay.vn/'],

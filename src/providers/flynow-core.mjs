@@ -21,6 +21,7 @@ export function normalizeSearch(payload,query,departureDate,returnDate,observedA
   }
   const quotes={outbound:[],inbound:[]};
   for(const fare of payload.ListFareData){
+    if(!fare||typeof fare.Airline!=='string')throw new Error('Flynow: thiếu hãng trong báo giá.');
     if(fare.Airline!==airline)continue;
     if(fare.System!==system||fare.Currency!=='VND'||fare.Adt!==query.adults||fare.Chd!==0||fare.Inf!==0)
       throw new Error('Flynow: nguồn, tiền tệ hoặc số hành khách không khớp.');
@@ -45,11 +46,15 @@ export function normalizeSearch(payload,query,departureDate,returnDate,observedA
         !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(f.EndDate||'')||
         !Number.isFinite(Date.parse(f.StartDate+'+07:00'))||!Number.isFinite(Date.parse(f.EndDate+'+07:00'))||Date.parse(f.EndDate+'+07:00')<=Date.parse(f.StartDate+'+07:00')||
         !new RegExp('^'+airline+'[0-9]+$').test(f.FlightNumber||''))throw new Error('Flynow: số chuyến hoặc giờ bay không hợp lệ.');
+      if(!Number.isSafeInteger(f.StopNum)||f.StopNum<0)throw new Error('Flynow: số điểm dừng không hợp lệ.');
       if(f.StopNum!==0)continue;
       const segments=f.ListSegment;
       if(!Array.isArray(segments)||segments.length!==1)throw new Error('Flynow: thiếu chặng bay thẳng.');
       const segment=segments[0];
-      if(segment.Status!=='OK'||!Number.isInteger(segment.SeatAvl)||segment.SeatAvl<query.adults)continue;
+      if(!segment||typeof segment.Status!=='string')throw new Error('Flynow: thiếu trạng thái chặng bay.');
+      if(segment.Status!=='OK')continue;
+      if(!Number.isSafeInteger(segment.SeatAvl)||segment.SeatAvl<0)throw new Error('Flynow: số ghế không hợp lệ.');
+      if(segment.SeatAvl<query.adults)continue;
       quotes[leg].push({date:expectedDate,price,base_fare:base,airline_taxes:tax,agency_fee:fee,ota_price:ota,
         fare_family:airline==='VJ'?(segment.FareBasis==='YSBoss'?'SkyBoss':/ECO$/i.test(segment.FareBasis)?'Eco':/DLX$/i.test(segment.FareBasis)?'Deluxe':segment.FareType||segment.FareBasis||null):segment.FareType||segment.CabinName||segment.Cabin||segment.FareBasis||null,
         fare_basis:segment.FareBasis,booking_class:segment.Class||null,cabin:segment.CabinName||segment.Cabin||null,
@@ -78,9 +83,6 @@ export async function crawlProvider(query,provider,{fetchImpl=fetch}={}){
   for(const {leg,date} of trackedLegs(query)){
     const flights=result.quotes[leg].sort((a,b)=>a.price-b.price||a.departure.localeCompare(b.departure)||String(a.fare_basis).localeCompare(String(b.fare_basis)));
     legs[leg]=[flights.length?{...flights[0],flights}:{date,price:null,fare_family:null,flights:[]}];
-  }
-  if(!Object.values(legs).some(([q])=>q.price!==null)){
-    const error=new Error(provider.name+' qua Flynow: không có báo giá phù hợp; không kết luận hết vé.');error.requests=1;throw error;
   }
   const selected=Object.values(legs).map(([q])=>q.price);
   const price=selected.some(p=>p===null)?null:selected.reduce((a,b)=>a+b,0);

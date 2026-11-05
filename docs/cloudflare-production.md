@@ -15,6 +15,19 @@ Ngày 22/10 đã sửa race giữa cron 10 phút và cron 07:00: job gửi bản
 
 Từ 03/11/2026, mã production và workflow lấy giá được hợp nhất về `main`. Workflow chỉ nhận push từ `main` và checkout `main`; cron Worker cũng dispatch ref `main`. Các nhánh triển khai/sửa lỗi đã merge không còn là phụ thuộc vận hành và có thể xóa. Sau thay đổi workflow, phải kiểm chứng cả dry-run lẫn lượt gửi feed thực tới Worker.
 
+## Phân biệt không có báo giá và lỗi crawl
+
+Từ bản sửa ngày 05/11/2026, mỗi nguồn đại lý có ba kết quả: `ok` (có giá), `empty` (tìm kiếm hoàn tất nhưng không có báo giá phù hợp), hoặc `error` (không hoàn tất crawl). `empty` không khẳng định hãng đã hết vé.
+
+- BestPrice nhận phản hồi chờ `CONTINUE` không có `flight_data` khi có `flight_items: []`, rồi tiếp tục trong giới hạn ba lượt truy vấn hiện có. Hết lượt mà vẫn đang chờ là lỗi crawl, không phải kết quả rỗng. Kết quả hoàn tất `DONE` với danh sách hợp lệ rỗng hoặc không còn ghế được xem là `empty`; trạng thái lạ, exception và sai schema vẫn lỗi.
+- ABAY tìm kiếm hợp lệ không có chuyến phù hợp hoặc không còn ghế trả `empty`. Flynow chỉ được coi là không có báo giá khi trả `Status: true` và danh sách giá hợp lệ; `Status: false`, kể cả mã `0001`, vẫn là lỗi tìm kiếm.
+- Actions thành công khi mọi nguồn đều `ok` hoặc `empty`, kể cả không nguồn nào có giá. Có bất kỳ nguồn `error` nào thì vẫn gửi phần kết quả dùng được tới Worker rồi exit 1. Lỗi gửi feed cũng exit 1; dry-run áp dụng cùng quy tắc crawl nhưng không gửi feed.
+- Worker nhận cả feed không có giá với thời điểm tìm kiếm thực, dùng giá `null`, không ghi giá 0 và không xóa minimum đã lưu. `/price`, `/flights`, `/status` phân biệt “không có báo giá phù hợp” với “chưa cập nhật được”. Khi tất cả nguồn lỗi, giữ cơ chế giá cũ; không biến lỗi nguồn thành kết quả rỗng.
+
+**Thứ tự phát hành:** deploy Worker hỗ trợ `empty` trước khi phát hành runner mới lên `main`; validator cũ từ chối feed có trạng thái mới. Chưa deploy hoặc gửi feed production trong lần kiểm chứng này.
+
+Kiểm chứng local: `npm test` qua **166 tests**, gồm ba regression chứng minh dữ liệu chuyến/ghế sai schema không được biến thành kết quả rỗng thành công. Smoke cô lập chạy nguồn giả lập → endpoint feed HTTP 202 → current price `null`, giữ minimum, và format kết quả rỗng cho cả hai hãng. Dry-run với nguồn thật `node --dns-result-order=ipv4first scripts/vna-agency-feed.mjs --dry-run` vẫn exit 1 (`ABAY: ok`, `BestPrice: error`); đây không phải bằng chứng BestPrice đã phục hồi.
+
 ## Lỗi ngày BestPrice ngày 03/11/2026
 
 [Run 41567543504](https://github.com/pho-veteran/crawling-air-tickets/actions/runs/41567543504) thất bại vì feed `partial`: ABAY thành công, BestPrice lỗi, Worker vẫn nhận HTTP 202. BestPrice trả `DateFrom: "13-02-2027 17:50:00"` và `DateTo: "13-02-2027 19:10:00"` cho VN1469, nhưng parser chỉ nhận ngày năm-tháng-ngày nên báo `Agency flight date mismatch`.
