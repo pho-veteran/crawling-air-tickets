@@ -8,6 +8,7 @@ Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không n�
 - Hai Queue `crawling-air-tickets-jobs` (crawl) và `crawling-air-tickets-delivery` (Telegram): batch 1, concurrency 2, tối đa 5 retries; lease riêng cho mỗi lane.
 - Cron `*/10 * * * *` và `0 0 * * *` (07:00 Việt Nam).
 - Webhook `/telegram`, secret header; nhận lệnh trong private chat và group được cấu hình. Một group nhận bản tin tự động, các subscriber private cũ đã ngừng nhận tự động.
+
 ## Chuyển ngày về và nguồn giá 07/11/2026
 
 Cấu hình mới **10/02/2027**, chỉ vé về VCL → SGN, 1 người lớn. VNA dùng duy nhất `vna-official-selected-prices-v1`: API lịch giá hãng qua runner Actions hiện có, kiểm tra TLS đầy đủ với intermediate CA công khai. Giữ slug `vna-agency-feed.yml` và endpoint `/sources/vna` như định danh vận hành; nội dung runner/validator đã chuyển hẳn sang giá chính thức, không còn feed hai đại lý hay offset. Feed tối đa 15 phút, không có dữ liệu hoặc lỗi vẫn ghi rõ, không nạp giá thủ công.
@@ -15,6 +16,9 @@ Cấu hình mới **10/02/2027**, chỉ vé về VCL → SGN, 1 người lớn. 
 Vietjet dùng duy nhất `vietjet-bestprice-selected-flight-fares-v1`, gọi trực tiếp từ Worker. Giá gồm thuế/phí hãng, tách phí đại lý theo trường tiền của từng báo giá. Không chuyển minimum ngày 13/02 hoặc nguồn cũ. [Đối chiếu 6.099.181đ VNA / 4.870.781đ Vietjet và giới hạn dữ liệu](cloudflare-selected-dates.md).
 
 Thông báo phân biệt bay thẳng/nối chuyến. VNA API chỉ có giá lịch, không cung cấp giờ bay hay phân loại; bot ghi giới hạn này thay vì bịa danh sách chuyến. Mẫu nối HAN do người dùng đối chiếu trên web chỉ dùng trong thông báo kết quả kiểm chứng, không ghi thành báo giá tự động. Lượt CLI thực cả hai nguồn `ok`; bộ test offline sau cutover qua **159 tests**.
+
+Phát hành mã [`55ea21b`](https://github.com/pho-veteran/crawling-air-tickets/commit/55ea21b9dc032978c98c6e0704e666b83f55c801). [Push dry-run 42346547770](https://github.com/pho-veteran/crawling-air-tickets/actions/runs/42346547770) và [feed thật 42346565390](https://github.com/pho-veteran/crawling-air-tickets/actions/runs/42346565390) đều **success**; runner thật lấy VNA `ok`, 1 request, 1.484ms rồi gửi HTTP 202. `/admin/context` xác nhận query ngày 10/02, VNA **6.099.181đ**, Vietjet **4.870.781đ**, cả hai `ok`, `last_attempt_failed=false`; VNA ghi `reference_only=true`, Vietjet có 4 chuyến. Bản đối chiếu bay thẳng/nối HAN đã gửi vào group đang cấu hình, Telegram ACK **message 605**. Bằng chứng đầy đủ lưu trong ignored `data/tracking-cutover-2026-11-07.json`, không công khai destination/secrets.
+
 
 Các mục sự cố tháng 10/ngày 05/11 bên dưới là lịch sử của nguồn cũ.
 

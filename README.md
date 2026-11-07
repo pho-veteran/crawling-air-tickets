@@ -260,12 +260,13 @@ Vietjet: `ADT_Fare + ADT_Tax`; lưu riêng `BP_Fee` và `ota_price`. Tổng than
 
 Source IDs: `vna-official-selected-prices-v1`, `vietjet-bestprice-selected-flight-fares-v1`. Nguồn/ngày mới có minimum riêng, không nhập giá 13/02 hoặc lịch sử ước tính cũ. `/price`, `/flights`, daily và alert phân biệt mục bay thẳng/nối chuyến; nếu nguồn không phân loại hoặc chưa có báo giá thì ghi rõ, không báo hết vé.
 
-Chạy lại kiểm chứng từ Worker (không gửi Telegram):
+Chạy lại nguồn VNA qua Node/Actions, không gửi Telegram khi dry-run:
 
 ```sh
-cf auth whoami
-node --dns-result-order=ipv4first scripts/cloudflare-source-check.mjs
-# Thêm --official khi cần chẩn đoán riêng ba endpoint VNA chính thức.
+node --dns-result-order=ipv4first scripts/vna-agency-feed.mjs --dry-run
+gh workflow run vna-agency-feed.yml --ref main -f dry_run=false
 ```
+
+`scripts/cloudflare-source-check.mjs` chỉ chẩn đoán truy cập trực tiếp từ spike Worker; VNA HTTP 403 ở đây không phải kết luận feed Actions production đã lỗi.
 
 Xem [bằng chứng và mục tiêu triển khai cập nhật](docs/cloudflare-selected-dates.md). `npm test` chỉ chạy test offline.
