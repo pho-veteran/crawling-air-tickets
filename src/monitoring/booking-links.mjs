@@ -22,11 +22,7 @@ export const bookingText=(id,query,record)=>bookingLinks(id,query,record).map(({
 export function flightHint(quote){
   if(!quote?.flight_number)return '';
   const time=typeof quote.departure==='string'?quote.departure.slice(11,16):'';
-  const arrival=typeof quote.arrival==='string'?quote.arrival.slice(11,16):'';
-  const segments=quote.segments||[],via=segments.slice(0,-1).map(s=>s.to).join(', ');
-  const duration=quote.total_duration_minutes;
-  return [quote.flight_number,time+(arrival?' → '+arrival:''),quote.fare_family,
-    via?'qua '+via:null,Number.isSafeInteger(duration)?Math.floor(duration/60)+'h'+String(duration%60).padStart(2,'0'):null].filter(Boolean).join(' · ');
+  return [quote.flight_number,time,quote.fare_family].filter(Boolean).join(' · ');
 }
 export const isSeparateTickets=record=>['sum-of-oneway-airline-fares-excluding-agency-fee','temporary-agency-adjusted-estimate'].includes(record?.price_basis);
 export function priceNote(id,record){
@@ -34,21 +30,25 @@ export function priceNote(id,record){
   if(record?.price_is_estimate)return 'ℹ️ Giá ước tính từ BestPrice/ABAY, đã điều chỉnh tạm theo chênh lệch đối chiếu. Giá thanh toán có thể khác; chưa giữ chỗ.';
   return record?.agency==='Flynow'||record?.agency==='BestPrice'?'ℹ️ '+(id==='vna'?'Vietnam Airlines':'Vietjet')+' qua '+record.agency+': gồm thuế/phí hãng; đã loại phí dịch vụ đại lý theo báo giá, chưa giữ chỗ.':'ℹ️ Gồm thuế theo nguồn; giá trọn hành trình được báo cùng lượt, chưa giữ chỗ.';
 }
-export function itineraryChoices(quote){
-  const best=[null,null];
+export const isConnecting=flight=>flight?.segments?.length>1||flight?.stops>0;
+export function connectingSection(quote,label){
+  const best=new Map();
   for(const f of quote?.flights||[]){
-    if(!Number.isSafeInteger(f.price)||f.price<=0)continue;
-    const kind=f.segments?.length>1||f.stops>0?1:0,a=best[kind];
-    if(!a||f.price<a.price||f.price===a.price&&f.departure<a.departure)best[kind]=f;
+    if(!isConnecting(f)||!Number.isSafeInteger(f.price)||f.price<=0||!f.flight_number||
+      !f.departure?.startsWith(quote.date+'T')||f.date!==quote.date)continue;
+    const key=f.flight_number+'|'+f.departure;
+    if(!best.has(key)||f.price<best.get(key).price)best.set(key,f);
   }
-  return best;
-}
-export function itineraryOptions(quote){
-  if(quote?.reference_only)return ['• Bay thẳng: nguồn giá lịch không phân loại','• Nối chuyến: nguồn giá lịch không phân loại',
-    '• Giá thấp nhất hãng: '+(Number.isSafeInteger(quote.price)&&quote.price>0?new Intl.NumberFormat('vi-VN').format(quote.price)+'đ':'chưa có báo giá')+' (giá lịch chính thức)'];
-  const best=itineraryChoices(quote);
-  return ['Bay thẳng','Nối chuyến'].map((label,i)=>
-    '• '+label+': '+(best[i]?new Intl.NumberFormat('vi-VN').format(best[i].price)+'đ · '+flightHint(best[i]):'chưa có báo giá phù hợp'));
+  if(!best.size)return [];
+  const lines=['','🔀 Nối chuyến · '+label];
+  for(const f of [...best.values()].sort((a,b)=>a.departure.localeCompare(b.departure)||a.flight_number.localeCompare(b.flight_number))){
+    const arrival=f.arrival?.slice(11,16)||'?',arrivalDay=f.arrival?.slice(0,10);
+    const dayNote=arrivalDay&&arrivalDay!==quote.date?' ('+arrivalDay.split('-').reverse().join('/')+')':'';
+    const duration=Number.isSafeInteger(f.total_duration_minutes)?' · '+Math.floor(f.total_duration_minutes/60)+'h'+String(f.total_duration_minutes%60).padStart(2,'0'):'';
+    lines.push('• '+f.flight_number+' · '+f.departure.slice(11,16)+' → '+arrival+dayNote+' · '+(f.fare_family||'hạng chưa rõ')+duration+' · '+new Intl.NumberFormat('vi-VN').format(f.price)+'đ');
+    for(const s of f.segments||[])lines.push('  '+s.from+' → '+s.to+' · '+s.flight_number+' · '+s.departure.slice(11,16)+' → '+s.arrival.slice(11,16));
+  }
+  return lines;
 }
 export function agencyPrices(record,leg,date){
   const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';

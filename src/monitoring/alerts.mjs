@@ -1,5 +1,5 @@
 import {when} from './messages.mjs';
-import {bookingText,itineraryOptions,isSeparateTickets,priceNote} from './booking-links.mjs';
+import {bookingText,flightHint,connectingSection,isSeparateTickets,priceNote} from './booking-links.mjs';
 import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';
 const hasPrice=n=>Number.isSafeInteger(n)&&n>0;
@@ -107,11 +107,13 @@ export function formatAlert(provider,record,events,history=[]) {
   if(quotes.length){const low=quotes.reduce((a,b)=>a.price<=b.price?a:b);rows.push('🏷 Thấp nhất từ khi theo dõi: '+money(low.price)+(record.history_mode==='current-and-minimum'?'.':' ('+when(low.at)+').'));}
   rows.push('🕒 '+when(record.observed_at)+' · giờ Việt Nam');
   rows.push(priceNote(provider.id,record));
+  const connections=[];
   for(const {leg:direction,date,label} of trackedLegs(q)){
     if(leg&&direction!==g.leg)continue;
     const quote=record.legs?.[direction]?.find(x=>x.date===(leg?g.date:date));
-    if(valid(record))rows.push(label,...itineraryOptions(quote));
+    if(valid(record)&&hasPrice(quote?.price)&&flightHint(quote))rows.push('✈️ '+label+': '+flightHint(quote));
+    if(valid(record))connections.push(...connectingSection(quote,label+' '+(leg?g.date:date).split('-').reverse().join('/')));
   }
   rows.push(bookingText(provider.id,q,record));
-  return rows.filter(Boolean).join('\n');
+  return rows.filter(Boolean).join('\n')+(connections.length?'\n'+connections.join('\n'):'');
 }

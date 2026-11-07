@@ -13,7 +13,6 @@ import {sendMessage} from './telegram.mjs';
 import {digest} from '../storage/d1.mjs';
 import {fastLoading,attachRefresh,completeRefresh} from './interactive.mjs';
 import {trackedRecord} from '../shared/tracking.mjs';
-import {itineraryChoices} from '../monitoring/booking-links.mjs';
 
 export const query=queryFrom(config);
 export const settings={...settingsFrom(config.monitoring,{}),historyMode:'current-and-minimum'};
@@ -25,8 +24,7 @@ const dailyKey=(env,chat)=>'daily:'+hash(botId(env)+'|'+chat+'|'+JSON.stringify(
 const alertKey=(env,chat,p)=>'alerts:'+hash(botId(env)+'|'+chat,16)+':'+p.source+':'+queryId(query,p.source);
 const portableFetch=fetchImpl=>(url,options)=>fetchImpl(url,{...options,redirect:options.redirect==='error'?'manual':options.redirect});
 const compact=record=>({...record,request_diagnostics:undefined,cells:undefined,
-  agency_quotes:record.agency_quotes?.map(q=>({...q,flights:undefined})),
-  legs:Object.fromEntries(Object.entries(record.legs||{}).map(([leg,dates])=>[leg,dates.map(q=>({...q,flights:itineraryChoices(q).filter(Boolean)}))]))});
+  agency_quotes:record.agency_quotes?.map(q=>({...q,flights:undefined}))});
 
 function baseline(p){
   const qid=queryId(query,p.source),current=p.history.at(-1),history=[];

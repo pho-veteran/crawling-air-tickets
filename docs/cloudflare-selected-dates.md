@@ -2,18 +2,20 @@
 
 ## Cập nhật 07/11/2026
 
-Theo dõi vé về **VCL → SGN, 10/02/2027, 1 người lớn, VND**. Chốt duy nhất API lịch giá chính thức cho VNA và BestPrice cho Vietjet; không dùng offset của 13/02.
+Theo dõi vé về **VCL → SGN, 10/02/2027, 1 người lớn, VND**. Vietjet dùng BestPrice. VNA tạm giữ duy nhất API lịch giá chính thức; **chưa chốt được provider tự crawl đầy đủ hành trình nối chuyến**. Không dùng offset của 13/02.
 
 | Hãng / sản phẩm đối chiếu | Giá nguồn gồm thuế/phí | Giá web hãng | Chênh |
 | --- | ---: | ---: | ---: |
 | VNA, giá thấp nhất ngày 10/02 | 6.099.181đ | 6.099.181đ | 0đ |
 | Vietjet VJ371, 07:50–09:10, SkyBoss | 4.870.781đ | 4.870.781đ | 0đ |
 
-VNA API trả vé **4.724.000đ** + thuế/phí **1.375.181đ**. Ảnh VND người dùng cung cấp cho thấy hành trình VN1640 + VN251, VCL → HAN → SGN, 09:15–14:15, 5 giờ; và VN1640 + VN213, 09:15–15:15, 6 giờ, cùng giá phổ thông từ 6.099.181đ. Đây là đối chiếu ảnh thật, không phải dữ liệu giờ bay tự động của provider. Ảnh NOK trước đó không được đổi thành giá VND. API lịch giá không trả số chuyến/điểm dừng; không gán mọi giá tương lai thành nối chuyến, không ghi giờ bay trong ảnh vào current snapshot.
+VNA API tự crawl trả vé **4.724.000đ** + thuế/phí **1.375.181đ**, nhưng không trả số chuyến, giờ bay hoặc điểm dừng. Không gán giá lịch này cho một hành trình cụ thể; không ghi dữ liệu từ ảnh vào snapshot, section nối chuyến hoặc bản tin vận hành.
 
 Vietjet được chọn trực tiếp trên web hãng qua Edge: **4.309.200đ giá vé + 561.581đ thuế/phí + 0đ dịch vụ = 4.870.781đ**. BestPrice trả **3.990.000đ vé + 880.781đ thuế/phí**, thêm phí đại lý tách riêng **100.000đ**, tổng OTA **4.970.781đ**. Phân bổ thuế giữa UI và API khác nhau; tổng cùng hành trình bằng nhau. Bốn chuyến thẳng VJ371/375/377/373 đều có SkyBoss ở mẫu kiểm tra; không có báo giá Eco/Deluxe trên UI. Hành lý 30kg ký gửi + 10kg xách tay.
 
-Node smoke thực chạy cả hai nguồn `ok`, 1 request VNA và 3 request Vietjet. BestPrice từ Worker cũng `ok`; VNA từ Worker vẫn HTTP 403 nên runner Actions lấy API chính thức và nhập feed. API booking đầy đủ `air-bounds` từ Node bị HTTP 403; không chuyển cookie chống bot hoặc vượt xác minh. Các mẫu liên tiếp không phải chứng minh ổn định dài hạn hoặc cam kết giá thanh toán không đổi.
+Node smoke mới nhất lấy cả hai nguồn `ok`: VNA **6.099.181đ**, Vietjet **4.870.781đ**, đủ bốn chuyến Vietjet. Worker vẫn lấy VNA qua Actions. Bootstrap booking đầy đủ trả **403** từ Node và runner GitHub (run `42347294065`); mở form đúng tuyến/ngày trong Edge thật cũng dừng ở **“VNA— Xác minh bảo mật”**. Chưa thao tác xác minh, chuyển cookie hay vượt bảo vệ. Trip.com hiển thị giá nối chuyến nhưng request độc lập bị **430 whaleguard block**. Google Flights hiển thị listing nhưng không xác nhận được booking và không tái lập được inventory bằng Chrome/Edge stock; không đưa nguồn thử nghiệm này vào tracking.
+
+Giữ layout message cũ; chỉ append `🔀 Nối chuyến` cho provider có dữ liệu cả hành trình, từng chặng và giá tự crawl hợp lệ. Không có section rỗng cho provider chỉ có bay thẳng hoặc giá lịch. Worker giữ các hành trình nối chuyến khác nhau thay vì cắt còn một lựa chọn khi tạo job thông báo. Kiểm tra layout với snapshot crawl thật và **156 tests offline qua**; chưa thể kiểm chứng section VNA trên nguồn production vì thiếu inventory tự động.
 
 Các phần bên dưới là hồ sơ lịch sử ngày 13/02, không phải cấu hình hiện hành.
 

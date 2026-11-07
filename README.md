@@ -258,7 +258,9 @@ VNA: `base + totalTaxes == total` trong API `air-best-price`; chỉ lưu giá c�
 
 Vietjet: `ADT_Fare + ADT_Tax`; lưu riêng `BP_Fee` và `ota_price`. Tổng thanh toán BestPrice có thêm phí đại lý; không trừ hằng số, không nhận chiết khấu chưa xác minh. Giá thấp nhất là trong các báo giá hợp lệ nguồn đã trả, không cam kết mọi tồn chỗ của hãng.
 
-Source IDs: `vna-official-selected-prices-v1`, `vietjet-bestprice-selected-flight-fares-v1`. Nguồn/ngày mới có minimum riêng, không nhập giá 13/02 hoặc lịch sử ước tính cũ. `/price`, `/flights`, daily và alert phân biệt mục bay thẳng/nối chuyến; nếu nguồn không phân loại hoặc chưa có báo giá thì ghi rõ, không báo hết vé.
+Source IDs: `vna-official-selected-prices-v1`, `vietjet-bestprice-selected-flight-fares-v1`. Nguồn/ngày mới có minimum riêng, không nhập giá 13/02 hoặc lịch sử ước tính cũ. Giữ layout message gọn cũ của `/price`, `/flights`, daily và alert; chỉ nối thêm section nối chuyến khi snapshot tự crawl có báo giá cả hành trình và từng chặng thật. Không tạo section rỗng cho Vietjet, không lấy số chuyến/giờ từ ảnh để điền vào VNA. Giá chính vẫn là giá thấp nhất cả hành trình, không bị đổi thành giá bay thẳng.
+
+VNA hiện chỉ tự crawl được giá lịch, chưa có inventory nối chuyến. Booking đầy đủ bị xác minh bảo mật cả trong Edge thật và HTTP 403 từ runner; các nguồn thay thế chưa qua kiểm chứng crawler bình thường. Đây là phần còn chặn, không phải tính năng crawl nối chuyến đã hoàn tất. Không vượt xác minh hoặc nhập tay dữ liệu để che thiếu hụt.
 
 Chạy lại nguồn VNA qua Node/Actions, không gửi Telegram khi dry-run:
 

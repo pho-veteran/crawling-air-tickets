@@ -1,5 +1,5 @@
 import {money,routeLine,when} from './messages.mjs';
-import {bookingText,priceNote,agencyPrices,flightHint,itineraryOptions} from './booking-links.mjs';
+import {bookingText,priceNote,agencyPrices,isConnecting,connectingSection} from './booking-links.mjs';
 import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 
 function choices(quote,date,airline){
@@ -18,34 +18,33 @@ export function formatFlights({providers,query,now=Date.now(),pollMinutes=10}){
     const history=p.history.filter(r=>Date.parse(r.observed_at)<=now),last=history.at(-1);
     const r=history.filter(r=>['ok','partial'].includes(r.status)).at(-1);
     const lines=[(p.id==='vna'?'🟦 ':'🟥 ')+p.name.toUpperCase()];
-    if(!r){lines.push('⚠️ Chưa lấy được danh sách chuyến có giá của hãng này.',...itineraryOptions());sections.push(lines.join('\n'));continue;}
+    if(!r){lines.push('⚠️ Chưa lấy được danh sách chuyến có giá của hãng này.');sections.push(lines.join('\n'));continue;}
     if(last?.status==='error'||r.last_attempt_failed||now-Date.parse(r.observed_at)>(pollMinutes+5)*60000)
       lines.push('⚠️ GIÁ CŨ — lần cập nhật gần nhất '+when(r.observed_at));
     else if(r.status==='partial')lines.push(r.agency_quotes?.some(q=>q.status==='error')||Object.keys(r.leg_errors||{}).length?'⚠️ Nguồn còn thiếu một phần.':'ℹ️ Kết quả từng nguồn được ghi rõ bên dưới.');
+    const connections=[];
     for(const {leg,date,label,from,to} of trackedLegs(query)){
       lines.push(label+' '+from+' → '+to+' · '+date.split('-').reverse().join('/'));
-      const quote=r.legs?.[leg]?.find(q=>q.date===date),flights=choices(quote,date,p.id==='vna'?'VN':'VJ');
+      const quote=r.legs?.[leg]?.find(q=>q.date===date),flights=choices(quote,date,p.id==='vna'?'VN':'VJ').filter(f=>!isConnecting(f));
+      connections.push(...connectingSection(quote,label+' '+from+' → '+to+' · '+date.split('-').reverse().join('/')));
       if(!flights.length){
-        lines.push(...itineraryOptions(quote));
+        if(quote?.flights?.some(isConnecting))continue;
+        lines.push('Chưa có danh sách chuyến có giá cho chiều này.');
         if(r.agency&&quote?.price===null&&Array.isArray(quote.flights)&&!quote.flights.length&&!r.leg_errors?.[leg])lines.push('• '+r.agency+': không có báo giá phù hợp.');
         else if(r.agency&&r.leg_errors?.[leg])lines.push('• '+r.agency+': chưa cập nhật được.');
         lines.push(...agencyPrices(r,leg,date));continue;
       }
-      for(const [label,connecting] of [['Bay thẳng',false],['Nối chuyến',true]]){
-        const available=flights.filter(f=>(f.segments?.length>1||f.stops>0)===connecting);
-        lines.push(label+(available.length?'':': chưa có báo giá phù hợp'));
-        for(const f of available){
-          const arrivalDay=f.arrival?.slice(0,10),dayNote=arrivalDay&&arrivalDay!==date?' (đến '+arrivalDay.split('-').reverse().join('/')+')':'';
-          lines.push('• '+flightHint(f)+dayNote+' · '+money(f.price));
-          if(f.segments?.length>1)for(const s of f.segments)lines.push('  '+s.from+' → '+s.to+' · '+s.flight_number+' · '+s.departure.slice(11,16)+' → '+s.arrival.slice(11,16));
-          if(f.price_is_estimate)lines.push('  Qua '+f.agency+' · giá ước tính sau điều chỉnh tạm.');
-          else if(Number.isSafeInteger(f.agency_fee)&&f.agency_fee>=0&&Number.isSafeInteger(f.ota_price)&&f.ota_price===f.price+f.agency_fee)
-            lines.push('  Qua '+(r.agency||'đại lý')+': '+money(f.ota_price)+' (phí đại lý '+(f.agency_fee===0?'0đ':money(f.agency_fee))+').');
-        }
+      for(const f of flights){
+        const arrival=f.arrival?.slice(11,16)||'?',arrivalDay=f.arrival?.slice(0,10);
+        const dayNote=arrivalDay&&arrivalDay!==date?' ('+arrivalDay.split('-').reverse().join('/')+')':'';
+        lines.push('• '+f.flight_number+' · '+f.departure.slice(11,16)+' → '+arrival+dayNote+' · '+(f.fare_family||'hạng chưa rõ')+' · '+money(f.price));
+        if(f.price_is_estimate)lines.push('  Qua '+f.agency+' · giá ước tính sau điều chỉnh tạm.');
+        else if(Number.isSafeInteger(f.agency_fee)&&f.agency_fee>=0&&Number.isSafeInteger(f.ota_price)&&f.ota_price===f.price+f.agency_fee)
+          lines.push('  Qua '+(r.agency||'đại lý')+': '+money(f.ota_price)+' (phí đại lý '+(f.agency_fee===0?'0đ':money(f.agency_fee))+').');
       }
       lines.push(...agencyPrices(r,leg,date));
     }
-    lines.push('🕒 Cập nhật '+when(r.observed_at),priceNote(p.id,r),bookingText(p.id,query,r));
+    lines.push('🕒 Cập nhật '+when(r.observed_at),priceNote(p.id,r),bookingText(p.id,query,r),...connections);
     sections.push(lines.join('\n'));
   }
   return sections.join('\n\n');
