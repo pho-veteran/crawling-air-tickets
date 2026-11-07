@@ -9,7 +9,7 @@ import {formatDaily} from '../src/monitoring/messages.mjs';
 import {evaluateAlerts, alertGroups, formatAlert, settingsFrom} from '../src/monitoring/alerts.mjs';
 import {sendDaily} from '../src/monitoring/daily.mjs';
 import {handleCommand} from '../src/telegram/commands.mjs';
-import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
+import {simulatedSources} from '../scripts/fixtures/agencies.mjs';
 
 const config = {origin: 'SGN', destination: 'VCL', departureDate: '2027-02-04', returnDate: '2027-02-13', adults: 1};
 const query = queryFrom(config);
@@ -19,9 +19,8 @@ const now = Date.parse('2026-10-12T07:00:00+07:00');
 const creds = {token: '123:TEST', chatId: '456', enabled: true, configured: true};
 
 async function snapshot(options = {}, observedAt = '2026-10-12T06:50:00+07:00') {
-  const source = simulatedFlynow(query, options);
+  const source = simulatedSources(query, options);
   const record = await crawl(query, {fetchImpl: source.fetch});
-  assert.equal(source.requests.length, 1);
   record.observed_at = observedAt;
   for (const leg of Object.values(record.legs)) for (const quote of leg) quote.observed_at = observedAt;
   return record;
@@ -60,9 +59,8 @@ for (const failLeg of ['outbound', 'inbound']) {
 }
 
 test('Vietjet reports an error when neither direction can be fetched', async () => {
-  const source = simulatedFlynow(query, {failLeg: 'both'});
-  await assert.rejects(crawl(query, {fetchImpl: source.fetch}), error => error.requests === 1 && /503/.test(error.message));
-  assert.equal(source.requests.length, 1);
+  const source = simulatedSources(query, {failLeg: 'both'});
+  await assert.rejects(crawl(query, {fetchImpl: source.fetch}), /503/);
 });
 
 test('older Vietjet history without leg quotes never derives each direction by splitting the total', async () => {
@@ -86,7 +84,6 @@ test('Vietjet outbound and inbound alerts show their own prices and routes when 
     assert.ok(text.includes(route));
     assert.ok(text.includes(price));
     assert.match(text, /giảm 100.000đ/);
-    assert.match(text, /Flynow: gồm thuế/);
   }
 });
 

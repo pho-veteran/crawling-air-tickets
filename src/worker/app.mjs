@@ -4,7 +4,7 @@ import config from '../../config.json' with {type:'json'};
 import {localDay} from '../monitoring/messages.mjs';
 import {meter} from './d1-meter.mjs';
 import {admit,requestRefresh,completeRefresh,fastLoading} from './interactive.mjs';
-import {feedKey} from './vna-agencies.mjs';
+import {feedKey} from './vna-feed-source.mjs';
 import {validateFeed} from './vna-feed.mjs';
 import {queryFrom} from '../providers/vna-core.mjs';
 import {canonicalJson} from '../storage/d1.mjs';
@@ -136,7 +136,7 @@ export default {
     }
     if(url.pathname==='/sources/vna'&&request.method==='POST'){
       if(!env.VNA_FEED_SECRET||!equal(request.headers.get('x-vna-feed-secret'),env.VNA_FEED_SECRET))return json({error:'Unauthorized'},401);
-      let record;try{record=validateFeed(await body(request),queryFrom(config),store.now());}catch{return json({error:'Invalid or stale agency feed'},400);}
+      let record;try{record=validateFeed(await body(request),queryFrom(config),store.now());}catch{return json({error:'Invalid or stale official feed'},400);}
       const changed=await store.statement(`INSERT INTO runtime_state(key,document_json) VALUES(?,?)
         ON CONFLICT(key) DO UPDATE SET document_json=excluded.document_json
         WHERE json_extract(runtime_state.document_json,'$.observed_at')<json_extract(excluded.document_json,'$.observed_at')`,feedKey(record.query),canonicalJson(record)).run();

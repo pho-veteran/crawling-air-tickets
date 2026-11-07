@@ -1,8 +1,8 @@
 import {timingSafeEqual} from 'node:crypto';
 import config from '../../config.json' with {type:'json'};
 import {queryFrom} from '../providers/vna-core.mjs';
-import {crawl as vna} from '../providers/vna-flynow.mjs';
-import {crawl as vietjet} from '../providers/vietjet-flynow.mjs';
+import {crawl as vna} from '../providers/vna-official.mjs';
+import {crawl as vietjet} from '../providers/vietjet-bestprice.mjs';
 import {storageCheck} from './storage-check.mjs';
 import {diagnose} from './vna-diagnostic.mjs';
 import {crawl as agencies} from '../providers/vna-agencies.mjs';

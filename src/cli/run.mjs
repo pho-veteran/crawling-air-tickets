@@ -10,8 +10,10 @@ import {settingsFrom} from '../monitoring/alerts.mjs';
 import {notifyRecord} from '../monitoring/notify.mjs';
 import {createBatch} from '../shared/batch.mjs';
 import {createCrawlLog,errorInfo} from '../shared/crawl-log.mjs';
+import {configureTLS} from '../shared/tls.mjs';
 
 const root=projectRoot;
+configureTLS();
 loadEnv(root);
 const {values:args}=parseArgs({options:{airline:{type:'string',default:'all'},quick:{type:'boolean',default:false},'no-notify':{type:'boolean',default:false}}});
 if(!['all','vna','vietjet'].includes(args.airline))throw new Error('--airline: all, vna hoặc vietjet.');

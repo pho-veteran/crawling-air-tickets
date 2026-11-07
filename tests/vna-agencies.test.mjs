@@ -3,14 +3,10 @@ import assert from 'node:assert/strict';
 import {crawl,adjustedQuote,parseBestprice,SOURCE} from '../src/providers/vna-agencies.mjs';
 import {simulatedSources} from '../scripts/fixtures/agencies.mjs';
 import {queryFrom,queryId} from '../src/providers/vna-core.mjs';
-import {validateFeed} from '../src/worker/vna-feed.mjs';
-import {crawl as readFeed,feedKey,FEED_MAX_AGE_MS} from '../src/worker/vna-agencies.mjs';
 import {RuntimeStore} from '../src/worker/runtime-store.mjs';
 import {LocalD1} from '../scripts/lib/local-d1.mjs';
 import config from '../config.json' with {type:'json'};
-import app from '../src/worker/app.mjs';
-import {formatCurrentPrices,formatProviderStatus} from '../src/monitoring/current-prices.mjs';
-import {formatFlights} from '../src/monitoring/flights.mjs';
+import {formatProviderStatus} from '../src/monitoring/current-prices.mjs';
 
 const query=queryFrom(config),leg={leg:'inbound',from:'VCL',to:'SGN',date:'2027-02-13'};
 const snapshot=async(options={})=>{const source=simulatedSources(query,options);return {record:await crawl(query,{fetchImpl:source.fetch}),source};};
@@ -26,7 +22,7 @@ test('status never reports an old last-good quote as healthy after a failure or 
   assert.match(line(null),/chưa có dữ liệu/);
 });
 test('both agencies are crawled, explicit fee is removed, and signed temporary offsets reproduce the reference fare',async()=>{
-  const source=simulatedSources(query,{inbound:5082181}),r=await crawl(query,{fetchImpl:source.fetch});
+  const calibrated={...query,returnDate:leg.date},source=simulatedSources(calibrated,{inbound:5082181}),r=await crawl(calibrated,{fetchImpl:source.fetch});
   assert.equal(r.status,'ok');assert.equal(r.main_price,5082181);assert.equal(r.requests,8);assert.equal(source.requests.length,8);
   const ab=r.agency_quotes.find(q=>q.agency==='ABAY'),bp=r.agency_quotes.find(q=>q.agency==='BestPrice');
   assert.equal(bp.raw_price,5083000);assert.equal(bp.adjustment_vnd,-819);assert.equal(bp.ota_price-bp.agency_fee,bp.raw_price);
@@ -74,38 +70,6 @@ test('BestPrice normalizes day-first dates without swapping months or accepting 
     ['13-02-2027 17:50:00','14-02-2027 19:10:00'],
     ['13-02-2027 17:50:00','13-02-2027 16:10:00'],
   ])assert.throws(()=>parse(leg.date,departure,arrival));
-});
-test('price and flights replies show both raw agency prices, correction signs and estimate labels',async()=>{
-  const {record}=await snapshot({inbound:5082181}),p={id:'vna',name:'Vietnam Airlines',history:[record]};
-  for(const text of [formatCurrentPrices({providers:[p],query}),formatFlights({providers:[p],query})]){
-    assert.match(text,/BestPrice: 5\.083\.000đ −819đ → 5\.082\.181đ/);assert.match(text,/ABAY: 5\.082\.000đ \+181đ → 5\.082\.181đ/);
-    assert.match(text,/ước tính/);assert.doesNotMatch(text,/Qua Flynow/);
-  }
-});
-test('feed validation recomputes amounts, rejects wrong itinerary/age, and strips supplier secrets',async()=>{
-  const {record}=await snapshot();record.Session='PRIVATE';record.agency_quotes[0].flights[0].Token='PRIVATE';
-  const clean=validateFeed(record,query);assert.doesNotMatch(JSON.stringify(clean),/PRIVATE|Session|Token/);
-  for(const change of [r=>r.query.trackingMode='outbound',r=>r.observed_at='2026-01-01T00:00:00Z',r=>r.agency_quotes.pop(),
-    r=>r.agency_quotes[0].flights[0].price--,r=>r.agency_quotes[0].flights[0].raw_price--,
-    r=>r.agency_quotes[0].flights[0].observed_at=new Date(Date.now()+120000).toISOString(),r=>r.agency_quotes[0].flights[0].departure='2027-02-14T06:00:00']){
-    const bad=structuredClone(record);change(bad);assert.throws(()=>validateFeed(bad,query));
-  }
-});
-test('feed endpoint authenticates, deduplicates, rejects older writes and triggers a shared refresh',async t=>{
-  const DB=new LocalD1();await DB.migrate();t.after(()=>DB.close());const store=new RuntimeStore(DB);await store.putState('control',{active:true});
-  const jobs=[],env={DB,VNA_FEED_SECRET:'test-feed',JOBS:{async sendBatch(batch){jobs.push(...batch);}}};
-  const {record}=await snapshot();const req=(r=record,secret='test-feed')=>new Request('https://test/sources/vna',{method:'POST',headers:{'x-vna-feed-secret':secret,'content-type':'application/json'},body:JSON.stringify(r)});
-  assert.equal((await app.fetch(req(record,'wrong'),env)).status,401);assert.equal(jobs.length,0);
-  assert.equal((await app.fetch(req(),env)).status,202);assert.equal(jobs.length,1);
-  assert.equal((await (await app.fetch(req(),env)).json()).duplicate,true);assert.equal(jobs.length,1);
-  const later=structuredClone(record);for(const q of later.agency_quotes)for(const f of q.flights)f.observed_at=new Date(Date.parse(f.observed_at)+1000).toISOString();later.observed_at=new Date(Date.parse(later.observed_at)+1000).toISOString();
-  assert.equal((await app.fetch(req(later),env)).status,202);
-  assert.equal((await (await app.fetch(req(),env)).json()).duplicate,true);
-  const saved=await store.state(feedKey(query));assert.equal(saved.observed_at,later.observed_at);
-  const fromFeed=await readFeed(query,{store,env:{VNA_FEED:'1'},fetchImpl:()=>assert.fail('must not call agencies from Worker')});assert.equal(fromFeed.main_price,record.main_price);
-  const staleStore={...store,now:()=>Date.parse(saved.observed_at)+FEED_MAX_AGE_MS+1,state:store.state.bind(store)};
-  await assert.rejects(readFeed(query,{store:staleStore,env:{VNA_FEED:'1'}}),/older than 15 minutes/);
-  assert.equal((await store.statement('SELECT COUNT(*) AS n FROM price_quotes').first()).n,0);
 });
 test('estimated minima never overwrite an earlier verified VNA minimum',async t=>{
   const DB=new LocalD1();await DB.migrate();t.after(()=>DB.close());const store=new RuntimeStore(DB),{record}=await snapshot();

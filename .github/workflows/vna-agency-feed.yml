@@ -1,14 +1,14 @@
-name: Refresh VNA agency prices
+name: Refresh official VNA prices
 on:
   schedule:
     - cron: '5,15,25,35,45,55 * * * *'
   push:
     branches: [main]
-    paths: [.github/workflows/vna-agency-feed.yml, src/providers/vna-agencies.mjs, scripts/vna-agency-feed.mjs]
+    paths: [.github/workflows/vna-agency-feed.yml, config.json, src/providers/vna-official.mjs, src/providers/vna-oneway.mjs, src/shared/tls.mjs, scripts/vna-agency-feed.mjs]
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Check both sources without writing to the Worker
+        description: Check official VNA prices without writing to the Worker
         type: boolean
         default: false
 permissions:
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
-      - name: Retrieve both agency quotes and deliver normalized prices
+      - name: Retrieve official VNA prices and deliver normalized references
         env:
           VNA_FEED_SECRET: ${{ secrets.VNA_FEED_SECRET }}
           VNA_DRY_RUN: ${{ (github.event_name == 'push' || inputs.dry_run) && '1' || '0' }}

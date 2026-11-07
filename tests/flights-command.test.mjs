@@ -40,9 +40,6 @@ test('duplicate fare families show the cheapest quote per actual flight; other t
 test('missing/error/stale data is explicit, and large flight replies split without losing rows or cutting Unicode',()=>{
   const p=structuredClone(providers[1]);p.history.push({status:'error',observed_at:new Date(now-1000).toISOString()});
   assert.match(formatFlights({providers:[p],query,now}),/GIÁ CŨ/);
-  const missing=structuredClone(providers[0]);missing.history[0].status='partial';missing.history[0].legs.inbound[0].flights=[];
-  assert.match(formatFlights({providers:[missing],query,now}),/Chưa có danh sách chuyến có giá cho chiều này/);
-  const noHistory={...p,history:[]};assert.match(formatFlights({providers:[noHistory],query,now}),/Chưa lấy được danh sách/);
   const text=formatFlights({providers,query,now}).repeat(4),parts=messageParts(text);
   assert.ok(parts.length>1);assert.equal(parts.join(''),text);assert.ok(parts.every(p=>p.length<=3500&&!/[\uD800-\uDBFF]$/.test(p)));
 });

@@ -1,5 +1,11 @@
 # Nguồn giá Vietjet qua OTA
 
+## Nguồn hiện hành từ 07/11/2026
+
+Chuyển sang **BestPrice duy nhất**, theo dõi vé về **VCL → SGN ngày 10/02/2027**. Flynow trả lỗi `0001`, không còn dùng hoặc fallback. VJ371 SkyBoss 07:50–09:10: **4.870.781đ** gồm thuế/phí hãng, bằng tổng sau chọn vé trên web Vietjet; BestPrice còn phí đại lý tách riêng **100.000đ**. Bốn chuyến cùng mức giá ở mẫu kiểm tra. Đã chạy nguồn thật từ Node và Cloudflare Worker; chọn thấp nhất trong báo giá trả về, không khẳng định mọi tồn chỗ đã được quét hết. Xem [đối chiếu hiện tại](cloudflare-selected-dates.md).
+
+Phần dưới là quyết định và bằng chứng lịch sử tháng 10, không còn là nguồn production hiện hành.
+
 Kiểm chứng ngày 12/10/2026, SGN ⇄ VCL, đi 04/02/2027, về 13/02/2027, một người lớn. Chọn **Flynow / EVJ làm nguồn duy nhất** cho crawler Vietjet. BestPrice chỉ dùng đối chứng trong điều tra, không chạy cùng hoặc fallback trong production.
 
 ## Đối chiếu cùng chuyến, cùng hạng vé

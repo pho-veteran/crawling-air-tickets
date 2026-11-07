@@ -1,9 +1,9 @@
 # Air Ticket Price Tracker
 
-Theo dõi giá vé Vietnam Airlines và Vietjet qua Flynow, gửi cảnh báo và trả lời slash command qua Telegram. **Bot chính đã chạy trên Cloudflare Workers Free**, dùng D1 và Queues; watcher local đã dừng.
+Theo dõi giá vé Vietnam Airlines từ API lịch giá chính thức và Vietjet qua BestPrice, gửi cảnh báo và trả lời slash command qua Telegram. **Bot chính chạy trên Cloudflare Workers Free**, dùng D1 và Queues; watcher local đã dừng. VNA là giá tham khảo gồm thuế/phí, không phải danh sách chuyến hoặc giá đã giữ chỗ.
 
 - `/price`: giá hiện tại và mức thấp nhất của chiều đang theo dõi, kèm nhắc `/flights`.
-- `/flights`: các chuyến có báo giá trong ngày và chiều đang theo dõi của cả hai hãng.
+- `/flights`: giờ bay có báo giá từ BestPrice cho Vietjet; VNA ghi rõ API lịch giá không cung cấp danh sách chuyến.
 - Cache chung 30 giây, gộp lệnh trùng và tách queue crawl/Telegram. Giới hạn chung 200 yêu cầu/ngày, 60 phần tin cảnh báo/ngày để dự trù Free; [số đo và quota](docs/cloudflare-optimization.md).
 - Cron mỗi 10 phút; bản tin 07:00 Việt Nam. Không cần máy local chạy liên tục.
 - Group **Theo dõi giá vé SGN–VCL** nhận thông báo chung; mọi thành viên dùng được `/price` và `/flights` ngay trong nhóm. Chat riêng chỉ tra cứu, không nhận bản tin tự động riêng.
@@ -11,7 +11,7 @@ Theo dõi giá vé Vietnam Airlines và Vietjet qua Flynow, gửi cảnh báo v�
 
 [Vận hành, deploy và backup](docs/cloudflare-production.md), [đối chiếu giá web VNA](docs/cloudflare-selected-dates.md), [audit nghiệm thu](docs/cloudflare-gates.md). Người dùng đã bỏ yêu cầu bot staging riêng và 24 giờ, chọn triển khai bằng bot chính.
 
-Cấu hình đang bật: **chỉ vé về VCL → SGN ngày 13/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Vé đi SGN → VCL ngày 04/02/2027 đã mua; ngày đi vẫn được giữ trong cấu hình để có thể bật lại.
+Cấu hình: **chỉ vé về VCL → SGN ngày 10/02/2027**, **1 người lớn**, kiểm tra mỗi **10 phút**. Vé đi SGN → VCL ngày 04/02/2027 đã mua; ngày đi vẫn được giữ để có thể bật lại.
 
 Đổi `monitoring.trackingMode` trong [`config.json`](config.json) thành `outbound` (vé đi), `inbound` (vé về), hoặc `roundtrip` (hai chiều), rồi deploy lại. Cờ áp dụng cho truy vấn nguồn, cảnh báo, bản tin sáng, `/price`, `/flights` và link tìm vé. Mức thấp nhất đã ghi nhận của từng chiều được giữ nguyên; giá một chiều không ghi vào minimum khứ hồi.
 
@@ -120,7 +120,7 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | Trường | Giá trị hiện tại | Ý nghĩa |
 | --- | --- | --- |
 | `origin` / `destination` | `SGN` / `VCL` | Sân bay đi và đến |
-| `departureDate` / `returnDate` | `2027-02-04` / `2027-02-13` | Ngày đi và về chính |
+| `departureDate` / `returnDate` | `2027-02-04` / `2027-02-10` | Ngày đi và về chính |
 | `adults` | `1` | Số người lớn, từ 1 đến 9 |
 | `monitoring.pollMinutes` | `10` | Chu kỳ kiểm tra, từ 10 đến 30 phút |
 | `monitoring.dailyReport` | `true` | Bật bản tin hằng ngày |
@@ -132,7 +132,7 @@ Sửa [`config.json`](config.json); ngày dùng định dạng `YYYY-MM-DD`, ng�
 | `monitoring.errorAfterConsecutive` | `3` | Số lượt lỗi liên tiếp trước cảnh báo nguồn khi tắt `priceOnly` |
 | `monitoring.targetVnd.vna` / `.vietjet` | `null` / `null` | Ngân sách khứ hồi từng hãng; `null` nghĩa là chưa đặt |
 
-Vietjet dùng **Flynow**; VNA production lấy báo giá ước tính từ **BestPrice và ABAY** qua Actions ([cơ sở điều chỉnh và giới hạn](docs/cloudflare-production.md)). Chỉ xác minh **SGN ⇄ VCL, 1 người lớn**. Tuyến hoặc hành khách khác trả lỗi nguồn. Chỉ lấy giá ngày và chiều đang theo dõi; không lấy lịch ±3 ngày.
+Mỗi hãng chỉ dùng **một nguồn**: VNA dùng **API lịch giá chính thức qua Actions**, Vietjet dùng **BestPrice trực tiếp từ Worker**. Không fallback, không cộng/trừ chênh lệch hiệu chỉnh cũ. Đã đối chiếu ngày 10/02/2027: VNA **6.099.181đ** khớp ảnh web hãng do người dùng cung cấp; Vietjet SkyBoss **4.870.781đ** khớp tổng sau chọn vé trên web hãng. Chỉ hỗ trợ **SGN ⇄ VCL, 1 người lớn, VND**. VNA không cung cấp phân loại thẳng/nối chuyến hoặc giờ bay trong API này; bot không suy diễn từ giá lịch.
 
 ## Cấu hình Telegram
 
@@ -252,13 +252,13 @@ Chỉ còn 3 lệnh npm: `start` (bật bot), `stop` (dừng ngay), `telegram` (
 
 Tham khảo API: [Telegram Bot API](https://core.telegram.org/bots/api).
 
-### Nguồn chuyến bay qua Flynow
+### Hợp đồng nguồn giá
 
-Mỗi hãng tìm một lần cho hai ngày chính, lấy giá thấp nhất từng chiều và tổng hai chiều. `/flights` hiển thị nhiều giờ bay trong commit riêng, dùng cùng dữ liệu nguồn; `/price` và daily vẫn ngắn. Đây không phải cam kết toàn bộ lịch bay hoặc giữ chỗ.
+VNA: `base + totalTaxes == total` trong API `air-best-price`; chỉ lưu giá của ngày được chọn. Runner dùng intermediate CA công khai đã xác minh trong `src/shared/tls.mjs`, không tắt TLS. Worker gọi trực tiếp vẫn HTTP 403 nên dùng feed Actions hiện có; slug workflow được giữ để cron Worker tiếp tục dispatch. Feed kiểm tra lại nguồn, tuyến/ngày, hành khách, VND, cấu phần tiền và tuổi tối đa 15 phút.
 
-Giá so sánh là `TotalFare + TotalTax`; lưu riêng `ota_price` và `agency_fee`. Số phải trả tại Flynow còn có phí đại lý. Chiết khấu chưa xác minh, tổng tiền không khớp, sai tuyến/ngày/giờ/hành khách hoặc lỗi nguồn không được suy diễn thành giá rẻ.
+Vietjet: `ADT_Fare + ADT_Tax`; lưu riêng `BP_Fee` và `ota_price`. Tổng thanh toán BestPrice có thêm phí đại lý; không trừ hằng số, không nhận chiết khấu chưa xác minh. Giá thấp nhất là trong các báo giá hợp lệ nguồn đã trả, không cam kết mọi tồn chỗ của hãng.
 
-Nguồn đang dùng: `vna-flynow-selected-flight-fares-v1`, `vietjet-flynow-selected-flight-fares-v2`; query `nearbyDays: 0`. Lịch sử cũ vẫn giữ nguyên và import được, nhưng không tự trộn vào minimum/alert nguồn mới. Snapshot còn một `cells` cho cặp ngày chính để tương thích storage; không còn 49 ô.
+Source IDs: `vna-official-selected-prices-v1`, `vietjet-bestprice-selected-flight-fares-v1`. Nguồn/ngày mới có minimum riêng, không nhập giá 13/02 hoặc lịch sử ước tính cũ. `/price`, `/flights`, daily và alert phân biệt mục bay thẳng/nối chuyến; nếu nguồn không phân loại hoặc chưa có báo giá thì ghi rõ, không báo hết vé.
 
 Chạy lại kiểm chứng từ Worker (không gửi Telegram):
 

@@ -3,11 +3,21 @@
 Bot chính đã hoạt động trên **Workers Free từ 13/10/2026**, không nâng gói trả phí. Người dùng chọn bot chính, bỏ bot staging riêng/24 giờ và thay timeline bằng giá hiện tại + giá thấp nhất.
 
 - [Worker health](https://crawling-air-tickets.thanhvinhlqt2016.workers.dev/health); [bot Telegram](https://t.me/synapse_vinh_notify_test_bot).
-- Phiên bản đang chạy được ghi trong [bằng chứng khôi phục feed](cloudflare-spike/vna-feed-recovery-2026-10-22.json) (22/10/2026).
+- Bản chuyển ngày 10/02: Worker version `1ac2a055-c531-425d-880c-884361063a7c` (07/11/2026).
 - D1 `crawling-air-tickets-state`: `aa8be7a3-77e5-4de3-a124-d28b2a056f9d`.
 - Hai Queue `crawling-air-tickets-jobs` (crawl) và `crawling-air-tickets-delivery` (Telegram): batch 1, concurrency 2, tối đa 5 retries; lease riêng cho mỗi lane.
 - Cron `*/10 * * * *` và `0 0 * * *` (07:00 Việt Nam).
 - Webhook `/telegram`, secret header; nhận lệnh trong private chat và group được cấu hình. Một group nhận bản tin tự động, các subscriber private cũ đã ngừng nhận tự động.
+## Chuyển ngày về và nguồn giá 07/11/2026
+
+Cấu hình mới **10/02/2027**, chỉ vé về VCL → SGN, 1 người lớn. VNA dùng duy nhất `vna-official-selected-prices-v1`: API lịch giá hãng qua runner Actions hiện có, kiểm tra TLS đầy đủ với intermediate CA công khai. Giữ slug `vna-agency-feed.yml` và endpoint `/sources/vna` như định danh vận hành; nội dung runner/validator đã chuyển hẳn sang giá chính thức, không còn feed hai đại lý hay offset. Feed tối đa 15 phút, không có dữ liệu hoặc lỗi vẫn ghi rõ, không nạp giá thủ công.
+
+Vietjet dùng duy nhất `vietjet-bestprice-selected-flight-fares-v1`, gọi trực tiếp từ Worker. Giá gồm thuế/phí hãng, tách phí đại lý theo trường tiền của từng báo giá. Không chuyển minimum ngày 13/02 hoặc nguồn cũ. [Đối chiếu 6.099.181đ VNA / 4.870.781đ Vietjet và giới hạn dữ liệu](cloudflare-selected-dates.md).
+
+Thông báo phân biệt bay thẳng/nối chuyến. VNA API chỉ có giá lịch, không cung cấp giờ bay hay phân loại; bot ghi giới hạn này thay vì bịa danh sách chuyến. Mẫu nối HAN do người dùng đối chiếu trên web chỉ dùng trong thông báo kết quả kiểm chứng, không ghi thành báo giá tự động. Lượt CLI thực cả hai nguồn `ok`; bộ test offline sau cutover qua **159 tests**.
+
+Các mục sự cố tháng 10/ngày 05/11 bên dưới là lịch sử của nguồn cũ.
+
 
 Ngày 22/10 đã sửa race giữa cron 10 phút và cron 07:00: job gửi bản tin `daily:<ngày Việt Nam>` được lưu độc lập, chờ refresh hoàn thành rồi mới format/gửi. Nếu cron sáng đến khi poll cùng slot đã xong (kể cả cache đã hết hạn), bản tin vẫn được tạo, không crawl trùng hoặc gửi lại bản tin đã ACK. Nếu nguồn lỗi, giữ giá thành công gần nhất, đánh dấu GIÁ CŨ và không hạ minimum bằng dữ liệu lỗi. Thêm mã lỗi nguồn có allowlist vào log, không ghi session/message thô của nhà cung cấp. **128 tests qua**. [Bằng chứng sự cố và khôi phục](cloudflare-spike/daily-recovery-2026-10-22.json).
 
@@ -82,7 +92,7 @@ Sau deploy, cấu hình/chuyển destination bằng `node --dns-result-order=ipv
 
 ## Giá hiện tại và mức thấp nhất
 
-Từ 21/10/2026, `monitoring.trackingMode` hỗ trợ `outbound` (vé đi), `inbound` (vé về), `roundtrip` (hai chiều; mặc định khi không cấu hình). Production đang chọn **inbound: VCL → SGN ngày 13/02/2027** vì đã mua vé đi. Đổi cờ trong `config.json` rồi deploy lại để chuyển chế độ. Cron, `/price`, `/flights`, daily, cảnh báo và link tìm vé dùng chiều đã chọn; truy vấn một chiều gửi một chặng Leg 0 tới Flynow và ánh xạ kết quả về đúng chiều của hành trình.
+Từ 21/10/2026, `monitoring.trackingMode` hỗ trợ `outbound` (vé đi), `inbound` (vé về), `roundtrip` (hai chiều; mặc định khi không cấu hình). Hiện chọn **inbound: VCL → SGN ngày 10/02/2027** vì đã mua vé đi. Đổi cờ trong `config.json`, cập nhật runner trên `main`, rồi deploy Worker; cron, `/price`, `/flights`, daily, cảnh báo và link tìm vé dùng chiều đã chọn.
 
 Không đổi định danh các chiều giá đã xác minh: minimum vé về cũ vẫn dùng được; giá một chiều không được ghi vào minimum khứ hồi. Cache của chế độ cũ không được dùng cho chế độ mới. Alert chờ của tổng/chiều đã tắt bị loại khi gửi. Live Worker đã crawl một lần thành công cả hai hãng, chỉ lưu legs.inbound; VNA có 1 chuyến, Vietjet có 4 chuyến ở mẫu kiểm tra. **125 tests qua**, gồm ba chế độ, wire Leg 0 cho vé về, giữ minima khi chuyển chế độ và chặn cảnh báo chiều đã tắt. Xem [bằng chứng triển khai](cloudflare-spike/tracking-mode-evidence.json).
 

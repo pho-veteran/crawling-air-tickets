@@ -83,7 +83,7 @@ test('empty agency outcomes are deliverable, while all errors fail',async()=>{
     const record=await crawl(query,{bestpriceImpl,abayFetchImpl});
     assert.equal(record.status,'partial');assert.equal(record.main_price,null);
     assert.deepEqual(record.agency_quotes.map(q=>q.status).sort(),statuses);
-    assert.deepEqual(record.legs.inbound,[{date:leg.date,price:null,flights:[]}]);
+    assert.deepEqual(record.legs.inbound,[{date:query.returnDate,price:null,flights:[]}]);
     const timestamps=record.agency_quotes.filter(q=>q.status==='empty').map(q=>q.observed_at).sort();
     assert.equal(record.observed_at,timestamps[0]);
   }

@@ -1,5 +1,5 @@
 import {money,routeLine,when} from './messages.mjs';
-import {bookingText,flightHint,priceNote,agencyPrices} from './booking-links.mjs';
+import {bookingText,itineraryOptions,priceNote,agencyPrices} from './booking-links.mjs';
 import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 const priced=p=>Number.isSafeInteger(p)&&p>0;
 const lowest=values=>{const prices=values.filter(priced);return prices.length?Math.min(...prices):null;};
@@ -26,10 +26,10 @@ export function formatCurrentPrices({providers,query,now=Date.now(),pollMinutes=
     if(trackingMode(query)==='roundtrip')lines.push('🎟 Tổng hai chiều: '+money(r?.main_price));
     for(const {leg,date,label} of trackedLegs(query)){
       const quote=r?.legs?.[leg]?.find(q=>q.date===date);
-      lines.push(label+' '+date.split('-').reverse().join('/')+': '+money(quote?.price));
-      if(r?.agency==='Flynow'&&quote?.price===null&&Array.isArray(quote.flights)&&!quote.flights.length&&!r.leg_errors?.[leg])lines.push('• Flynow: không có báo giá phù hợp.');
-      else if(r?.agency==='Flynow'&&r.leg_errors?.[leg])lines.push('• Flynow: chưa cập nhật được.');
-      if(priced(quote?.price)&&flightHint(quote))lines.push('Chọn chuyến: '+flightHint(quote));
+      lines.push(label+' '+date.split('-').reverse().join('/'));
+      lines.push(...itineraryOptions(quote));
+      if(r?.agency&&quote?.price===null&&Array.isArray(quote.flights)&&!quote.flights.length&&!r.leg_errors?.[leg])lines.push('• '+r.agency+': không có báo giá phù hợp.');
+      else if(r?.agency&&r.leg_errors?.[leg])lines.push('• '+r.agency+': chưa cập nhật được.');
       lines.push(...agencyPrices(r,leg,date));
     }
     const minima=p.minimums||{

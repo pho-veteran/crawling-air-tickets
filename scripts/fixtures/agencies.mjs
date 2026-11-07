@@ -11,18 +11,26 @@ export function simulatedSources(query,{outbound=1800000,inbound=2400000,failAge
   return {requests,fetch:async(url,opts={})=>{
     requests.push(String(url));const u=new URL(url);
     if(u.hostname.includes('flynow'))return old.fetch(url,opts);
+    if(u.hostname==='integration-middleware-website.vietnamairlines.com'){
+      const body=JSON.parse(opts.body),l=leg(body.route.originLocationCode,body.route.destinationLocationCode,body.route.departureDateTime);
+      if(options.failLeg===(l.inbound?'inbound':'outbound'))return new Response('',{status:503});
+      const price=amount(l);
+      return Response.json({success:true,data:{prices:[{departureDate:l.date,price:[{base:String(price-600000),totalTaxes:'600000',total:String(price),currencyCode:'VND'}]}],dictionaries:{currency:{VND:{decimalPlaces:0}}}}});
+    }
     if(options.failLeg==='both'||u.hostname.includes(failAgency||'NEVER'))return new Response('',{status:503});
     if(u.hostname==='www.bestprice.vn'){
       const p=u.searchParams;
       if(u.pathname==='/get-vnisc-sid.html')return Response.json({vnisc_sid:'FAKE'});
       if(u.pathname==='/ajax-search-flight-bp'){
-        const l=leg(p.get('From_Code'),p.get('To_Code'),formDate(p.get('Depart'))),price=amount(l)-offset(l,'bp');
-        return Response.json({search_status:'DONE',search_data:{flight_data:[{Airlines:'VN',From:l.from,To:l.to,Stop:0,FlightNumber:number(l),DateFrom:l.date.split('-').reverse().join('-')+' 06:00:00',DateTo:l.date.split('-').reverse().join('-')+' 07:20:00',
-          PriceInfo:[{Seat:8,Class:'J',ADT_Fare:price-600000,ADT_Tax:600000,BP_Fee:50000,BP_Discount:0,BP_Discount_Total:0}]}]}});
+        const l=leg(p.get('From_Code'),p.get('To_Code'),formDate(p.get('Depart'))),vj=p.get('airline_search')==='VJ',price=amount(l)-(vj?0:offset(l,'bp'));
+        const criteria={Type:'oneway',From_Code:l.from,To_Code:l.to,Depart:p.get('Depart'),Return:'',ADT:'1',CHD:'0',INF:'0',is_domistic:'1'};
+        return Response.json({search_status:'DONE',search_data:{search_criteria:criteria,flight_data:[{Airlines:vj?'VJ':'VN',From:l.from,To:l.to,Stop:0,FlightNumber:vj?(l.inbound?'VJ371':'VJ370'):number(l),DateFrom:(vj?l.date:l.date.split('-').reverse().join('-'))+' 06:00:00',DateTo:(vj?l.date:l.date.split('-').reverse().join('-'))+' 07:20:00',
+          PriceInfo:[{Seat:8,Class:'J',FareClass:'SkyBoss',ADT_Fare:price-600000,ADT_Tax:600000,BP_Fee:50000,BP_Discount:0,BP_Discount_Total:0}]}]}});
       }
-      const from=p.get('From').match(/\(([A-Z]{3})\)/)[1],to=p.get('To').match(/\(([A-Z]{3})\)/)[1];
+      const from=p.get('From_Code')||p.get('From').match(/\(([A-Z]{3})\)/)[1],to=p.get('To_Code')||p.get('To').match(/\(([A-Z]{3})\)/)[1];
+      if(options.failLeg===(from===query.destination?'inbound':'outbound'))return new Response('',{status:503});
       const search=new URLSearchParams({From_Code:from,To_Code:to,Depart:p.get('Depart'),Return:'',ADT:'1',CHD:'0',INF:'0'});
-      return new Response('<input id="sid" value="FAKE"><input id="search_flight_url" value="'+search+'">');
+      return new Response('<input id="sid" value="FAKE"><input id="search_flight_url" value="'+search+'"><input id="currency_unit" value="đ">');
     }
     if(u.hostname==='www.abay.vn'){
       if(u.pathname==='/'){

@@ -1,5 +1,5 @@
 import {when} from './messages.mjs';
-import {bookingText,flightHint,isSeparateTickets,priceNote} from './booking-links.mjs';
+import {bookingText,itineraryOptions,isSeparateTickets,priceNote} from './booking-links.mjs';
 import {trackingMode,trackedLegs} from '../shared/tracking.mjs';
 const money=n=>new Intl.NumberFormat('vi-VN').format(n)+'đ';
 const hasPrice=n=>Number.isSafeInteger(n)&&n>0;
@@ -110,7 +110,7 @@ export function formatAlert(provider,record,events,history=[]) {
   for(const {leg:direction,date,label} of trackedLegs(q)){
     if(leg&&direction!==g.leg)continue;
     const quote=record.legs?.[direction]?.find(x=>x.date===(leg?g.date:date));
-    if(valid(record)&&hasPrice(quote?.price)&&flightHint(quote))rows.push('✈️ '+label+': '+flightHint(quote));
+    if(valid(record))rows.push(label,...itineraryOptions(quote));
   }
   rows.push(bookingText(provider.id,q,record));
   return rows.filter(Boolean).join('\n');

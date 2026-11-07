@@ -1,8 +1,8 @@
 import {createHash} from 'node:crypto';
 import config from '../../config.json' with {type:'json'};
 import {queryFrom,queryId} from '../providers/vna-core.mjs';
-import * as vna from './vna-agencies.mjs';
-import * as vietjet from '../providers/vietjet-flynow.mjs';
+import * as vna from './vna-feed-source.mjs';
+import * as vietjet from '../providers/vietjet.mjs';
 import {settingsFrom,evaluateAlerts,stillRelevant,formatAlert,alertGroups} from '../monitoring/alerts.mjs';
 import {localDay,routeLine} from '../monitoring/messages.mjs';
 import {formatCurrentPrices,formatProviderStatus} from '../monitoring/current-prices.mjs';
@@ -13,6 +13,7 @@ import {sendMessage} from './telegram.mjs';
 import {digest} from '../storage/d1.mjs';
 import {fastLoading,attachRefresh,completeRefresh} from './interactive.mjs';
 import {trackedRecord} from '../shared/tracking.mjs';
+import {itineraryChoices} from '../monitoring/booking-links.mjs';
 
 export const query=queryFrom(config);
 export const settings={...settingsFrom(config.monitoring,{}),historyMode:'current-and-minimum'};
@@ -25,7 +26,7 @@ const alertKey=(env,chat,p)=>'alerts:'+hash(botId(env)+'|'+chat,16)+':'+p.source
 const portableFetch=fetchImpl=>(url,options)=>fetchImpl(url,{...options,redirect:options.redirect==='error'?'manual':options.redirect});
 const compact=record=>({...record,request_diagnostics:undefined,cells:undefined,
   agency_quotes:record.agency_quotes?.map(q=>({...q,flights:undefined})),
-  legs:Object.fromEntries(Object.entries(record.legs||{}).map(([leg,dates])=>[leg,dates.map(q=>({...q,flights:undefined}))]))});
+  legs:Object.fromEntries(Object.entries(record.legs||{}).map(([leg,dates])=>[leg,dates.map(q=>({...q,flights:itineraryChoices(q).filter(Boolean)}))]))});
 
 function baseline(p){
   const qid=queryId(query,p.source),current=p.history.at(-1),history=[];

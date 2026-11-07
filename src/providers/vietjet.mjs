@@ -1,2 +1,2 @@
-// Single Vietjet source; source identity isolates the former untaxed calendar history.
-export * from './vietjet-flynow.mjs';
+// One source per airline; source identity isolates older histories.
+export * from './vietjet-bestprice.mjs';

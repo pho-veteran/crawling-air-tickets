@@ -2,8 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {queryFrom,queryId} from '../src/providers/vna-core.mjs';
 import * as vna from '../src/providers/vna-flynow.mjs';
-import * as vietjet from '../src/providers/vietjet-flynow.mjs';
+import * as vietjet from '../src/providers/vietjet.mjs';
 import {simulatedFlynow} from '../scripts/fixtures/flynow.mjs';
+import {simulatedSources} from '../scripts/fixtures/agencies.mjs';
 import {trackingMode,trackedRecord} from '../src/shared/tracking.mjs';
 import {formatCurrentPrices} from '../src/monitoring/current-prices.mjs';
 import {formatFlights} from '../src/monitoring/flights.mjs';
@@ -20,12 +21,16 @@ test('tracking flag defaults to roundtrip, rejects typos and preserves existing 
   assert.throws(()=>q('return'),/trackingMode/);
   for(const provider of [vna,vietjet])for(const mode of ['inbound','outbound'])assert.equal(queryId(q(mode),provider.SOURCE),queryId(q('roundtrip'),provider.SOURCE));
 });
-for(const provider of [vna,vietjet])for(const mode of ['roundtrip','outbound','inbound'])test(provider.SOURCE+' '+mode+' searches only selected routes/dates and keeps wire Leg separate from itinerary direction',async()=>{
-  const query=q(mode),source=simulatedFlynow(query);let wire;
-  const r=await provider.crawl(query,{fetchImpl:async(url,options)=>{wire=JSON.parse(options.body.get('listFlight'));return source.fetch(url,options);}});
-  assert.deepEqual(wire.map(x=>[x.Leg,x.StartPoint,x.EndPoint,x.DepartDate]),mode==='roundtrip'?[[0,'SGN','VCL','04022027'],[1,'VCL','SGN','13022027']]:
+for(const provider of [vna,vietjet])for(const mode of ['roundtrip','outbound','inbound'])test(provider.SOURCE+' '+mode+' searches only selected routes/dates',async()=>{
+  const query=q(mode),source=provider===vna?simulatedFlynow(query):simulatedSources(query);let wire;
+  const r=await provider.crawl(query,{fetchImpl:async(url,options)=>{
+    if(provider===vna)wire=JSON.parse(options.body.get('listFlight'));
+    return source.fetch(url,options);
+  }});
+  if(provider===vna)assert.deepEqual(wire.map(x=>[x.Leg,x.StartPoint,x.EndPoint,x.DepartDate]),mode==='roundtrip'?[[0,'SGN','VCL','04022027'],[1,'VCL','SGN','13022027']]:
     mode==='inbound'?[[0,'VCL','SGN','13022027']]:[[0,'SGN','VCL','04022027']]);
-  assert.equal(source.requests.length,1);assert.equal(r.status,'ok');
+  else assert.deepEqual(source.requests.filter(url=>new URL(url).pathname==='/ve-may-bay/tim-kiem-ve').map(url=>new URL(url).searchParams.get('From_Code')),mode==='roundtrip'?['SGN','VCL']:[mode==='inbound'?'VCL':'SGN']);
+  assert.equal(r.status,'ok');
   assert.equal(r.main_price,mode==='roundtrip'?4200000:mode==='inbound'?2400000:1800000);
   assert.deepEqual(Object.keys(r.legs),mode==='roundtrip'?['outbound','inbound']:[mode]);
   assert.deepEqual(observationModel(r).quotes.map(x=>x.kind).sort(),mode==='roundtrip'?['inbound','outbound','roundtrip']:[mode]);

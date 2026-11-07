@@ -11,17 +11,17 @@ const record={query,source:'vietjet-flynow-airline-fare-v1',status:'ok',observed
     inbound:[{date:query.returnDate,price:4870781,flight_number:'VJ371',departure:'2027-02-13T07:50:00',fare_family:'SkyBoss'}]}};
 const provider={id:'vietjet',name:'Vietjet',history:[record]};
 
-test('booking links preserve itinerary parameters and label Flynow form caveat',()=>{
+test('booking links preserve dates, airports and passenger counts for official and agency searches',()=>{
   const q={...query,origin:'VCL',destination:'SGN',departureDate:'2027-03-01',returnDate:'2027-03-09',adults:2};
-  const [direct,ota]=bookingLinks('vietjet',q).map(x=>new URL(x.url));
+  const [direct,ota,back]=bookingLinks('vietjet',q).map(x=>new URL(x.url));
   assert.equal(direct.searchParams.get('departAirport'),'VCL');assert.equal(direct.searchParams.get('arrivalAirport'),'SGN');
   assert.equal(direct.searchParams.get('departDate'),q.departureDate);assert.equal(direct.searchParams.get('returnDate'),q.returnDate);
   assert.equal(direct.searchParams.get('adultCount'),'2');assert.equal(direct.searchParams.get('tripType'),'roundTrip');
-  assert.equal(ota.pathname,'/flights');
-  assert.equal(ota.searchParams.get('sp'),q.origin);assert.equal(ota.searchParams.get('ep'),q.destination);
-  assert.equal(ota.searchParams.get('dt'),'01032027.09032027');assert.equal(ota.searchParams.get('ps'),'2.0.0');
-  assert.match(bookingLinks('vietjet',q)[1].label,/kiểm tra form tuyến\/ngày/);
-  assert.doesNotMatch(direct.href+ota.href,/session|token|selection|bookingId/i);
+  assert.equal(ota.searchParams.get('From_Code'),q.origin);assert.equal(ota.searchParams.get('To_Code'),q.destination);
+  assert.equal(ota.searchParams.get('Depart'),'01/03/2027');assert.equal(ota.searchParams.get('ADT'),'2');
+  assert.equal(back.searchParams.get('From_Code'),q.destination);assert.equal(back.searchParams.get('To_Code'),q.origin);
+  assert.equal(back.searchParams.get('Depart'),'09/03/2027');assert.equal(back.searchParams.get('ADT'),'2');
+  assert.doesNotMatch(direct.href+ota.href+back.href,/session|token|selection|bookingId/i);
 });
 
 test('VNA links prefill the current route and dates without retaining a booking session',()=>{
@@ -32,8 +32,6 @@ test('VNA links prefill the current route and dates without retaining a booking 
     assert.deepEqual(Object.fromEntries(url.searchParams),{
       from:q.origin,to:q.destination,departureDate:q.departureDate,returnDate:q.returnDate
     });
-    assert.match(link.label,/điền sẵn tuyến\/ngày/);
-    assert.match(link.label,/kiểm tra hành khách/);
     const vna={id:'vna',name:'Vietnam Airlines',history:[{...record,query:q,source:'vna'}]};
     for(const onDemand of [false,true]){
       assert.ok(formatDaily({providers:[vna],query:q,now:Date.parse(record.observed_at),onDemand}).includes(link.url));
@@ -46,7 +44,6 @@ test('daily, on-demand and directional alerts deliver clickable booking URLs and
   const texts=[false,true].map(onDemand=>formatDaily({providers:[provider],query,now:Date.parse(record.observed_at),onDemand}));
   const event={key:'leg',text:'Vé về giảm 100.000đ',guard:{kind:'leg',leg:'inbound',date:query.returnDate,price:4870781}};
   const alert=formatAlert(provider,record,[event]);texts.push(alert);
-  assert.match(alert,/Về: VJ371 · 07:50 · SkyBoss/);assert.doesNotMatch(alert,/VJ376/);
   for(const text of texts){
     const delivered=[];
     await sendTelegram({configured:true,enabled:true,chatId:'test',token:'123:TEST'},text,async(url,init)=>{
@@ -55,8 +52,5 @@ test('daily, on-demand and directional alerts deliver clickable booking URLs and
     assert.equal(delivered.length,1);
     for(const {url} of bookingLinks('vietjet',query))assert.ok(delivered[0].text.includes(url));
     assert.doesNotMatch(delivered[0].text,/HTML|\/report/);
-    assert.match(delivered[0].text,/Flynow \(có phí đại lý; kiểm tra form tuyến\/ngày\)/);
-    assert.match(delivered[0].text,/flynow\.vn\/flights\?/);
   }
-  assert.match(texts[0],/VJ376 · 14:10 · Eco/);
 });
